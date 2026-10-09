@@ -1,0 +1,15 @@
+# Godot
+.godot/
+*.translation
+
+# Экспорт
+build/
+export/
+
+# IDE
+.idea/
+.vscode/
+
+# ОС
+.DS_Store
+Thumbs.db
