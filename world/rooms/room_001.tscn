@@ -1,0 +1,168 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://world/rooms/room.gd" id="1_room"]
+[ext_resource type="PackedScene" path="res://world/glass/glass_surface.tscn" id="2_glass"]
+[ext_resource type="PackedScene" path="res://world/mirrors/mirror_portal.tscn" id="3_portal"]
+[ext_resource type="Script" path="res://world/mirrors/mirror_transformation.gd" id="4_transform"]
+[ext_resource type="Script" path="res://world/mirrors/flip_x.gd" id="5_flip"]
+[ext_resource type="PackedScene" path="res://world/checkpoints/mirror_shard.tscn" id="6_shard"]
+[ext_resource type="PackedScene" path="res://world/chest/chest.tscn" id="7_chest"]
+[ext_resource type="PackedScene" path="res://actors/enemies/dummy.tscn" id="8_dummy"]
+[ext_resource type="PackedScene" path="res://world/hazards/spikes.tscn" id="9_spikes"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.36, 0.35, 0.34, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_platform"]
+albedo_color = Color(0.47, 0.45, 0.42, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_back"]
+albedo_color = Color(0.17, 0.16, 0.16, 1)
+roughness = 1.0
+
+[sub_resource type="Resource" id="FlipX_main"]
+script = ExtResource("5_flip")
+
+[node name="Room001" type="Node3D"]
+script = ExtResource("1_room")
+room_id = &"room_001"
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="FloorLeft" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-7.5, -2, 0)
+use_collision = true
+size = Vector3(25, 4, 4)
+material = SubResource("Mat_stone")
+
+[node name="FloorRight" type="CSGBox3D" parent="Geometry"]
+position = Vector3(14.5, -2, 0)
+use_collision = true
+size = Vector3(11, 4, 4)
+material = SubResource("Mat_stone")
+
+[node name="PitBottom" type="CSGBox3D" parent="Geometry"]
+position = Vector3(7, -3.5, 0)
+use_collision = true
+size = Vector3(4, 1, 4)
+material = SubResource("Mat_stone")
+
+[node name="WallLeft" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-20.5, 5, 0)
+use_collision = true
+size = Vector3(1, 22, 4)
+material = SubResource("Mat_stone")
+
+[node name="WallRight" type="CSGBox3D" parent="Geometry"]
+position = Vector3(20.5, 5, 0)
+use_collision = true
+size = Vector3(1, 22, 4)
+material = SubResource("Mat_stone")
+
+[node name="Ceiling" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0, 13.5, 0)
+use_collision = true
+size = Vector3(42, 1, 4)
+material = SubResource("Mat_stone")
+
+[node name="UpperPlatform" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-6.9, 5.8, 0)
+use_collision = true
+size = Vector3(6, 0.4, 3)
+material = SubResource("Mat_platform")
+
+[node name="NichePillarLeft" type="CSGBox3D" parent="Geometry"]
+position = Vector3(16.2, 1.6, -1.5)
+size = Vector3(0.4, 3.2, 1.5)
+material = SubResource("Mat_platform")
+
+[node name="NichePillarRight" type="CSGBox3D" parent="Geometry"]
+position = Vector3(18.8, 1.6, -1.5)
+size = Vector3(0.4, 3.2, 1.5)
+material = SubResource("Mat_platform")
+
+[node name="NicheLintel" type="CSGBox3D" parent="Geometry"]
+position = Vector3(17.5, 3.35, -1.5)
+size = Vector3(3, 0.3, 1.5)
+material = SubResource("Mat_platform")
+
+[node name="MirrorLedge" type="CSGBox3D" parent="Geometry" groups=["mirror_only"]]
+position = Vector3(-13.25, 7.3, 0)
+use_collision = true
+size = Vector3(3.5, 0.4, 3)
+material = SubResource("Mat_platform")
+
+[node name="BackWall" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0, 4, -2.5)
+size = Vector3(42, 20, 0.5)
+material = SubResource("Mat_back")
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="PlayerStart" type="Marker3D" parent="Spawns"]
+position = Vector3(-17, 0.1, 0)
+
+[node name="Glass" type="Node3D" parent="."]
+
+[node name="ClimbWall" parent="Glass" instance=ExtResource("2_glass")]
+position = Vector3(-9.6, 3, 0)
+role = 2
+size = Vector3(0.6, 6, 2)
+breakable = false
+
+[node name="Slope" parent="Glass" instance=ExtResource("2_glass")]
+position = Vector3(-0.38, 4.08, 0)
+rotation = Vector3(0, 0, -0.4695)
+role = 1
+size = Vector3(7.9, 0.3, 2)
+breakable = false
+
+[node name="TrapGlass" parent="Glass" instance=ExtResource("2_glass")]
+position = Vector3(7, -0.15, 0)
+glass_type = 2
+size = Vector3(4, 0.3, 2)
+
+[node name="NicheGlass" parent="Glass" node_paths=PackedStringArray("contents") groups=["normal_only"] instance=ExtResource("2_glass")]
+position = Vector3(17.5, 1.6, -0.75)
+size = Vector3(2.2, 3.2, 0.2)
+contents = [NodePath("../../Objects/Chest")]
+
+[node name="NicheGlassMurky" parent="Glass" node_paths=PackedStringArray("contents") groups=["mirror_only"] instance=ExtResource("2_glass")]
+position = Vector3(17.5, 1.6, -0.75)
+glass_type = 1
+size = Vector3(2.2, 3.2, 0.2)
+contents = [NodePath("../../Objects/Ambusher")]
+show_contents = false
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="MirrorPortal" parent="Objects" instance=ExtResource("3_portal")]
+position = Vector3(-1, 0, 0)
+transformations = Array[ExtResource("4_transform")]([SubResource("FlipX_main")])
+
+[node name="MirrorShard" parent="Objects" instance=ExtResource("6_shard")]
+position = Vector3(-14, 0, 0)
+
+[node name="Chest" parent="Objects" groups=["normal_only"] instance=ExtResource("7_chest")]
+position = Vector3(17.5, 0, -1.6)
+reward = 50
+flag_id = &"room_001_chest"
+
+[node name="MirrorChest" parent="Objects" groups=["mirror_only"] instance=ExtResource("7_chest")]
+position = Vector3(-13.5, 7.5, 0)
+reward = 150
+flag_id = &"room_001_mirror_chest"
+
+[node name="Soldier" parent="Objects" groups=["normal_only"] instance=ExtResource("8_dummy")]
+position = Vector3(13, 0, 0)
+
+[node name="Ambusher" parent="Objects" groups=["mirror_only"] instance=ExtResource("8_dummy")]
+position = Vector3(17.5, 0, -1.6)
+dormant = true
+non_lethal = true
+
+[node name="Spikes" parent="Objects" instance=ExtResource("9_spikes")]
+position = Vector3(7, -3, 0)
+width = 3.8
