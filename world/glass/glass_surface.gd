@@ -2,8 +2,10 @@ class_name GlassSurface
 extends StaticBody3D
 ## Стекло — главная поверхность мира (§5). Одна сцена на все роли:
 ## - PANEL — разбиваемая перегородка: за ней сундук, засада или ловушка (§5.1);
-## - SLIDE — наклонное стекло, по которому герой скользит;
+## - SLIDE — наклонное стекло, по которому герой скользит. Разбиваемое проваливается
+##   под героем по «вниз + прыжок» и всегда показывает сетку трещин (§5.4);
 ## - CLIMB — стеклянная стена, по которой можно лезть.
+## Скаты и стены мечом не разбиваются — только намеренно.
 ## Блик подсказывает, что за стеклом: подсказка есть всегда (§5.3).
 
 enum GlassType { CLEAR, MURKY, RED_VEIN }
@@ -12,6 +14,8 @@ enum Role { PANEL, SLIDE, CLIMB }
 const GLASS_SHADER := preload("res://effects/shaders/glass_gleam.gdshader")
 const SHARD_COUNT := 12
 const SHARD_LIFETIME := 1.4
+const SLIDE_CRACKS_HINT := 0.35
+const ROLL_CRUMBLE_RATE := 0.5
 
 @export var glass_type := GlassType.CLEAR
 @export var role := Role.PANEL
@@ -21,10 +25,17 @@ const SHARD_LIFETIME := 1.4
 @export var contents: Array[Node3D] = []
 ## Видно ли содержимое сквозь стекло (чистое — да, мутное — нет).
 @export var show_contents := true
+## Трескается под ногами: через столько секунд после первого шага разбивается. 0 — нет.
+@export var crumble_time := 0.0
+## Через столько секунд разбитое стекло восстанавливается. 0 — остаётся разбитым.
+@export var restore_time := 0.0
 
 var _material: ShaderMaterial
 var _player: Node3D
 var _broken := false
+## Время с первого шага по трескающемуся стеклу; < 0 — ещё не наступали.
+var _crumble_t := -1.0
+var _restore_t := 0.0
 
 @onready var mesh_instance: MeshInstance3D = $Mesh
 @onready var collision: CollisionShape3D = $Collision
@@ -48,10 +59,10 @@ func _ready() -> void:
 	_configure_material()
 	mesh_instance.material_override = _material
 
-	match role:
-		Role.SLIDE: add_to_group("glass_slide")
-		Role.CLIMB: add_to_group("glass_climb")
-	if breakable:
+	_join_role_group()
+	if role == Role.SLIDE and breakable:
+		_material.set_shader_parameter("cracks", SLIDE_CRACKS_HINT)
+	if breakable and role == Role.PANEL:
 		hurtbox.hurt.connect(func(_hitbox: Hitbox) -> void: shatter())
 	else:
 		hurtbox.monitorable = false
@@ -67,10 +78,21 @@ func _process(_delta: float) -> void:
 	_material.set_shader_parameter("player_pos", _player.global_position + Vector3(0, 0.9, 0))
 
 
+func _physics_process(delta: float) -> void:
+	if _broken:
+		if restore_time > 0.0:
+			_restore_t -= delta
+			if _restore_t <= 0.0:
+				_try_restore()
+	elif crumble_time > 0.0:
+		_update_crumble(delta)
+
+
 func shatter() -> void:
 	if _broken:
 		return
 	_broken = true
+	_restore_t = restore_time
 	remove_from_group("glass_slide")
 	remove_from_group("glass_climb")
 	collision.set_deferred("disabled", true)
@@ -83,6 +105,57 @@ func shatter() -> void:
 			_set_awake(node, true)
 			if node.has_method("on_revealed"):
 				node.on_revealed()
+
+
+## Трескающееся стекло: отсчёт идёт с первого шага и не сбрасывается прыжком.
+## Кувырок давит на стекло вдвое слабее — им можно перекатиться через всё стекло.
+func _update_crumble(delta: float) -> void:
+	if _crumble_t < 0.0:
+		if not _player_stands_on_top():
+			return
+		_crumble_t = 0.0
+	var player := _player as Player
+	var rolling := player != null and player.state == Player.State.ROLL
+	_crumble_t += delta * (ROLL_CRUMBLE_RATE if rolling else 1.0)
+	var t := clampf(_crumble_t / crumble_time, 0.0, 1.0)
+	_material.set_shader_parameter("cracks", t)
+	# Под конец стекло мелко дрожит.
+	var shake := 0.03 * maxf(t - 0.6, 0.0) / 0.4
+	mesh_instance.position = Vector3(randf_range(-shake, shake), randf_range(-shake, shake), 0.0)
+	if t >= 1.0:
+		shatter()
+
+
+func _player_stands_on_top() -> bool:
+	var player := _player as Player
+	if player == null or not player.is_on_floor():
+		return false
+	var local := to_local(player.global_position)
+	var top := size.y * 0.5
+	return absf(local.x) <= size.x * 0.5 + 0.2 and local.y > top - 0.15 and local.y < top + 0.4
+
+
+func _try_restore() -> void:
+	# Не возвращаем стекло прямо в героя — ждём, пока он отойдёт.
+	if _player and absf(to_local(_player.global_position).x) < size.x * 0.5 + 0.5 \
+			and absf(to_local(_player.global_position).y) < size.y * 0.5 + 1.8:
+		_restore_t = 0.2
+		return
+	_broken = false
+	_crumble_t = -1.0
+	collision.disabled = false
+	if breakable and role == Role.PANEL:
+		hurtbox.monitorable = true
+	mesh_instance.visible = true
+	mesh_instance.position = Vector3.ZERO
+	_material.set_shader_parameter("cracks", SLIDE_CRACKS_HINT if role == Role.SLIDE else 0.0)
+	_join_role_group()
+
+
+func _join_role_group() -> void:
+	match role:
+		Role.SLIDE: add_to_group("glass_slide")
+		Role.CLIMB: add_to_group("glass_climb")
 
 
 func _configure_material() -> void:

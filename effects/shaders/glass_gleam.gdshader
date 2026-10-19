@@ -5,6 +5,8 @@ render_mode blend_mix, depth_draw_always, cull_back, specular_schlick_ggx;
 // Блик тянется за героем и усиливается рядом с ним. Тип стекла меняет характер блика:
 // чистое — ровная белая полоса, мутное — блик рвётся и внутри шевелится тень,
 // с красными прожилками — блик на миг вспыхивает красным.
+// Трещины — хрупкое стекло: постоянный намёк у разбиваемого ската, растущая сетка
+// у стекла, которое трескается под ногами.
 
 uniform vec4 base_color : source_color = vec4(0.62, 0.78, 0.88, 0.3);
 uniform vec4 gleam_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
@@ -15,10 +17,12 @@ uniform float fresnel_power = 3.0;
 uniform float tear = 0.0;
 uniform float shadow = 0.0;
 uniform float red_pulse = 0.0;
+uniform float cracks = 0.0;
 uniform vec3 player_pos = vec3(0.0, -1000.0, 0.0);
 uniform float proximity_radius = 4.0;
 
 varying vec3 world_pos;
+varying vec3 world_normal;
 
 float hash(float n) {
 	return fract(sin(n) * 43758.5453);
@@ -26,6 +30,7 @@ float hash(float n) {
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
 void fragment() {
@@ -52,12 +57,20 @@ void fragment() {
 	vec2 blob_uv = fract(world_pos.xy * 0.4 + vec2(TIME * 0.12, sin(TIME * 0.8) * 0.15));
 	float blob = shadow * (1.0 - smoothstep(0.15, 0.45, distance(blob_uv, vec2(0.5))));
 
+	// Трещины: на горизонтальных гранях рисуем по XZ, на остальных — по XY.
+	vec2 plane = abs(world_normal.y) > 0.5 ? world_pos.xz : world_pos.xy;
+	vec2 crack_uv = plane * 2.2;
+	float c1 = abs(sin(crack_uv.x * 3.1 + sin(crack_uv.y * 2.3) * 1.7));
+	float c2 = abs(sin(crack_uv.y * 4.3 + sin(crack_uv.x * 1.9) * 2.1));
+	float crack = cracks * (1.0 - smoothstep(0.0, 0.05 + 0.05 * cracks, min(c1, c2)));
+
 	ALBEDO = base_color.rgb * (1.0 - blob * 0.85);
 	EMISSION = gleam * intensity
 		+ base_color.rgb * fres * 0.6
-		+ vec3(0.9, 0.05, 0.03) * (vein * 0.5 + pulse * 0.35);
+		+ vec3(0.9, 0.05, 0.03) * (vein * 0.5 + pulse * 0.35)
+		+ vec3(0.85, 0.92, 1.0) * crack * 0.7;
 	ROUGHNESS = 0.05;
 	METALLIC = 0.2;
 	SPECULAR = 0.9;
-	ALPHA = clamp(base_color.a + fres * 0.35 + intensity * 0.5 + blob * 0.6 + vein * 0.5, 0.0, 1.0);
+	ALPHA = clamp(base_color.a + fres * 0.35 + intensity * 0.5 + blob * 0.6 + vein * 0.5 + crack * 0.6, 0.0, 1.0);
 }
