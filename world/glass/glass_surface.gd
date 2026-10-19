@@ -107,6 +107,19 @@ func shatter() -> void:
 				node.on_revealed()
 
 
+## Нагрев 0…1 — из стекла выдувается Стеклянный ползун.
+func heat(amount: float) -> void:
+	_material.set_shader_parameter("heat", clampf(amount, 0.0, 1.0))
+
+
+## Тень ушла из стекла: мутное становится чистым.
+func purify() -> void:
+	glass_type = GlassType.CLEAR
+	for param in ["tear", "shadow", "red_pulse", "heat"]:
+		_material.set_shader_parameter(param, 0.0)
+	_configure_material()
+
+
 ## Трескающееся стекло: отсчёт идёт с первого шага и не сбрасывается прыжком.
 ## Кувырок давит на стекло вдвое слабее — им можно перекатиться через всё стекло.
 func _update_crumble(delta: float) -> void:

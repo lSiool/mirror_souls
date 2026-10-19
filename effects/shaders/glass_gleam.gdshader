@@ -18,6 +18,8 @@ uniform float tear = 0.0;
 uniform float shadow = 0.0;
 uniform float red_pulse = 0.0;
 uniform float cracks = 0.0;
+// Нагрев: из стекла выдувается Стеклянный ползун.
+uniform float heat = 0.0;
 uniform vec3 player_pos = vec3(0.0, -1000.0, 0.0);
 uniform float proximity_radius = 4.0;
 
@@ -68,9 +70,10 @@ void fragment() {
 	EMISSION = gleam * intensity
 		+ base_color.rgb * fres * 0.6
 		+ vec3(0.9, 0.05, 0.03) * (vein * 0.5 + pulse * 0.35)
-		+ vec3(0.85, 0.92, 1.0) * crack * 0.7;
+		+ vec3(0.85, 0.92, 1.0) * crack * 0.7
+		+ vec3(1.0, 0.45, 0.1) * heat * (1.6 + 0.4 * sin(TIME * 20.0));
 	ROUGHNESS = 0.05;
 	METALLIC = 0.2;
 	SPECULAR = 0.9;
-	ALPHA = clamp(base_color.a + fres * 0.35 + intensity * 0.5 + blob * 0.6 + vein * 0.5 + crack * 0.6, 0.0, 1.0);
+	ALPHA = clamp(base_color.a + fres * 0.35 + intensity * 0.5 + blob * 0.6 + vein * 0.5 + crack * 0.6 + heat * 0.3, 0.0, 1.0);
 }
