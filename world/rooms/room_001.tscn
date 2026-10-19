@@ -167,10 +167,16 @@ flag_id = &"room_001_mirror_chest"
 [node name="Soldier" parent="Objects" groups=["normal_only"] instance=ExtResource("8_dummy")]
 position = Vector3(0, 0, 0)
 patrol_distance = 3.0
+max_poise = 50.0
+turn_time = 0.4
 
 [node name="MirrorSoldier" parent="Objects" groups=["mirror_only"] instance=ExtResource("8_dummy")]
 position = Vector3(6, 0, 0)
 patrol_distance = 1.5
+windup_time = 0.8
+max_poise = 120.0
+turn_time = 0.1
+backstab_allowed = false
 
 [node name="Ambusher" parent="Objects" groups=["mirror_only"] instance=ExtResource("8_dummy")]
 position = Vector3(20.5, 0, -1.6)
