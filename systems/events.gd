@@ -8,3 +8,5 @@ signal player_died
 signal currency_changed(total: int)
 signal reality_changed(reality: StringName)
 signal interact_prompt_changed(text: String)
+## Шум в мире (стрела ударилась о стену): враги, не видящие героя, идут проверить.
+signal noise_made(position: Vector3, radius: float)

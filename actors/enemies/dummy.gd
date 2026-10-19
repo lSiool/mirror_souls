@@ -8,7 +8,7 @@ extends CharacterBody3D
 
 enum State {
 	DORMANT, PATROL, CHASE, WINDUP, ATTACK, RECOVER, STAGGER,
-	OFF_BALANCE, CRITICAL_HIT, KNOCKDOWN, DEAD,
+	OFF_BALANCE, CRITICAL_HIT, KNOCKDOWN, DEAD, INVESTIGATE,
 }
 
 const WINDUP_COLOR := Color(1.0, 0.35, 0.1)
@@ -25,7 +25,14 @@ const CRITICAL_TIMEOUT := 2.0
 @export var patrol_distance := 2.5
 @export var patrol_speed := 1.8
 @export var chase_speed := 3.2
+## Видит героя перед собой на этом расстоянии.
 @export var detect_range := 7.0
+## Сзади замечает только вплотную — к врагу можно подкрасться.
+@export var back_sense_range := 1.5
+## Слышит шум (например, стрелу) на этом расстоянии, если не видит героя.
+@export var hearing_range := 9.0
+## Сколько осматривается на месте шума.
+@export var investigate_look_time := 1.0
 @export var attack_range := 1.8
 @export var windup_time := 0.55
 @export var attack_time := 0.18
@@ -62,6 +69,7 @@ var _head_slide := 0.0
 var _poise_delay := 0.0
 ## Время с начала разворота; < 0 — не разворачивается.
 var _turn_t := -1.0
+var _noise_x := 0.0
 
 @onready var health: Health = $Health
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -81,6 +89,7 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 	hurtbox.hurt.connect(_on_hurt)
 	attack_hitbox.non_lethal = non_lethal
+	Events.noise_made.connect(_on_noise)
 	state = State.DORMANT if dormant else State.PATROL
 
 
@@ -110,6 +119,7 @@ func _physics_process(delta: float) -> void:
 	match state:
 		State.PATROL: _patrol(delta)
 		State.CHASE: _chase(delta)
+		State.INVESTIGATE: _investigate(delta)
 		State.WINDUP:
 			_brake(30.0, delta)
 			if _state_time >= windup_time:
@@ -197,7 +207,8 @@ func _patrol(delta: float) -> void:
 
 
 func _chase(delta: float) -> void:
-	if not _sees_player(detect_range * 1.5):
+	# В погоне враг держит героя в обе стороны.
+	if not _sees_player(detect_range * 1.5, false):
 		_turn_t = -1.0
 		_set_state(State.PATROL)
 		return
@@ -214,6 +225,43 @@ func _chase(delta: float) -> void:
 		_set_state(State.WINDUP)
 	else:
 		velocity.x = facing * chase_speed
+
+
+## Шум: враг, который не видит героя, идёт к месту шума и осматривается.
+## Пока он смотрит на шум, к нему можно подкрасться со спины.
+func _on_noise(at: Vector3, radius: float) -> void:
+	if state not in [State.PATROL, State.INVESTIGATE] or not is_inside_tree():
+		return
+	if global_position.distance_to(at) > minf(radius, hearing_range):
+		return
+	if _sees_player(detect_range):
+		return
+	_noise_x = at.x
+	_turn_t = -1.0
+	_set_state(State.INVESTIGATE)
+
+
+func _investigate(delta: float) -> void:
+	if _sees_player(detect_range):
+		_turn_t = -1.0
+		_set_state(State.CHASE)
+		return
+	var dx := _noise_x - global_position.x
+	if absf(dx) > 0.8:
+		var want := signf(dx)
+		if want != facing:
+			_turn_towards(want, delta)
+			_brake(30.0, delta)
+			return
+		velocity.x = facing * patrol_speed * 1.3
+		# Осматриваться начнёт, когда дойдёт.
+		_state_time = 0.0
+		if _blocked_by_world():
+			_noise_x = global_position.x
+	else:
+		_brake(30.0, delta)
+		if _state_time >= investigate_look_time:
+			_set_state(State.PATROL)
 
 
 func _turn_towards(dir: float, delta: float) -> void:
@@ -297,7 +345,7 @@ func _on_hurt(hitbox: Hitbox) -> void:
 		facing = -dir.x
 		_turn_t = -1.0
 		_set_state(State.STAGGER)
-	elif state == State.PATROL:
+	elif state in [State.PATROL, State.INVESTIGATE]:
 		# Удар не сбил, но враг заметил героя.
 		_set_state(State.CHASE)
 
@@ -336,11 +384,16 @@ func _check_player_head() -> void:
 		_head_slide = signf(offset) if absf(offset) > 0.25 else facing
 
 
-func _sees_player(range_x: float) -> bool:
+## Видит героя: спереди — на range_x, сзади — только вплотную (если front_only).
+func _sees_player(range_x: float, front_only := true) -> bool:
 	if _player == null or _player.is_dead():
 		return false
 	var d := _player.global_position - global_position
-	return absf(d.x) < range_x and absf(d.y) < 2.5
+	if absf(d.y) >= 2.5:
+		return false
+	if front_only and signf(d.x) != facing and absf(d.x) > back_sense_range:
+		return false
+	return absf(d.x) < range_x
 
 
 func _find_player() -> void:
