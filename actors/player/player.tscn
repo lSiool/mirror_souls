@@ -1,10 +1,11 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
 [ext_resource type="Resource" path="res://data/player_stats.tres" id="2_stats"]
 [ext_resource type="Script" path="res://combat/hitboxes/hitbox.gd" id="3_hitbox"]
 [ext_resource type="Script" path="res://combat/hitboxes/hurtbox.gd" id="4_hurtbox"]
 [ext_resource type="Script" path="res://combat/damage/health.gd" id="5_health"]
+[ext_resource type="Resource" path="res://data/weapons/sword.tres" id="6_sword"]
 
 [sub_resource type="CapsuleShape3D" id="Shape_body"]
 radius = 0.35
@@ -49,9 +50,10 @@ height = 1.7
 collision_layer = 2
 collision_mask = 1
 axis_lock_linear_z = true
-floor_snap_length = 0.3
+floor_snap_length = 0.45
 script = ExtResource("1_player")
 stats = ExtResource("2_stats")
+weapon = ExtResource("6_sword")
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

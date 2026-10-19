@@ -6,19 +6,18 @@ extends CharacterBody3D
 signal died
 signal health_changed(current: float, maximum: float)
 signal stamina_changed(current: float, maximum: float)
+signal attack_step_started(step: AttackStep, index: int, total: int)
 
 enum State { MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD }
 
 const KILL_Y := -15.0
-const ATTACK_ACTIVE_FROM := 0.07
-const ATTACK_ACTIVE_TO := 0.2
-const ATTACK_CHAIN_FROM := 0.17
-const ATTACK_DURATION := 0.36
 const PLUNGE_LAND_TIME := 0.15
 const HURT_TIME := 0.3
-const MAX_COMBO := 2
+const SLIDE_LEAN := 0.35
 
 @export var stats: PlayerStats
+## Оружие и его набор атак (§6.2).
+@export var weapon: WeaponData
 
 var state := State.MOVE
 var facing := 1.0
@@ -35,16 +34,21 @@ var _iframes := 0.0
 var _stamina_delay := 0.0
 var _input_lock := 0.0
 var _combo := 0
+var _step: AttackStep
+var _fast_attack := false
 var _roll_dir := 1.0
 var _roll_speed := 0.0
 var _plunge_landed_at := -1.0
 var _floor_glass_normal := Vector3.ZERO
+var _floor_glass: GlassSurface
 ## Скорость вдоль ската. Храним сами: move_and_slide() на склоне срезает вертикаль у velocity.
 var _slide_speed := 0.0
 var _slide_dir := Vector3.RIGHT
 var _interactables: Array[Interactable] = []
 var _prompt := ""
 var _swing_tween: Tween
+var _sword_shape: BoxShape3D
+var _grip_base := Vector3.ZERO
 
 @onready var health: Health = $Health
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -52,6 +56,7 @@ var _swing_tween: Tween
 @onready var body_mesh: MeshInstance3D = $Visual/Body
 @onready var sword_pivot: Node3D = $Visual/SwordPivot
 @onready var sword_hitbox: Hitbox = $Visual/SwordHitbox
+@onready var sword_hitbox_shape: CollisionShape3D = $Visual/SwordHitbox/Shape
 @onready var plunge_hitbox: Hitbox = $PlungeHitbox
 
 
@@ -65,6 +70,10 @@ func _ready() -> void:
 	hurtbox.hurt.connect(_on_hurt)
 	sword_hitbox.hit_landed.connect(_on_hit_landed)
 	plunge_hitbox.hit_landed.connect(_on_hit_landed)
+	# Хитбокс меча меняет форму от стадии к стадии — делаем свою копию формы.
+	_sword_shape = sword_hitbox_shape.shape.duplicate()
+	sword_hitbox_shape.shape = _sword_shape
+	_grip_base = sword_pivot.position
 	_rest_sword()
 
 
@@ -107,7 +116,7 @@ func _tick(delta: float) -> void:
 		if Input.is_action_just_pressed("jump"):
 			_jump_buffer = stats.jump_buffer
 		if Input.is_action_just_pressed("attack"):
-			_attack_buffer = stats.input_buffer
+			_attack_buffer = stats.attack_buffer
 		if Input.is_action_just_pressed("roll"):
 			_roll_buffer = stats.input_buffer
 		if Input.is_action_just_pressed("interact"):
@@ -165,8 +174,8 @@ func _move_state(delta: float) -> void:
 
 	var target := x * stats.move_speed
 	var accel := stats.acceleration if on_floor else stats.air_acceleration
-	if x == 0.0 and on_floor:
-		accel = stats.friction
+	if x == 0.0:
+		accel = stats.friction if on_floor else stats.air_drag
 	# Импульс: скорость выше обычной (после ската или подката) гаснет медленно.
 	if absf(velocity.x) > stats.move_speed and signf(velocity.x) == signf(target):
 		accel = stats.momentum_decay
@@ -216,41 +225,49 @@ func _roll_state(delta: float) -> void:
 
 
 func _start_attack() -> void:
-	if stamina <= 0.0:
+	if stamina <= 0.0 or weapon == null or weapon.combo.is_empty():
 		return
 	_attack_buffer = 0.0
 	_spend_stamina(stats.attack_cost)
-	_combo = _combo + 1 if state == State.ATTACK else 1
+	var chaining := state == State.ATTACK and _combo < weapon.combo.size()
+	_combo = _combo + 1 if chaining else 1
+	_step = weapon.combo[_combo - 1]
 	var x := _input_x()
 	if x != 0.0:
 		facing = signf(x)
-	# Импульс переходит в удар: на высокой скорости первый удар тяжелее.
-	var fast := absf(velocity.x) > stats.move_speed * 1.2
-	var heavy := _combo >= MAX_COMBO or fast
-	sword_hitbox.damage = stats.sword_damage * (1.3 if heavy else 1.0)
-	sword_hitbox.heavy = heavy
-	sword_hitbox.knockback = 8.0 if heavy else 4.5
+	# Импульс переходит в удар: первый удар на высокой скорости тяжелее.
+	_fast_attack = _combo == 1 and absf(velocity.x) > stats.move_speed * 1.2
+	sword_hitbox.damage = stats.sword_damage * _step.damage_multiplier * (1.3 if _fast_attack else 1.0)
+	sword_hitbox.heavy = _step.heavy or _fast_attack
+	sword_hitbox.knockback = maxf(_step.knockback, 8.0 if _fast_attack else 0.0)
+	_sword_shape.size = Vector3(_step.hitbox_size.x, _step.hitbox_size.y, 1.8)
+	sword_hitbox_shape.position = Vector3(_step.hitbox_offset.x, _step.hitbox_offset.y, 0.0)
 	_set_state(State.ATTACK)
-	_swing(_combo)
+	_swing(_step)
+	attack_step_started.emit(_step, _combo, weapon.combo.size())
 
 
 func _attack_state(delta: float) -> void:
 	var t := _state_time
-	sword_hitbox.active = t >= ATTACK_ACTIVE_FROM and t <= ATTACK_ACTIVE_TO
+	sword_hitbox.active = t >= _step.active_from and t <= _step.active_to
 	var on_floor := is_on_floor()
-	var lunge := facing * stats.attack_lunge if t < ATTACK_ACTIVE_TO else 0.0
-	var decel := stats.momentum_decay * 2.0 if on_floor else stats.air_acceleration * 0.5
-	velocity.x = move_toward(velocity.x, lunge, decel * delta)
-	_apply_gravity(delta)
-	if t >= ATTACK_CHAIN_FROM:
+	if _floor_glass_normal != Vector3.ZERO:
+		# Удар в скольжении: скат продолжает нести героя.
+		_slide_physics(delta)
+	else:
+		var lunge := facing * _step.lunge_speed if t < _step.active_to else 0.0
+		var decel := stats.momentum_decay * 2.0 if on_floor else stats.air_acceleration * 0.5
+		velocity.x = move_toward(velocity.x, lunge, decel * delta)
+		_apply_gravity(delta)
+	if t >= _step.chain_from:
 		if _roll_buffer > 0.0 and on_floor:
 			_start_roll()
 			return
-		if _attack_buffer > 0.0 and _combo < MAX_COMBO:
+		if _attack_buffer > 0.0 and _combo < weapon.combo.size():
 			_start_attack()
 			return
-	if t >= ATTACK_DURATION:
-		_set_state(State.MOVE)
+	if t >= _step.duration:
+		_set_state(State.SLIDE if _floor_glass_normal != Vector3.ZERO else State.MOVE)
 
 
 func _start_plunge() -> void:
@@ -281,6 +298,27 @@ func _plunge_state(_delta: float) -> void:
 
 
 func _slide_state(delta: float) -> void:
+	var down := _slide_physics(delta)
+	apply_floor_snap()
+	if _jump_buffer > 0.0:
+		_jump_buffer = 0.0
+		if Input.is_action_pressed("move_down"):
+			# Вниз + прыжок: разбиваемое стекло проваливается, неразбиваемое держит.
+			if _floor_glass and _floor_glass.breakable:
+				_floor_glass.shatter()
+				_set_state(State.MOVE)
+			return
+		# Скорость со ската переносится в прыжок.
+		velocity = Vector3(down.x * _slide_speed, stats.jump_velocity, 0.0)
+		_set_state(State.MOVE)
+	elif _roll_buffer > 0.0:
+		_start_roll()
+	elif _attack_buffer > 0.0:
+		_start_attack()
+
+
+## Разгон вдоль ската. Возвращает направление вниз по скату.
+func _slide_physics(delta: float) -> Vector3:
 	var down := _slope_down(_floor_glass_normal)
 	_slide_dir = down
 	facing = signf(down.x)
@@ -288,16 +326,7 @@ func _slide_state(delta: float) -> void:
 	_slide_speed += _input_x() * signf(down.x) * stats.slide_steer * delta
 	_slide_speed = clampf(_slide_speed, -stats.move_speed, stats.max_slide_speed)
 	velocity = down * _slide_speed
-
-	if _jump_buffer > 0.0:
-		# Скорость со ската переносится в прыжок.
-		_jump_buffer = 0.0
-		velocity = Vector3(down.x * _slide_speed, stats.jump_velocity, 0.0)
-		_set_state(State.MOVE)
-	elif _roll_buffer > 0.0:
-		_start_roll()
-	elif _attack_buffer > 0.0:
-		_start_attack()
+	return down
 
 
 func _climb_state(_delta: float) -> void:
@@ -338,7 +367,12 @@ func _dead_state(delta: float) -> void:
 # --- Стекло -----------------------------------------------------------------
 
 func _after_move() -> void:
+	_floor_glass = null
 	_floor_glass_normal = _probe_glass_floor() if is_on_floor() else Vector3.ZERO
+	# Сбежали с края прямо на скат — садимся на него, а не перелетаем (иначе рывок на стыке).
+	# Окно — то же coyote time: пока капсула сходит с угла уступа, проба вниз упирается в угол.
+	if state == State.MOVE and _coyote > 0.0 and not is_on_floor() and velocity.y <= 0.0:
+		_snap_onto_slope()
 	if state == State.MOVE and _floor_glass_normal != Vector3.ZERO:
 		_slide_speed = velocity.dot(_slope_down(_floor_glass_normal))
 		_set_state(State.SLIDE)
@@ -365,6 +399,17 @@ func _wants_climb(x: float, on_floor: bool) -> bool:
 	return true
 
 
+func _snap_onto_slope() -> void:
+	var hit := KinematicCollision3D.new()
+	if not test_move(global_transform, Vector3(0.0, -0.7, 0.0), hit):
+		return
+	var collider := hit.get_collider() as Node
+	if collider and collider.is_in_group("glass_slide") and hit.get_normal().y > 0.3:
+		global_position += hit.get_travel()
+		_floor_glass = collider as GlassSurface
+		_floor_glass_normal = hit.get_normal()
+
+
 ## Нормаль наклонного стекла под ногами или ZERO. Проверяем пробным сдвигом вниз:
 ## прилипание к полу не всегда оставляет slide-коллизии.
 func _probe_glass_floor() -> Vector3:
@@ -373,6 +418,7 @@ func _probe_glass_floor() -> Vector3:
 		return Vector3.ZERO
 	var collider := hit.get_collider() as Node
 	if collider and collider.is_in_group("glass_slide") and hit.get_normal().y > 0.3:
+		_floor_glass = collider as GlassSurface
 		return hit.get_normal()
 	return Vector3.ZERO
 
@@ -392,7 +438,8 @@ func _probe_glass_wall(dir: float) -> Vector3:
 
 func _on_hit_landed(hurtbox_hit: Hurtbox) -> void:
 	var hitbox := sword_hitbox if state == State.ATTACK else plunge_hitbox
-	HitStop.stop(0.1 if hitbox.heavy else 0.06)
+	var stop := _step.hitstop if state == State.ATTACK and _step else 0.1
+	HitStop.stop(maxf(stop, 0.1) if hitbox.heavy else stop)
 	if hitbox.heavy:
 		Events.camera_shake_requested.emit(0.25, 0.18)
 	var at := hurtbox_hit.global_position + Vector3(0.0, 1.0, 0.3)
@@ -432,6 +479,7 @@ func respawn(at: Vector3) -> void:
 func teleport(at: Vector3) -> void:
 	global_position = Vector3(at.x, at.y, 0.0)
 	velocity = Vector3.ZERO
+	reset_physics_interpolation()
 	_interactables.clear()
 	_jump_buffer = 0.0
 	_attack_buffer = 0.0
@@ -492,18 +540,27 @@ func _update_prompt() -> void:
 
 func _update_visual(delta: float) -> void:
 	visual.rotation.y = 0.0 if facing > 0.0 else PI
+	var k := 1.0 - exp(-18.0 * delta)
 	var target_scale := Vector3.ONE
+	var target_tilt := 0.0
 	match state:
 		State.ROLL:
-			target_scale = Vector3(1.2, 0.55, 1.2)
+			target_scale = Vector3(1.1, 0.6, 1.1)
 		State.SLIDE:
-			target_scale = Vector3(1.15, 0.75, 1.15)
+			# Пригнулся и подался вперёд, удерживая равновесие.
+			target_scale = Vector3(1.1, 0.75, 1.1)
+			target_tilt = -SLIDE_LEAN
 		State.CLIMB:
 			target_scale = Vector3(0.9, 1.05, 0.9)
-	body_mesh.scale = body_mesh.scale.lerp(target_scale, 1.0 - exp(-18.0 * delta))
+	body_mesh.scale = body_mesh.scale.lerp(target_scale, k)
 	body_mesh.position.y = 0.9 * body_mesh.scale.y
-	if state == State.DEAD:
+	if state == State.ROLL:
+		# Кувырок вперёд: полный оборот за время переката.
+		body_mesh.rotation.z = -TAU * clampf(_state_time / stats.roll_duration, 0.0, 1.0)
+	elif state == State.DEAD:
 		body_mesh.rotation.z = lerpf(body_mesh.rotation.z, -PI * 0.5, 1.0 - exp(-8.0 * delta))
+	else:
+		body_mesh.rotation.z = lerpf(wrapf(body_mesh.rotation.z, -PI, PI), target_tilt, k)
 	# Мигание в неуязвимости после удара (перекат не мигает).
 	var blink := _iframes > 0.0 and state != State.ROLL and fmod(_iframes, 0.12) < 0.06
 	body_mesh.visible = not blink
@@ -520,15 +577,18 @@ func _flash(color: Color) -> void:
 	tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.25)
 
 
-func _swing(combo: int) -> void:
+func _swing(step: AttackStep) -> void:
 	if _swing_tween:
 		_swing_tween.kill()
-	var from := 1.4 if combo % 2 == 1 else -1.9
-	var to := -1.9 if combo % 2 == 1 else 1.2
-	sword_pivot.rotation.z = from
-	_swing_tween = create_tween()
-	_swing_tween.tween_property(sword_pivot, "rotation:z", to, ATTACK_ACTIVE_TO - ATTACK_ACTIVE_FROM) \
-		.set_delay(ATTACK_ACTIVE_FROM).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	sword_pivot.rotation.z = step.blade_from
+	sword_pivot.position = _grip_base + Vector3(step.grip_from.x, step.grip_from.y, 0.0)
+	var to_grip := _grip_base + Vector3(step.grip_to.x, step.grip_to.y, 0.0)
+	var time := step.active_to - step.active_from
+	_swing_tween = create_tween().set_parallel()
+	_swing_tween.tween_property(sword_pivot, "rotation:z", step.blade_to, time) \
+		.set_delay(step.active_from).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_swing_tween.tween_property(sword_pivot, "position", to_grip, time) \
+		.set_delay(step.active_from).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _point_sword_down() -> void:
@@ -541,3 +601,4 @@ func _rest_sword() -> void:
 	if _swing_tween:
 		_swing_tween.kill()
 	sword_pivot.rotation.z = 0.5
+	sword_pivot.position = _grip_base

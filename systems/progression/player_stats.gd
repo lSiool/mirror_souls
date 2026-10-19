@@ -38,12 +38,16 @@ const AGE_MAX := 22
 @export var coyote_time := 0.1
 @export var jump_buffer := 0.12
 @export var input_buffer := 0.15
+## Буфер удара длиннее: комбо легко нажимать.
+@export var attack_buffer := 0.25
+## Как быстро гаснет скорость в воздухе без ввода: импульс со ската доносится до боя.
+@export var air_drag := 6.0
 @export var roll_duration := 0.42
 
 @export_group("Стекло")
-@export var slide_gravity_scale := 0.55
+@export var slide_gravity_scale := 0.65
 @export var slide_steer := 10.0
-@export var max_slide_speed := 13.0
+@export var max_slide_speed := 15.0
 @export var climb_speed := 3.6
 @export var climb_slip := 0.6
 @export var wall_jump_push := 6.5
