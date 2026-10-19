@@ -7,6 +7,7 @@ enum State { DORMANT, PATROL, CHASE, WINDUP, ATTACK, RECOVER, STAGGER, DEAD }
 
 const BASE_COLOR := Color(0.42, 0.4, 0.44)
 const WINDUP_COLOR := Color(1.0, 0.35, 0.1)
+const HEAD_SLIDE_SPEED := 5.0
 
 @export var facing := -1.0
 ## Спит до раскрытия (засада за стеклом) — тогда сразу атакует.
@@ -31,6 +32,7 @@ var _state_time := 0.0
 var _player: Player
 var _material: StandardMaterial3D
 var _flash := 0.0
+var _head_slide := 0.0
 
 @onready var health: Health = $Health
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -96,10 +98,13 @@ func _physics_process(delta: float) -> void:
 				_set_state(State.CHASE)
 		State.DEAD:
 			velocity.x = move_toward(velocity.x, 0.0, 25.0 * delta)
+	if _head_slide != 0.0:
+		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
 	move_and_slide()
 	# Засада из ниши за стеклом выпрыгивает в плоскость боя.
 	global_position.z = move_toward(global_position.z, 0.0, 12.0 * delta)
+	_check_player_head()
 	visual.rotation.y = 0.0 if facing > 0.0 else PI
 	_update_material(delta)
 
@@ -108,7 +113,7 @@ func _patrol() -> void:
 	velocity.x = facing * patrol_speed
 	var offset := global_position.x - _origin.x
 	var at_edge := offset * facing > patrol_distance
-	if at_edge or is_on_wall():
+	if at_edge or _blocked_by_world():
 		facing = -facing
 	if _sees_player(detect_range):
 		_set_state(State.CHASE)
@@ -125,6 +130,29 @@ func _chase() -> void:
 		_set_state(State.WINDUP)
 	else:
 		velocity.x = facing * chase_speed
+
+
+## Стена мира, а не герой: о героя патруль не разворачивается, просто упирается.
+func _blocked_by_world() -> bool:
+	for i in get_slide_collision_count():
+		var c := get_slide_collision(i)
+		if absf(c.get_normal().y) < 0.3 and not c.get_collider() is Player:
+			return true
+	return false
+
+
+## Враг не стоит на голове героя — соскальзывает в сторону.
+func _check_player_head() -> void:
+	_head_slide = 0.0
+	if not is_on_floor():
+		return
+	var hit := KinematicCollision3D.new()
+	if not test_move(global_transform, Vector3(0.0, -0.1, 0.0), hit):
+		return
+	var player := hit.get_collider() as Player
+	if player and hit.get_normal().y > 0.5:
+		var offset := global_position.x - player.global_position.x
+		_head_slide = signf(offset) if absf(offset) > 0.25 else facing
 
 
 func _sees_player(range_x: float) -> bool:

@@ -14,6 +14,8 @@ const KILL_Y := -15.0
 const PLUNGE_LAND_TIME := 0.15
 const HURT_TIME := 0.3
 const SLIDE_LEAN := 0.35
+## С какой скоростью герой соскальзывает с головы врага: на врагах не стоят.
+const HEAD_SLIDE_SPEED := 5.0
 
 @export var stats: PlayerStats
 ## Оружие и его набор атак (§6.2).
@@ -41,6 +43,8 @@ var _roll_speed := 0.0
 var _plunge_landed_at := -1.0
 var _floor_glass_normal := Vector3.ZERO
 var _floor_glass: GlassSurface
+## Стоим на голове врага: направление, куда соскальзываем (0 — не стоим).
+var _head_slide := 0.0
 ## Скорость вдоль ската. Храним сами: move_and_slide() на склоне срезает вертикаль у velocity.
 var _slide_speed := 0.0
 var _slide_dir := Vector3.RIGHT
@@ -91,10 +95,14 @@ func _physics_process(delta: float) -> void:
 		State.CLIMB: _climb_state(delta)
 		State.HURT: _hurt_state(delta)
 		State.DEAD: _dead_state(delta)
+	if _head_slide != 0.0:
+		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
 	move_and_slide()
 	global_position.z = 0.0
+	_limit_blocked_slide()
 	_after_move()
+	_check_enemy_head()
 	_update_visual(delta)
 	_update_prompt()
 	if global_position.y < KILL_Y and state != State.DEAD:
@@ -380,6 +388,32 @@ func _after_move() -> void:
 		# Сошли со стекла: скорость остаётся — импульс уходит в бег или полёт.
 		velocity = _slide_dir * _slide_speed
 		_set_state(State.MOVE)
+
+
+## Упёрлись во врага на скате — скорость не копится, пока стоим.
+func _limit_blocked_slide() -> void:
+	var on_slope := _floor_glass_normal != Vector3.ZERO
+	if not (state == State.SLIDE or (state == State.ATTACK and on_slope)):
+		return
+	var real := get_real_velocity().dot(_slide_dir)
+	if real < _slide_speed * 0.5:
+		_slide_speed = maxf(real, 0.0)
+
+
+## Тела сталкиваются, но на врагах не стоят: с головы врага соскальзываем в сторону.
+func _check_enemy_head() -> void:
+	_head_slide = 0.0
+	if not is_on_floor():
+		return
+	# Пробный сдвиг вниз: прилипание к опоре не всегда оставляет slide-коллизии.
+	var hit := KinematicCollision3D.new()
+	if not test_move(global_transform, Vector3(0.0, -0.1, 0.0), hit):
+		return
+	var enemy := hit.get_collider() as Dummy
+	if enemy and hit.get_normal().y > 0.5:
+		# Почти по центру — соскальзываем туда, куда смотрим (через врага, а не назад).
+		var offset := global_position.x - enemy.global_position.x
+		_head_slide = signf(offset) if absf(offset) > 0.25 else facing
 
 
 func _slope_down(normal: Vector3) -> Vector3:
