@@ -28,35 +28,36 @@ script = ExtResource("5_flip")
 [node name="Room001" type="Node3D"]
 script = ExtResource("1_room")
 room_id = &"room_001"
+width = 48.0
 
 [node name="Geometry" type="Node3D" parent="."]
 
 [node name="FloorLeft" type="CSGBox3D" parent="Geometry"]
 position = Vector3(-7.5, -2, 0)
 use_collision = true
-size = Vector3(25, 4, 4)
+size = Vector3(33, 4, 4)
 material = SubResource("Mat_stone")
 
 [node name="FloorRight" type="CSGBox3D" parent="Geometry"]
-position = Vector3(14.5, -2, 0)
+position = Vector3(18.5, -2, 0)
 use_collision = true
 size = Vector3(11, 4, 4)
 material = SubResource("Mat_stone")
 
 [node name="PitBottom" type="CSGBox3D" parent="Geometry"]
-position = Vector3(7, -3.5, 0)
+position = Vector3(11, -3.5, 0)
 use_collision = true
 size = Vector3(4, 1, 4)
 material = SubResource("Mat_stone")
 
 [node name="WallLeft" type="CSGBox3D" parent="Geometry"]
-position = Vector3(-20.5, 5, 0)
+position = Vector3(-24.5, 5, 0)
 use_collision = true
 size = Vector3(1, 22, 4)
 material = SubResource("Mat_stone")
 
 [node name="WallRight" type="CSGBox3D" parent="Geometry"]
-position = Vector3(20.5, 5, 0)
+position = Vector3(24.5, 5, 0)
 use_collision = true
 size = Vector3(1, 22, 4)
 material = SubResource("Mat_stone")
@@ -64,73 +65,81 @@ material = SubResource("Mat_stone")
 [node name="Ceiling" type="CSGBox3D" parent="Geometry"]
 position = Vector3(0, 13.5, 0)
 use_collision = true
-size = Vector3(42, 1, 4)
+size = Vector3(50, 1, 4)
 material = SubResource("Mat_stone")
 
-[node name="UpperPlatform" type="CSGBox3D" parent="Geometry"]
-position = Vector3(-6.9, 5.8, 0)
+[node name="UpperLedge" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-7, 6.8, 0)
 use_collision = true
-size = Vector3(6, 0.4, 3)
+size = Vector3(3, 0.4, 3)
 material = SubResource("Mat_platform")
 
 [node name="NichePillarLeft" type="CSGBox3D" parent="Geometry"]
-position = Vector3(16.2, 1.6, -1.5)
+position = Vector3(19.2, 1.6, -1.5)
 size = Vector3(0.4, 3.2, 1.5)
 material = SubResource("Mat_platform")
 
 [node name="NichePillarRight" type="CSGBox3D" parent="Geometry"]
-position = Vector3(18.8, 1.6, -1.5)
+position = Vector3(21.8, 1.6, -1.5)
 size = Vector3(0.4, 3.2, 1.5)
 material = SubResource("Mat_platform")
 
 [node name="NicheLintel" type="CSGBox3D" parent="Geometry"]
-position = Vector3(17.5, 3.35, -1.5)
+position = Vector3(20.5, 3.35, -1.5)
 size = Vector3(3, 0.3, 1.5)
 material = SubResource("Mat_platform")
 
 [node name="MirrorLedge" type="CSGBox3D" parent="Geometry" groups=["mirror_only"]]
-position = Vector3(-13.25, 7.3, 0)
+position = Vector3(-10.25, 8.3, 0)
 use_collision = true
-size = Vector3(3.5, 0.4, 3)
+size = Vector3(2.5, 0.4, 3)
 material = SubResource("Mat_platform")
 
 [node name="BackWall" type="CSGBox3D" parent="Geometry"]
 position = Vector3(0, 4, -2.5)
-size = Vector3(42, 20, 0.5)
+size = Vector3(50, 20, 0.5)
 material = SubResource("Mat_back")
 
 [node name="Spawns" type="Node3D" parent="."]
 
 [node name="PlayerStart" type="Marker3D" parent="Spawns"]
-position = Vector3(-17, 0.1, 0)
+position = Vector3(-21, 0.1, 0)
 
 [node name="Glass" type="Node3D" parent="."]
 
-[node name="ClimbWall" parent="Glass" instance=ExtResource("2_glass")]
-position = Vector3(-9.6, 3, 0)
+[node name="Tower" parent="Glass" instance=ExtResource("2_glass")]
+position = Vector3(-13, 3, 0)
 role = 2
-size = Vector3(0.6, 6, 2)
+size = Vector3(4, 6, 2)
 breakable = false
 
-[node name="Slope" parent="Glass" instance=ExtResource("2_glass")]
-position = Vector3(-0.38, 4.08, 0)
-rotation = Vector3(0, 0, -0.4695)
+[node name="Slope" parent="Glass" groups=["normal_only"] instance=ExtResource("2_glass")]
+position = Vector3(-1.07, 4.56, 0)
+rotation = Vector3(0, 0, -0.4636)
 role = 1
-size = Vector3(7.9, 0.3, 2)
+size = Vector3(10.2, 0.3, 2)
+
+[node name="SlopeSolid" parent="Glass" groups=["mirror_only"] instance=ExtResource("2_glass")]
+position = Vector3(-1.07, 4.56, 0)
+rotation = Vector3(0, 0, -0.4636)
+role = 1
+size = Vector3(10.2, 0.3, 2)
 breakable = false
 
 [node name="TrapGlass" parent="Glass" instance=ExtResource("2_glass")]
-position = Vector3(7, -0.15, 0)
+position = Vector3(11, -0.15, 0)
 glass_type = 2
 size = Vector3(4, 0.3, 2)
+crumble_time = 0.42
+restore_time = 2.75
 
 [node name="NicheGlass" parent="Glass" node_paths=PackedStringArray("contents") groups=["normal_only"] instance=ExtResource("2_glass")]
-position = Vector3(17.5, 1.6, -0.75)
+position = Vector3(20.5, 1.6, -0.75)
 size = Vector3(2.2, 3.2, 0.2)
 contents = [NodePath("../../Objects/Chest")]
 
 [node name="NicheGlassMurky" parent="Glass" node_paths=PackedStringArray("contents") groups=["mirror_only"] instance=ExtResource("2_glass")]
-position = Vector3(17.5, 1.6, -0.75)
+position = Vector3(20.5, 1.6, -0.75)
 glass_type = 1
 size = Vector3(2.2, 3.2, 0.2)
 contents = [NodePath("../../Objects/Ambusher")]
@@ -139,30 +148,35 @@ show_contents = false
 [node name="Objects" type="Node3D" parent="."]
 
 [node name="MirrorPortal" parent="Objects" instance=ExtResource("3_portal")]
-position = Vector3(-1, 0, 0)
+position = Vector3(15.5, 0, 0)
 transformations = Array[ExtResource("4_transform")]([SubResource("FlipX_main")])
 
 [node name="MirrorShard" parent="Objects" instance=ExtResource("6_shard")]
-position = Vector3(-14, 0, 0)
+position = Vector3(-18.5, 0, 0)
 
 [node name="Chest" parent="Objects" groups=["normal_only"] instance=ExtResource("7_chest")]
-position = Vector3(17.5, 0, -1.6)
+position = Vector3(20.5, 0, -1.6)
 reward = 50
 flag_id = &"room_001_chest"
 
 [node name="MirrorChest" parent="Objects" groups=["mirror_only"] instance=ExtResource("7_chest")]
-position = Vector3(-13.5, 7.5, 0)
+position = Vector3(-10.5, 8.5, 0)
 reward = 150
 flag_id = &"room_001_mirror_chest"
 
 [node name="Soldier" parent="Objects" groups=["normal_only"] instance=ExtResource("8_dummy")]
-position = Vector3(13, 0, 0)
+position = Vector3(0, 0, 0)
+patrol_distance = 3.0
+
+[node name="MirrorSoldier" parent="Objects" groups=["mirror_only"] instance=ExtResource("8_dummy")]
+position = Vector3(6, 0, 0)
+patrol_distance = 1.5
 
 [node name="Ambusher" parent="Objects" groups=["mirror_only"] instance=ExtResource("8_dummy")]
-position = Vector3(17.5, 0, -1.6)
+position = Vector3(20.5, 0, -1.6)
 dormant = true
 non_lethal = true
 
 [node name="Spikes" parent="Objects" instance=ExtResource("9_spikes")]
-position = Vector3(7, -3, 0)
+position = Vector3(11, -3, 0)
 width = 3.8
