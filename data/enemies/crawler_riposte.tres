@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="AttackStep" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://combat/weapons/attack_step.gd" id="1_step"]
+
+[resource]
+script = ExtResource("1_step")
+display_name = "меч в сердцевину"
+duration = 1.0
+active_from = 0.45
+active_to = 0.55
+chain_from = 0.9
+damage_multiplier = 3.0
+poise_damage = 0.0
+knockback = 0.0
+heavy = true
+invulnerable = true
+lunge_speed = 0.0
+hitstop = 0.16
+blade_from = 0.0
+blade_to = -3.0
+grip_from = Vector2(0.1, 0.75)
+grip_to = Vector2(0.75, -0.45)
