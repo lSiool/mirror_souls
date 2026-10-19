@@ -1,15 +1,18 @@
 class_name Player
 extends CharacterBody3D
 ## Герой: движение в плоскости XY, перекат, меч, удар вниз, скольжение и лазание по стеклу,
-## блок и парирование, добивание и удар в спину.
+## блок и парирование, добивание и удар в спину, лук.
 ## Все числа скорости и урона берутся из PlayerStats, который зависит от возраста (§1.3).
 
 signal died
 signal health_changed(current: float, maximum: float)
 signal stamina_changed(current: float, maximum: float)
 signal attack_step_started(step: AttackStep, index: int, total: int)
+signal arrow_fired(arrow: Arrow)
 
-enum State { MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL }
+enum State {
+	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
+}
 
 const KILL_Y := -15.0
 const PLUNGE_LAND_TIME := 0.15
@@ -52,6 +55,13 @@ var _since_roll := 99.0
 var _roll_attack_queued := false
 var _critical_target: Dummy
 var _critical_done := false
+var _shoot_buffer := 0.0
+## Натяжение лука 0…1.
+var _draw_t := 0.0
+## Колышек-стрела, которого сейчас касается герой.
+var _peg: ArrowPeg
+var _bow: Node3D
+var _nocked: Node3D
 var _floor_glass_normal := Vector3.ZERO
 var _floor_glass: GlassSurface
 ## Стоим на голове врага: направление, куда соскальзываем (0 — не стоим).
@@ -90,6 +100,7 @@ func _ready() -> void:
 	sword_hitbox_shape.shape = _sword_shape
 	_grip_base = sword_pivot.position
 	_rest_sword()
+	_build_bow()
 
 
 func _physics_process(delta: float) -> void:
@@ -109,6 +120,7 @@ func _physics_process(delta: float) -> void:
 		State.BLOCK: _block_state(delta)
 		State.GUARD_BROKEN: _guard_broken_state(delta)
 		State.CRITICAL: _critical_state(delta)
+		State.BOW: _bow_state(delta)
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
@@ -133,6 +145,7 @@ func _tick(delta: float) -> void:
 	_iframes = maxf(_iframes - delta, 0.0)
 	_input_lock = maxf(_input_lock - delta, 0.0)
 	_parry_t = maxf(_parry_t - delta, 0.0)
+	_shoot_buffer = maxf(_shoot_buffer - delta, 0.0)
 	_since_slide += delta
 	_since_roll += delta
 	hurtbox.invulnerable = _iframes > 0.0 or state == State.DEAD
@@ -146,6 +159,8 @@ func _tick(delta: float) -> void:
 			_roll_buffer = stats.input_buffer
 		if Input.is_action_just_pressed("block"):
 			_parry_t = stats.parry_window
+		if Input.is_action_just_pressed("shoot"):
+			_shoot_buffer = stats.input_buffer
 		if Input.is_action_just_pressed("interact"):
 			_try_interact()
 
@@ -177,6 +192,8 @@ func _set_state(new_state: State) -> void:
 	if state in [State.PLUNGE, State.BLOCK, State.GUARD_BROKEN, State.CRITICAL]:
 		plunge_hitbox.active = false
 		_rest_sword()
+	if state == State.BOW:
+		_show_bow(false)
 	if state == State.SLIDE:
 		_since_slide = 0.0
 	if state == State.ROLL:
@@ -221,6 +238,8 @@ func _move_state(delta: float) -> void:
 
 	if _jump_buffer > 0.0 and _coyote > 0.0:
 		_jump()
+	elif _jump_buffer > 0.0 and not on_floor and is_instance_valid(_peg):
+		_peg_jump()
 	elif _roll_buffer > 0.0 and (on_floor or _coyote > 0.0):
 		_start_roll()
 	elif _attack_buffer > 0.0:
@@ -228,6 +247,8 @@ func _move_state(delta: float) -> void:
 			_start_plunge()
 		else:
 			_start_attack()
+	elif _shoot_buffer > 0.0:
+		_start_draw()
 	elif on_floor and Input.is_action_pressed("block"):
 		_set_state(State.BLOCK)
 	elif _wants_climb(x, on_floor):
@@ -513,6 +534,76 @@ func _critical_state(delta: float) -> void:
 		_set_state(State.MOVE)
 
 
+# --- Лук --------------------------------------------------------------------
+
+func _start_draw() -> void:
+	if stamina <= 0.0:
+		return
+	_shoot_buffer = 0.0
+	_draw_t = 0.0
+	_set_state(State.BOW)
+	_show_bow(true)
+
+
+## Натяжение: держим кнопку — лук натягивается, герой идёт медленно. Отпустили — выстрел.
+func _bow_state(delta: float) -> void:
+	_draw_t = minf(_draw_t + delta / stats.bow_draw_time, 1.0)
+	var x := _input_x()
+	if x != 0.0:
+		facing = signf(x)
+	var accel := stats.acceleration if is_on_floor() else stats.air_acceleration
+	velocity.x = move_toward(velocity.x, x * stats.move_speed * stats.bow_move_mult, accel * delta)
+	_apply_gravity(delta)
+	_nocked.position.x = 0.3 - 0.35 * _draw_t
+	_bow.rotation.z = _aim_angle()
+	if _roll_buffer > 0.0 and is_on_floor():
+		_start_roll()
+	elif not Input.is_action_pressed("shoot"):
+		_fire()
+
+
+func _fire() -> void:
+	var angle := _aim_angle()
+	var dir := Vector3(cos(angle) * facing, sin(angle), 0.0)
+	var speed := lerpf(stats.bow_speed_min, stats.bow_speed_max, _draw_t)
+	var damage := lerpf(stats.bow_damage_min, stats.bow_damage_max, _draw_t)
+	var poise_dmg := lerpf(stats.bow_poise_min, stats.bow_poise_max, _draw_t)
+	var at := global_position + Vector3(facing * 0.55, 1.3, 0.0)
+	var arrow := Arrow.spawn(get_parent(), at, dir * speed, damage, poise_dmg)
+	_spend_stamina(stats.bow_cost)
+	_set_state(State.MOVE)
+	arrow_fired.emit(arrow)
+
+
+## Прицел: прямо; с «вверх» — круто вверх; с «вниз» в воздухе — вниз.
+func _aim_angle() -> float:
+	if Input.is_action_pressed("move_up"):
+		return deg_to_rad(stats.aim_up_angle)
+	if Input.is_action_pressed("move_down") and not is_on_floor():
+		return -deg_to_rad(stats.aim_down_angle)
+	return 0.0
+
+
+func set_peg(peg: ArrowPeg) -> void:
+	_peg = peg
+
+
+func clear_peg(peg: ArrowPeg) -> void:
+	if _peg == peg:
+		_peg = null
+
+
+## Прыжок от воткнутой стрелы: вверх и от стены. Колышек ломается — только один раз.
+func _peg_jump() -> void:
+	_jump_buffer = 0.0
+	velocity = Vector3(_peg.normal.x * stats.wall_jump_push, stats.jump_velocity, 0.0)
+	if _peg.normal.x != 0.0:
+		facing = signf(_peg.normal.x)
+	_input_lock = 0.15
+	_peg.break_off()
+	_peg = null
+
+
 # --- Стекло -----------------------------------------------------------------
 
 func _after_move() -> void:
@@ -691,7 +782,10 @@ func teleport(at: Vector3) -> void:
 	global_position = Vector3(at.x, at.y, 0.0)
 	velocity = Vector3.ZERO
 	reset_physics_interpolation()
-	_interactables.clear()
+	_peg = null
+	# Не очищаем список целиком: если герой остался внутри зоны (зеркало, сундук),
+	# зона не сообщит о входе повторно. Уходя из зоны, герой и так её отпустит.
+	_interactables = _interactables.filter(is_instance_valid)
 	_jump_buffer = 0.0
 	_attack_buffer = 0.0
 	_roll_buffer = 0.0
@@ -822,6 +916,34 @@ func _guard_sword() -> void:
 	_kill_swing()
 	sword_pivot.rotation = Vector3(0.0, 0.0, -0.75)
 	sword_pivot.position = _grip_base + Vector3(0.2, 0.05, 0.0)
+
+
+func _build_bow() -> void:
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.45, 0.3, 0.18)
+	_bow = Node3D.new()
+	_bow.position = Vector3(0.35, 1.25, 0.35)
+	visual.add_child(_bow)
+	var limb := MeshInstance3D.new()
+	var limb_mesh := BoxMesh.new()
+	limb_mesh.size = Vector3(0.06, 1.2, 0.05)
+	limb_mesh.material = wood
+	limb.mesh = limb_mesh
+	limb.position.x = 0.15
+	_bow.add_child(limb)
+	_nocked = MeshInstance3D.new()
+	var arrow_mesh := BoxMesh.new()
+	arrow_mesh.size = Vector3(0.75, 0.035, 0.035)
+	arrow_mesh.material = wood
+	(_nocked as MeshInstance3D).mesh = arrow_mesh
+	_bow.add_child(_nocked)
+	_bow.visible = false
+
+
+## На время стрельбы меч убран, в руке лук.
+func _show_bow(on: bool) -> void:
+	_bow.visible = on
+	sword_pivot.visible = not on
 
 
 func _kill_swing() -> void:

@@ -74,6 +74,21 @@ const AGE_MAX := 22
 @export var block_regen_mult := 0.4
 @export var guard_break_time := 0.8
 
+@export_group("Лук")
+## За сколько секунд лук натягивается полностью.
+@export var bow_draw_time := 0.6
+@export var bow_speed_min := 18.0
+@export var bow_speed_max := 32.0
+@export var bow_damage_min := 8.0
+@export var bow_damage_max := 18.0
+@export var bow_poise_min := 6.0
+@export var bow_poise_max := 14.0
+@export var bow_cost := 10.0
+@export var bow_move_mult := 0.3
+## Угол прицела вверх (с «вверх») и вниз (с «вниз» в воздухе), градусы.
+@export var aim_up_angle := 70.0
+@export var aim_down_angle := 30.0
+
 @export_group("Особые удары")
 @export var riposte_range := 1.8
 @export var backstab_range := 1.6
