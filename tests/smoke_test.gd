@@ -590,17 +590,80 @@ func run() -> void:
 	check(player.global_position.y > 5.8, "залез справа (y=%.2f)" % player.global_position.y)
 	player._iframes = 0.0
 
-	print("== Засада за мутным стеклом (не смертельна)")
-	var ambusher := room_node("Objects/Ambusher") as Dummy
-	check(ambusher != null and not ambusher.visible, "засада спит за стеклом")
+	print("== Стеклянный ползун выдувается из мутного стекла")
+	var crawler := room_node("Objects/Crawler") as GlassCrawler
+	var murky := room_node("Glass/NicheGlassMurky") as GlassSurface
+	check(crawler != null and not crawler.visible and crawler.state == Dummy.State.DORMANT, "ползун спит невидимым")
+	check(murky.glass_type == GlassSurface.GlassType.MURKY, "стекло мутное")
 	player.health.current = 5.0
-	await put(Vector3(-19.6, 0.1, 0), -1.0)
-	await tap("attack")
-	await seconds(0.3)
-	var woke := ambusher.visible and ambusher.state != Dummy.State.DORMANT
-	check(woke, "засада проснулась (state=%d)" % ambusher.state)
+	await put(Vector3(-18.0, 0.1, 0), -1.0)
+	var saw_bubble := false
+	for i in 150:
+		await frames(1)
+		if crawler.visible and crawler.state == Dummy.State.DORMANT:
+			saw_bubble = true
+		if crawler.state != Dummy.State.DORMANT:
+			break
+	check(saw_bubble, "из стекла раздувается шарик")
+	check(crawler.state != Dummy.State.DORMANT and absf(crawler.global_position.z) < 0.05, "ползун упал в плоскость боя")
+	check(murky.glass_type == GlassSurface.GlassType.CLEAR, "тень ушла — стекло стало чистым")
 	await seconds(1.5)
 	check(not player.is_dead() and player.health.current >= 1.0, "первая засада не убила (hp=%.0f)" % player.health.current)
+	crawler.health.max_health = 1000.0
+	crawler.health.current = 1000.0
+	crawler.attack_hitbox.non_lethal = false
+
+	print("== Кол достаёт издалека")
+	player.restore()
+	await face_enemy(crawler, 2.3)
+	await wait_windup(crawler, 0.05)
+	var hp_spike := player.health.current
+	await seconds(0.4)
+	check(player.health.current < hp_spike, "кол достал героя на 2.3 м (hp %.0f → %.0f)" % [hp_spike, player.health.current])
+	await seconds(1.0)
+
+	print("== Стойкость ползуна низкая")
+	player.restore()
+	await face_enemy(crawler, 1.2)
+	player._iframes = 3.0
+	crawler.poise = crawler.max_poise
+	var crawler_staggered := false
+	for i in 2:
+		await tap("attack")
+		for k in 12:
+			await frames(1)
+			crawler_staggered = crawler_staggered or crawler.state == Dummy.State.STAGGER
+	check(crawler_staggered, "два удара сбили ползуна (стойкость %.0f)" % crawler.max_poise)
+	player._iframes = 0.0
+	await seconds(1.0)
+
+	print("== У ползуна нет спины")
+	player.restore()
+	crawler.detect_range = 0.0
+	crawler._set_state(Dummy.State.PATROL)
+	await seconds(0.2)
+	await put(Vector3(crawler.global_position.x - crawler.facing * 1.3, 0.1, 0), crawler.facing)
+	await tap("attack")
+	var no_back := player.state == Player.State.ATTACK and last_step == player.weapon.combo[0]
+	check(no_back, "сзади — обычный удар, не удар в спину")
+	crawler.detect_range = 7.0
+	await seconds(1.0)
+
+	print("== Парирование кола и особое добивание")
+	player.restore()
+	await face_enemy(crawler, 1.6)
+	await wait_windup(crawler, 0.08)
+	await tap("block")
+	await seconds(0.2)
+	check(crawler.state == Dummy.State.OFF_BALANCE, "парирование: ползун «кружится» (state=%d)" % crawler.state)
+	check(not crawler.spike.visible, "кол треснул и осыпался")
+	crawler.health.current = 50.0
+	await tap("attack")
+	var special := player.state == Player.State.CRITICAL and last_step == crawler.riposte_step
+	check(special, "добивание ползуна — особое: «%s»" % (last_step.display_name if last_step else "-"))
+	await seconds(1.4)
+	check(is_instance_valid(crawler) and crawler.state == Dummy.State.DEAD, "ползун погиб")
+	check(is_instance_valid(crawler) and crawler.body_mesh.scale.y < 0.3, "растёкся лужицей и застыл (scale.y=%.2f)" % crawler.body_mesh.scale.y)
 
 	print("== Сундук отражения на уступе")
 	player.restore()
