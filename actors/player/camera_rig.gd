@@ -60,4 +60,6 @@ func snap_to_target() -> void:
 
 
 func _focus() -> Vector3:
-	return _target.global_position + Vector3(_look, height_offset, 0.0)
+	# Камера движется в _process, поэтому берём сглаженную позицию цели между тиками физики.
+	var origin := _target.get_global_transform_interpolated().origin
+	return origin + Vector3(_look, height_offset, 0.0)

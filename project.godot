@@ -106,6 +106,10 @@ debug_age_up={
 3d_physics/layer_4="interactable"
 3d_physics/layer_5="breakable"
 
+[physics]
+
+common/physics_interpolation=true
+
 [rendering]
 
 anti_aliasing/quality/msaa_3d=2
