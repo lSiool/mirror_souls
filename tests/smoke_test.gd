@@ -9,6 +9,8 @@ var game_state: Node
 var failures := 0
 var steps_seen: Array[int] = []
 var last_step: AttackStep
+var last_arrow: Arrow
+var last_arrow_speed := 0.0
 
 
 func _ready() -> void:
@@ -124,6 +126,17 @@ func face_enemy(enemy: Dummy, distance := 1.5) -> void:
 	await put(Vector3(enemy.global_position.x + enemy.facing * distance, 0.1, 0), -enemy.facing)
 
 
+## Выстрел: держать кнопку hold секунд (0 — быстрый), up — целиться вверх.
+func shoot(hold: float, up := false) -> void:
+	if up:
+		press("move_up")
+	press("shoot")
+	await frames(maxi(int(hold * 60.0), 2))
+	release("shoot")
+	await frames(2)
+	release("move_up")
+
+
 func start_slide_from_ledge(dir: String, at: Vector3) -> void:
 	await put(at, 1.0 if dir == "move_right" else -1.0)
 	press(dir)
@@ -143,6 +156,9 @@ func run() -> void:
 	player.attack_step_started.connect(func(st: AttackStep, i: int, _t: int) -> void:
 		steps_seen.append(i)
 		last_step = st)
+	player.arrow_fired.connect(func(a: Arrow) -> void:
+		last_arrow = a
+		last_arrow_speed = a.velocity.length())
 	await seconds(0.5)
 
 	print("== Старт")
@@ -445,6 +461,123 @@ func run() -> void:
 	check(player.health.current < hp_late, "блок после удара не спас (hp %.0f → %.0f)" % [hp_late, player.health.current])
 	await seconds(1.5)
 
+	print("== Лук: быстрый и натянутый выстрел")
+	soldier = room_node("Objects/Soldier") as Dummy
+	player.restore()
+	await face_enemy(soldier, 5.0)
+	var hp_arrow := soldier.health.current
+	await shoot(0.0)
+	var quick_speed := last_arrow_speed
+	await seconds(0.5)
+	check(soldier.health.current < hp_arrow, "быстрая стрела попала (%.0f → %.0f)" % [hp_arrow, soldier.health.current])
+	await put(Vector3(-20, 0.1, 0), -1.0)
+	await shoot(0.7)
+	check(last_arrow_speed > quick_speed * 1.5, "натянутая стрела быстрее (%.1f против %.1f)" % [last_arrow_speed, quick_speed])
+	await seconds(0.6)
+
+	print("== Стрела не ломает стекло — отскакивает")
+	await put(Vector3(-8.0, 0.1, 0), -1.0)
+	await shoot(0.3)
+	var bounced := last_arrow
+	await seconds(0.25)
+	check(is_instance_valid(bounced) and bounced.ricochets == 1 and bounced.velocity.x > 0.0, "рикошет от стеклянной башни")
+	check(not (room_node("Glass/Tower") as GlassSurface)._broken, "башня цела")
+	await seconds(0.5)
+
+	print("== Зрение врага по направлению взгляда")
+	player.restore()
+	soldier.detect_range = 7.0
+	soldier._set_state(Dummy.State.PATROL)
+	soldier._turn_t = -1.0
+	soldier.patrol_speed = 0.0
+	await put(Vector3(soldier.global_position.x - soldier.facing * 4.0, 0.1, 0), soldier.facing)
+	await seconds(0.5)
+	check(soldier.state == Dummy.State.PATROL, "сзади на 4 м враг героя не замечает")
+	await put(Vector3(soldier.global_position.x + soldier.facing * 4.0, 0.1, 0), -soldier.facing)
+	await seconds(0.3)
+	check(soldier.state != Dummy.State.PATROL, "спереди на 4 м — замечает (state=%d)" % soldier.state)
+	await seconds(0.5)
+
+	print("== Шум стрелы отвлекает — удар в спину")
+	soldier._set_state(Dummy.State.PATROL)
+	soldier._turn_t = -1.0
+	var look := soldier.facing
+	await put(Vector3(soldier.global_position.x + look * 9.0, 0.1, 0), -look)
+	Arrow.spawn(main, soldier.global_position + Vector3(-look * 3.0, 2.0, 0), Vector3(0, -12, 0), 1.0, 0.0)
+	await seconds(0.2)
+	check(soldier.state == Dummy.State.INVESTIGATE, "враг пошёл на шум (state=%d)" % soldier.state)
+	await seconds(0.6)
+	check(soldier.facing == -look, "враг развернулся к шуму — спиной к герою")
+	soldier.patrol_speed = 1.8
+	await put(Vector3(soldier.global_position.x + look * 1.3, 0.1, 0), -look)
+	var hp_noise := soldier.health.current
+	await tap("attack")
+	check(player.state == Player.State.CRITICAL and last_step == player.weapon.backstab, "удар в спину отвлечённому врагу")
+	await seconds(1.2)
+	check(soldier.health.current < hp_noise - 50.0, "урон удара в спину прошёл")
+	await seconds(1.0)
+	soldier._set_state(Dummy.State.PATROL)
+	await put(Vector3(soldier.global_position.x + soldier.facing * 4.0, 0.1, 0), -soldier.facing)
+	await seconds(0.3)
+	Arrow.spawn(main, soldier.global_position + Vector3(-soldier.facing * 3.0, 2.0, 0), Vector3(0, -12, 0), 1.0, 0.0)
+	await seconds(0.2)
+	check(soldier.state != Dummy.State.INVESTIGATE, "враг, который видит героя, на шум не отвлекается")
+	await seconds(1.0)
+
+	print("== Ползун на потолке: сбит стрелой")
+	player.restore()
+	var hanger := room_node("Objects/CeilingCrawler") as GlassCrawler
+	check(hanger._hanging and hanger._drips.emitting, "висит на потолке, с него капает стекло")
+	await put(Vector3(17.55, 0.1, 0), 1.0)
+	var hp_hanger := hanger.health.current
+	await shoot(0.7, true)
+	await seconds(1.4)
+	check(not hanger._hanging, "стрела сбила ползуна")
+	check(hanger.health.current < hp_hanger, "ушибся при падении (hp %.0f → %.0f)" % [hp_hanger, hanger.health.current])
+	check(hanger.state == Dummy.State.KNOCKDOWN and hanger.is_on_floor(), "лежит оглушённый (state=%d)" % hanger.state)
+	hanger.queue_free()
+	await seconds(0.3)
+
+	print("== Стрела-колышек: одна ступенька на один прыжок")
+	player.restore()
+	await put(Vector3(21.5, 0.1, 0), 1.0)
+	await shoot(0.2)
+	await seconds(0.3)
+	var low_peg := ArrowPeg.current
+	check(is_instance_valid(low_peg), "стрела воткнулась в деревянную панель")
+	await put(Vector3(22.6, 0.1, 0), 1.0)
+	press("jump")
+	await seconds(0.3)
+	await shoot(0.0)
+	release("jump")
+	await seconds(0.7)
+	var high_peg := ArrowPeg.current
+	check(is_instance_valid(high_peg) and high_peg != low_peg and high_peg.global_position.y > 2.6, "вторая стрела выше (y=%.2f)" % (high_peg.global_position.y if high_peg else 0.0))
+	var pegs := 0
+	for node in main.get_children():
+		if node is ArrowPeg and not node.is_queued_for_deletion():
+			pegs += 1
+	check(pegs == 1, "работает только одна стрела-колышек (%d)" % pegs)
+	await put(Vector3(23.2, 0.1, 0), 1.0)
+	press("jump")
+	var used := false
+	for i in 40:
+		await frames(1)
+		if player._peg and player.velocity.y < 1.5:
+			release("jump")
+			await frames(1)
+			press("jump")
+			used = true
+			break
+	await seconds(0.4)
+	release("jump")
+	await seconds(0.8)
+	release_all()
+	check(used, "дотянулся до колышка в прыжке")
+	check(player.is_on_floor() and player.global_position.y > 3.4, "прыжок от колышка — на тайный уступ (y=%.2f)" % player.global_position.y)
+	check(ArrowPeg.current == null, "колышек сломался — второго прыжка нет")
+	await seconds(0.5)
+
 	print("== Чистое стекло в нише → сундук")
 	player.restore()
 	var glass := room_node("Glass/NicheGlass") as GlassSurface
@@ -483,6 +616,20 @@ func run() -> void:
 	check(room_node("Objects/Soldier") != null, "комната сброшена: враг снова на месте")
 	check(not room_node("Glass/NicheGlass")._broken, "комната сброшена: стекло в нише целое")
 	check((room_node("Objects/Chest") as Chest).opened, "открытый сундук остался открытым")
+
+	print("== Ползун на потолке: засада — падает на героя")
+	player.restore()
+	var dropper := room_node("Objects/CeilingCrawler") as GlassCrawler
+	check(dropper != null and dropper._hanging, "после сброса комнаты снова висит")
+	player._iframes = 0.0
+	var hp_drop := player.health.current
+	await put(Vector3(22.5, 0.1, 0), 1.0)
+	await seconds(1.2)
+	check(not dropper._hanging, "герой прошёл под ним — упал")
+	check(player.health.current < hp_drop, "упал на героя (hp %.0f → %.0f)" % [hp_drop, player.health.current])
+	dropper.queue_free()
+	player.restore()
+	await seconds(0.3)
 
 	print("== Удар вниз пробивает стекло над ямой")
 	await put(Vector3(11, 2.5, 0), 1.0)
@@ -542,6 +689,31 @@ func run() -> void:
 	check(not player.is_dead() and player.global_position.x < -15.5, "вернулся от зеркала к старту (x=%.2f)" % player.global_position.x)
 	player._iframes = 0.0
 
+	print("== Люстра: две стрелы — падает в яму и становится платформой")
+	player.restore()
+	var chandelier := room_node("Objects/Chandelier") as HangingProp
+	await put(Vector3(7.5, 0.1, 0), 1.0)
+	await shoot(0.7, true)
+	await seconds(0.4)
+	check(not chandelier.fallen, "одна стрела — люстра ещё держится")
+	await shoot(0.7, true)
+	await seconds(1.8)
+	check(chandelier.fallen and chandelier.landed, "вторая стрела — люстра упала")
+	check((room_node("Glass/TrapGlass") as GlassSurface)._broken, "люстра пробила хрупкое стекло")
+	await put(Vector3(11, -1.2, 0), 1.0)
+	await seconds(0.6)
+	check(player.is_on_floor() and not player.is_dead() and player.global_position.y > -1.6, "на люстре в яме можно стоять (y=%.2f)" % player.global_position.y)
+	press("move_right")
+	press("jump")
+	for i in 60:
+		await frames(1)
+		if player.global_position.x > 13.6:
+			break
+	release_all()
+	await seconds(0.4)
+	check(player.global_position.x > 13.0 and player.global_position.y > -0.2, "с люстры выпрыгнул из ямы (%.2f, %.2f)" % [player.global_position.x, player.global_position.y])
+	await seconds(3.0)
+
 	print("== Зеркало → отражение")
 	await put(Vector3(15.5, 0.1, 0), 1.0)
 	await seconds(0.2)
@@ -569,6 +741,22 @@ func run() -> void:
 	var mg_ok := player.state == Player.State.ATTACK and last_step == player.weapon.combo[0]
 	check(mg_ok, "сзади — обычный удар, не удар в спину (state=%d, шаг «%s», враг state=%d)" % [player.state, last_step.display_name if last_step else "-", mirror_guard.state])
 	await seconds(0.8)
+
+	print("== Ледяной сталактит падает на Отражённого солдата")
+	var stalactite := room_node("Objects/IceStalactite") as HangingProp
+	mirror_guard.health.max_health = 1000.0
+	mirror_guard.health.current = 1000.0
+	mirror_guard.patrol_speed = 0.0
+	mirror_guard.global_position.x = stalactite.global_position.x
+	mirror_guard._set_state(Dummy.State.PATROL)
+	await seconds(0.2)
+	var hp_ice := mirror_guard.health.current
+	Arrow.spawn(main, stalactite.global_position + Vector3(0, -4.0, 0), Vector3(0, 25, 0), 1.0, 0.0)
+	await seconds(1.4)
+	check(stalactite == null or not is_instance_valid(stalactite) or stalactite.landed, "одна стрела — сталактит упал и разбился")
+	check(mirror_guard.health.current <= hp_ice - 39.0, "сталактит ударил врага (hp %.0f → %.0f)" % [hp_ice, mirror_guard.health.current])
+	mirror_guard.patrol_speed = 1.8
+	await seconds(0.5)
 
 	print("== Неразбиваемый скат держит")
 	player._iframes = 30.0
