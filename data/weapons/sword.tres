@@ -1,0 +1,64 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://combat/weapons/weapon_data.gd" id="1_weapon"]
+[ext_resource type="Script" path="res://combat/weapons/attack_step.gd" id="2_step"]
+
+[sub_resource type="Resource" id="Step_slash"]
+script = ExtResource("2_step")
+display_name = "косой рез"
+duration = 0.36
+active_from = 0.07
+active_to = 0.18
+chain_from = 0.15
+damage_multiplier = 1.0
+knockback = 4.5
+lunge_speed = 2.5
+hitstop = 0.06
+hitbox_offset = Vector2(0.95, 1.0)
+hitbox_size = Vector2(1.6, 1.6)
+blade_from = 0.9
+blade_to = -2.4
+grip_from = Vector2(-0.1, 0.2)
+grip_to = Vector2(0.25, -0.15)
+
+[sub_resource type="Resource" id="Step_rise"]
+script = ExtResource("2_step")
+display_name = "взлёт"
+duration = 0.34
+active_from = 0.06
+active_to = 0.17
+chain_from = 0.14
+damage_multiplier = 1.1
+knockback = 4.0
+lunge_speed = 1.5
+hitstop = 0.06
+hitbox_offset = Vector2(0.8, 1.3)
+hitbox_size = Vector2(1.4, 1.8)
+blade_from = -2.4
+blade_to = -0.15
+grip_from = Vector2(0.25, -0.15)
+grip_to = Vector2(0.0, 0.3)
+
+[sub_resource type="Resource" id="Step_thrust"]
+script = ExtResource("2_step")
+display_name = "выпад"
+duration = 0.5
+active_from = 0.12
+active_to = 0.26
+chain_from = 0.38
+damage_multiplier = 1.6
+knockback = 9.0
+heavy = true
+lunge_speed = 7.0
+hitstop = 0.11
+hitbox_offset = Vector2(1.45, 1.1)
+hitbox_size = Vector2(2.1, 0.7)
+blade_from = -1.5708
+blade_to = -1.5708
+grip_from = Vector2(-0.25, 0.0)
+grip_to = Vector2(0.7, 0.0)
+
+[resource]
+script = ExtResource("1_weapon")
+display_name = "Меч"
+combo = Array[ExtResource("2_step")]([SubResource("Step_slash"), SubResource("Step_rise"), SubResource("Step_thrust")])
