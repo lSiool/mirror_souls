@@ -468,8 +468,10 @@ func _try_critical() -> bool:
 		var d := enemy.global_position - global_position
 		if absf(d.y) > 1.0 or signf(d.x) != facing:
 			continue
-		if weapon.riposte and enemy.can_be_riposted() and absf(d.x) <= stats.riposte_range:
-			_start_critical(enemy, weapon.riposte)
+		# У врага может быть своё особое добивание (§6.3).
+		var riposte := enemy.riposte_step if enemy.riposte_step else weapon.riposte
+		if riposte and enemy.can_be_riposted() and absf(d.x) <= stats.riposte_range:
+			_start_critical(enemy, riposte)
 			return true
 		if weapon.backstab and enemy.can_be_backstabbed(global_position.x) \
 				and absf(d.x) <= stats.backstab_range:

@@ -11,7 +11,6 @@ enum State {
 	OFF_BALANCE, CRITICAL_HIT, KNOCKDOWN, DEAD,
 }
 
-const BASE_COLOR := Color(0.42, 0.4, 0.44)
 const WINDUP_COLOR := Color(1.0, 0.35, 0.1)
 const OFF_BALANCE_COLOR := Color(1.0, 0.85, 0.2)
 const HEAD_SLIDE_SPEED := 5.0
@@ -33,6 +32,9 @@ const CRITICAL_TIMEOUT := 2.0
 @export var recover_time := 0.8
 @export var stagger_time := 0.35
 @export var gravity := 30.0
+## Рывок вперёд в момент удара.
+@export var attack_lunge := 5.0
+@export var body_color := Color(0.42, 0.4, 0.44)
 
 @export_group("Свойства типа врага")
 ## Запас стойкости: удары его снижают, при нуле — стаггер.
@@ -45,6 +47,8 @@ const CRITICAL_TIMEOUT := 2.0
 @export var parry_allowed := true
 @export var off_balance_time := 1.5
 @export var knockdown_time := 0.8
+## Особое добивание этого врага. Пусто — герой бьёт добиванием своего оружия.
+@export var riposte_step: AttackStep
 
 var state := State.PATROL
 var poise := 0.0
@@ -71,7 +75,7 @@ func _ready() -> void:
 	_origin = global_position
 	poise = max_poise
 	_material = StandardMaterial3D.new()
-	_material.albedo_color = BASE_COLOR
+	_material.albedo_color = body_color
 	_material.emission_enabled = true
 	body_mesh.material_override = _material
 	health.died.connect(_on_died)
@@ -96,6 +100,7 @@ func on_revealed() -> void:
 
 func _physics_process(delta: float) -> void:
 	if state == State.DORMANT:
+		_wake_check(delta)
 		return
 	_state_time += delta
 	_find_player()
@@ -110,7 +115,8 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= windup_time:
 				_set_state(State.ATTACK)
 				attack_hitbox.active = true
-				velocity.x = facing * 5.0
+				velocity.x = facing * attack_lunge
+				_on_attack_started()
 		State.ATTACK:
 			_brake(20.0, delta)
 			if _state_time >= attack_time:
@@ -148,6 +154,28 @@ func _physics_process(delta: float) -> void:
 	visual.rotation.y = 0.0 if facing > 0.0 else PI
 	_update_pose(delta)
 	_update_material(delta)
+	_update_extra(delta)
+
+
+# --- Точки расширения для типов врагов --------------------------------------
+
+## Пока враг спит (DORMANT): проверить, не пора ли проснуться.
+func _wake_check(_delta: float) -> void:
+	pass
+
+
+func _on_attack_started() -> void:
+	pass
+
+
+## Удар закончился или прерван (парирование, стаггер, добивание).
+func _on_attack_ended() -> void:
+	pass
+
+
+## Анимация, своя у типа врага.
+func _update_extra(_delta: float) -> void:
+	pass
 
 
 func _brake(rate: float, delta: float) -> void:
@@ -323,6 +351,7 @@ func _find_player() -> void:
 func _set_state(new_state: State) -> void:
 	if state == State.ATTACK:
 		attack_hitbox.active = false
+		_on_attack_ended()
 	state = new_state
 	_state_time = 0.0
 
@@ -342,18 +371,18 @@ func _update_pose(delta: float) -> void:
 
 func _update_material(delta: float) -> void:
 	_flash = maxf(_flash - delta, 0.0)
-	var color := BASE_COLOR
+	var color := body_color
 	var glow := 0.0
 	if state == State.WINDUP:
 		var t := clampf(_state_time / windup_time, 0.0, 1.0)
-		color = BASE_COLOR.lerp(WINDUP_COLOR, t)
+		color = body_color.lerp(WINDUP_COLOR, t)
 		glow = t * 1.5
 	elif state == State.OFF_BALANCE:
 		var pulse := 0.5 + 0.5 * sin(_state_time * 18.0)
-		color = BASE_COLOR.lerp(OFF_BALANCE_COLOR, 0.6 + 0.4 * pulse)
+		color = body_color.lerp(OFF_BALANCE_COLOR, 0.6 + 0.4 * pulse)
 		glow = 0.8 + pulse
 	if _flash > 0.0:
-		color = Color.WHITE
+		color = Color(1.0, 1.0, 1.0, body_color.a)
 		glow = 2.0
 	_material.albedo_color = color
 	_material.emission = color
