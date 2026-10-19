@@ -201,27 +201,54 @@ func run() -> void:
 	release_all()
 	await seconds(1.0)
 
-	print("== Кувырок сквозь удар врага")
+	print("== Тела сталкиваются, контакт без урона")
 	var soldier := room_node("Objects/Soldier") as Dummy
+	soldier.detect_range = 0.0
+	player.restore()
+	await put(Vector3(soldier.global_position.x - 3.0, 0.1, 0), 1.0)
+	var hp_contact := player.health.current
+	press("move_right")
+	await seconds(1.2)
+	release_all()
+	var gap := soldier.global_position.x - player.global_position.x
+	check(gap > 0.6, "герой упёрся во врага, а не прошёл сквозь (зазор %.2f)" % gap)
+	check(player.health.current == hp_contact, "столкновение без урона (hp %.0f)" % player.health.current)
+
+	soldier.global_position = Vector3(0, 0, 0)
+	soldier._origin = Vector3.ZERO
+	soldier.facing = 1.0
+	await put(Vector3(1.3, 0.1, 0), -1.0)
+	await seconds(0.8)
+	check(soldier.facing > 0.0, "патруль упёрся в героя и не развернулся")
+	check(soldier.global_position.x < player.global_position.x, "враг остался перед героем")
+
+	await put(Vector3(soldier.global_position.x, 1.9, 0), 1.0)
+	await seconds(1.2)
+	var off := absf(player.global_position.x - soldier.global_position.x)
+	check(player.is_on_floor() and player.global_position.y < 0.2, "с головы врага соскользнул на пол (y=%.2f)" % player.global_position.y)
+	check(off > 0.7, "стоит рядом с врагом, а не на нём (dx=%.2f)" % off)
+	soldier.detect_range = 7.0
+
+	print("== Кувырок от удара в последний момент")
 	player.restore()
 	await put(Vector3(soldier.global_position.x - 1.5, 0.1, 0), 1.0)
 	var waited := 0
-	while not (soldier.state == Dummy.State.WINDUP and soldier._state_time > soldier.windup_time - 0.12) and waited < 300:
+	while not (soldier.state == Dummy.State.WINDUP and soldier._state_time > soldier.windup_time - 0.06) and waited < 300:
 		await frames(1)
 		waited += 1
 	var hp_before := player.health.current
-	press("move_right")
+	press("move_left")
 	await tap("roll")
 	await seconds(0.6)
 	release_all()
 	check(soldier.state != Dummy.State.PATROL, "враг атаковал (state=%d)" % soldier.state)
-	check(player.health.current == hp_before, "кувырок сквозь удар без урона (hp %.0f → %.0f)" % [hp_before, player.health.current])
+	check(player.health.current == hp_before, "кувырок без урона (hp %.0f → %.0f)" % [hp_before, player.health.current])
 	await seconds(0.5)
 
 	print("== Комбо меча: рез → взлёт → выпад")
 	player.restore()
 	soldier = room_node("Objects/Soldier") as Dummy
-	await put(Vector3(soldier.global_position.x - 1.2, 0.1, 0), 1.0)
+	await put(Vector3(soldier.global_position.x - 1.0, 0.1, 0), 1.0)
 	steps_seen.clear()
 	var hp0 := soldier.health.current
 	for i in 3:
@@ -296,6 +323,10 @@ func run() -> void:
 	print("== Путь назад: от зеркала к старту")
 	player.restore()
 	player._iframes = 30.0
+	# Проверяем геометрию уровня, а не бой: враг не гонится за героем.
+	var guard := room_node("Objects/Soldier") as Dummy
+	if guard:
+		guard.detect_range = 0.0
 	await put(Vector3(14.5, 0.1, 0), -1.0)
 	press("move_left")
 	for i in 120:
@@ -303,10 +334,20 @@ func run() -> void:
 		if player.global_position.x < 13.4:
 			break
 	await tap("roll")
-	for i in 240:
+	press("move_left")
+	for i in 300:
 		await frames(1)
 		if player.global_position.x < -10.0:
 			break
+		# Враг перекрывает дорогу — тела сталкиваются, перепрыгиваем с разбега.
+		var blocker := room_node("Objects/Soldier") as Node3D
+		if blocker and player.is_on_floor():
+			var ahead := player.global_position.x - blocker.global_position.x
+			if ahead > 1.8 and ahead < 3.0:
+				# Полный прыжок: высота переменная, короткое нажатие даёт низкий прыжок.
+				press("jump")
+				await seconds(0.3)
+				release("jump")
 	release_all()
 	await climb("move_left")
 	press("move_left")
