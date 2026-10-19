@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody3D
-## Герой: движение в плоскости XY, перекат, меч, удар вниз, скольжение и лазание по стеклу.
+## Герой: движение в плоскости XY, перекат, меч, удар вниз, скольжение и лазание по стеклу,
+## блок и парирование, добивание и удар в спину.
 ## Все числа скорости и урона берутся из PlayerStats, который зависит от возраста (§1.3).
 
 signal died
@@ -8,7 +9,7 @@ signal health_changed(current: float, maximum: float)
 signal stamina_changed(current: float, maximum: float)
 signal attack_step_started(step: AttackStep, index: int, total: int)
 
-enum State { MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD }
+enum State { MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL }
 
 const KILL_Y := -15.0
 const PLUNGE_LAND_TIME := 0.15
@@ -16,6 +17,8 @@ const HURT_TIME := 0.3
 const SLIDE_LEAN := 0.35
 ## С какой скоростью герой соскальзывает с головы врага: на врагах не стоят.
 const HEAD_SLIDE_SPEED := 5.0
+## На каком расстоянии герой встаёт к врагу для добивания и удара в спину.
+const CRITICAL_DISTANCE := 1.0
 
 @export var stats: PlayerStats
 ## Оружие и его набор атак (§6.2).
@@ -41,6 +44,14 @@ var _fast_attack := false
 var _roll_dir := 1.0
 var _roll_speed := 0.0
 var _plunge_landed_at := -1.0
+## Окно парирования: сколько ещё секунд после нажатия блока удар будет парирован.
+var _parry_t := 0.0
+## Сколько секунд прошло после выхода из скольжения и после кувырка (для особых ударов).
+var _since_slide := 99.0
+var _since_roll := 99.0
+var _roll_attack_queued := false
+var _critical_target: Dummy
+var _critical_done := false
 var _floor_glass_normal := Vector3.ZERO
 var _floor_glass: GlassSurface
 ## Стоим на голове врага: направление, куда соскальзываем (0 — не стоим).
@@ -95,6 +106,9 @@ func _physics_process(delta: float) -> void:
 		State.CLIMB: _climb_state(delta)
 		State.HURT: _hurt_state(delta)
 		State.DEAD: _dead_state(delta)
+		State.BLOCK: _block_state(delta)
+		State.GUARD_BROKEN: _guard_broken_state(delta)
+		State.CRITICAL: _critical_state(delta)
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
@@ -118,6 +132,9 @@ func _tick(delta: float) -> void:
 	_roll_buffer = maxf(_roll_buffer - delta, 0.0)
 	_iframes = maxf(_iframes - delta, 0.0)
 	_input_lock = maxf(_input_lock - delta, 0.0)
+	_parry_t = maxf(_parry_t - delta, 0.0)
+	_since_slide += delta
+	_since_roll += delta
 	hurtbox.invulnerable = _iframes > 0.0 or state == State.DEAD
 
 	if state != State.DEAD:
@@ -127,13 +144,16 @@ func _tick(delta: float) -> void:
 			_attack_buffer = stats.attack_buffer
 		if Input.is_action_just_pressed("roll"):
 			_roll_buffer = stats.input_buffer
+		if Input.is_action_just_pressed("block"):
+			_parry_t = stats.parry_window
 		if Input.is_action_just_pressed("interact"):
 			_try_interact()
 
 	if _stamina_delay > 0.0:
 		_stamina_delay -= delta
 	elif stamina < stats.max_stamina:
-		stamina = minf(stamina + stats.stamina_regen * delta, stats.max_stamina)
+		var regen := stats.stamina_regen * (stats.block_regen_mult if state == State.BLOCK else 1.0)
+		stamina = minf(stamina + regen * delta, stats.max_stamina)
 		stamina_changed.emit(stamina, stats.max_stamina)
 
 
@@ -154,11 +174,20 @@ func _set_state(new_state: State) -> void:
 		sword_hitbox.active = false
 		if new_state != State.ATTACK:
 			_rest_sword()
-	if state == State.PLUNGE:
+	if state in [State.PLUNGE, State.BLOCK, State.GUARD_BROKEN, State.CRITICAL]:
 		plunge_hitbox.active = false
 		_rest_sword()
+	if state == State.SLIDE:
+		_since_slide = 0.0
+	if state == State.ROLL:
+		_since_roll = 0.0
 	state = new_state
 	_state_time = 0.0
+	if state == State.BLOCK:
+		_guard_sword()
+	elif state == State.GUARD_BROKEN:
+		_kill_swing()
+		sword_pivot.rotation = Vector3(0.0, 0.0, 1.5)
 
 
 func _apply_gravity(delta: float) -> void:
@@ -199,6 +228,8 @@ func _move_state(delta: float) -> void:
 			_start_plunge()
 		else:
 			_start_attack()
+	elif on_floor and Input.is_action_pressed("block"):
+		_set_state(State.BLOCK)
 	elif _wants_climb(x, on_floor):
 		_set_state(State.CLIMB)
 
@@ -221,6 +252,7 @@ func _start_roll() -> void:
 	var carried := absf(velocity.x) if signf(velocity.x) == _roll_dir else 0.0
 	_roll_speed = maxf(stats.roll_speed, carried)
 	_iframes = maxf(_iframes, stats.roll_iframes)
+	_roll_attack_queued = false
 	_set_state(State.ROLL)
 
 
@@ -228,31 +260,57 @@ func _roll_state(delta: float) -> void:
 	var t := _state_time / stats.roll_duration
 	velocity.x = _roll_dir * _roll_speed * (1.0 - 0.4 * t)
 	_apply_gravity(delta)
+	# Удар, нажатый в кувырке, выходит сразу после него — «по инерции».
+	if _attack_buffer > 0.0:
+		_attack_buffer = 0.0
+		_roll_attack_queued = true
 	if _state_time >= stats.roll_duration:
+		var queued := _roll_attack_queued
 		_set_state(State.MOVE)
+		if queued:
+			_start_attack()
 
 
+## Выбор удара: добивание или удар в спину → продолжение комбо → удар из скольжения
+## → удар после кувырка → первая стадия комбо.
 func _start_attack() -> void:
 	if stamina <= 0.0 or weapon == null or weapon.combo.is_empty():
 		return
+	var x := _input_x()
+	if x != 0.0 and state != State.SLIDE:
+		facing = signf(x)
+	if _try_critical():
+		return
+	if state == State.ATTACK:
+		var chaining := _combo > 0 and _combo < weapon.combo.size()
+		var index := _combo + 1 if chaining else 1
+		_begin_attack(weapon.combo[index - 1], index)
+	elif weapon.slide_attack and (state == State.SLIDE or _since_slide < stats.slide_attack_window):
+		_begin_attack(weapon.slide_attack, 0)
+	elif weapon.roll_attack and _since_roll < stats.roll_attack_window:
+		_begin_attack(weapon.roll_attack, 0)
+	else:
+		_begin_attack(weapon.combo[0], 1)
+
+
+## index — номер стадии комбо; 0 — особый удар, после него комбо начинается заново.
+func _begin_attack(step: AttackStep, index: int) -> void:
 	_attack_buffer = 0.0
 	_spend_stamina(stats.attack_cost)
-	var chaining := state == State.ATTACK and _combo < weapon.combo.size()
-	_combo = _combo + 1 if chaining else 1
-	_step = weapon.combo[_combo - 1]
-	var x := _input_x()
-	if x != 0.0:
-		facing = signf(x)
+	_combo = index
+	_step = step
 	# Импульс переходит в удар: первый удар на высокой скорости тяжелее.
-	_fast_attack = _combo == 1 and absf(velocity.x) > stats.move_speed * 1.2
-	sword_hitbox.damage = stats.sword_damage * _step.damage_multiplier * (1.3 if _fast_attack else 1.0)
-	sword_hitbox.heavy = _step.heavy or _fast_attack
-	sword_hitbox.knockback = maxf(_step.knockback, 8.0 if _fast_attack else 0.0)
-	_sword_shape.size = Vector3(_step.hitbox_size.x, _step.hitbox_size.y, 1.8)
-	sword_hitbox_shape.position = Vector3(_step.hitbox_offset.x, _step.hitbox_offset.y, 0.0)
+	_fast_attack = index <= 1 and absf(velocity.x) > stats.move_speed * 1.2
+	var bonus := 1.3 if _fast_attack else 1.0
+	sword_hitbox.damage = stats.sword_damage * step.damage_multiplier * bonus
+	sword_hitbox.poise_damage = step.poise_damage * bonus
+	sword_hitbox.heavy = step.heavy or _fast_attack
+	sword_hitbox.knockback = maxf(step.knockback, 8.0 if _fast_attack else 0.0)
+	_sword_shape.size = Vector3(step.hitbox_size.x, step.hitbox_size.y, 1.8)
+	sword_hitbox_shape.position = Vector3(step.hitbox_offset.x, step.hitbox_offset.y, 0.0)
 	_set_state(State.ATTACK)
-	_swing(_step)
-	attack_step_started.emit(_step, _combo, weapon.combo.size())
+	_swing(step)
+	attack_step_started.emit(step, index, weapon.combo.size())
 
 
 func _attack_state(delta: float) -> void:
@@ -284,6 +342,7 @@ func _start_plunge() -> void:
 	_attack_buffer = 0.0
 	_spend_stamina(stats.attack_cost)
 	plunge_hitbox.damage = stats.sword_damage * 1.5
+	plunge_hitbox.poise_damage = 45.0
 	plunge_hitbox.heavy = true
 	_plunge_landed_at = -1.0
 	_set_state(State.PLUNGE)
@@ -370,6 +429,86 @@ func _hurt_state(delta: float) -> void:
 func _dead_state(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, 0.0, 20.0 * delta)
 	_apply_gravity(delta)
+
+
+func _block_state(delta: float) -> void:
+	var on_floor := is_on_floor()
+	var x := _input_x()
+	if x != 0.0:
+		facing = signf(x)
+	var target := x * stats.move_speed * stats.block_move_mult
+	velocity.x = move_toward(velocity.x, target, stats.acceleration * delta)
+	_apply_gravity(delta)
+	if not on_floor or not Input.is_action_pressed("block"):
+		_set_state(State.MOVE)
+	elif _roll_buffer > 0.0:
+		_start_roll()
+	elif _jump_buffer > 0.0:
+		_jump()
+		_set_state(State.MOVE)
+	elif _attack_buffer > 0.0:
+		_start_attack()
+
+
+func _guard_broken_state(delta: float) -> void:
+	velocity.x = move_toward(velocity.x, 0.0, 15.0 * delta)
+	_apply_gravity(delta)
+	if _state_time >= stats.guard_break_time:
+		_set_state(State.MOVE)
+
+
+## Добивание и удар в спину: герой встаёт к врагу вплотную и наносит один тяжёлый удар.
+func _try_critical() -> bool:
+	if not is_on_floor():
+		return false
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Dummy
+		if enemy == null or not enemy.is_inside_tree():
+			continue
+		var d := enemy.global_position - global_position
+		if absf(d.y) > 1.0 or signf(d.x) != facing:
+			continue
+		if weapon.riposte and enemy.can_be_riposted() and absf(d.x) <= stats.riposte_range:
+			_start_critical(enemy, weapon.riposte)
+			return true
+		if weapon.backstab and enemy.can_be_backstabbed(global_position.x) \
+				and absf(d.x) <= stats.backstab_range:
+			_start_critical(enemy, weapon.backstab)
+			return true
+	return false
+
+
+func _start_critical(enemy: Dummy, step: AttackStep) -> void:
+	_attack_buffer = 0.0
+	_critical_target = enemy
+	_critical_done = false
+	_step = step
+	_combo = 0
+	facing = signf(enemy.global_position.x - global_position.x)
+	var stand := enemy.global_position.x - facing * CRITICAL_DISTANCE
+	move_and_collide(Vector3(stand - global_position.x, 0.0, 0.0))
+	velocity = Vector3.ZERO
+	enemy.begin_critical()
+	_set_state(State.CRITICAL)
+	if step.invulnerable:
+		_iframes = maxf(_iframes, step.duration)
+	_swing(step)
+	attack_step_started.emit(step, 0, weapon.combo.size())
+
+
+func _critical_state(delta: float) -> void:
+	velocity.x = 0.0
+	_apply_gravity(delta)
+	if not _critical_done and _state_time >= _step.active_from:
+		_critical_done = true
+		if is_instance_valid(_critical_target):
+			_critical_target.apply_critical(stats.sword_damage * _step.damage_multiplier)
+			HitStop.stop(_step.hitstop)
+			Events.camera_shake_requested.emit(0.45, 0.3)
+			var at := _critical_target.global_position + Vector3(0.0, 1.1, 0.3)
+			HitSpark.spawn(get_parent(), at, Color(1.0, 0.45, 0.3), 32)
+	if _state_time >= _step.duration:
+		_set_state(State.MOVE)
 
 
 # --- Стекло -----------------------------------------------------------------
@@ -483,6 +622,16 @@ func _on_hit_landed(hurtbox_hit: Hurtbox) -> void:
 func _on_hurt(hitbox: Hitbox) -> void:
 	if state == State.DEAD:
 		return
+	# Блок и парирование работают только против ударов врагов спереди.
+	var attacker := hitbox.owner as Dummy
+	if attacker and state not in [State.ROLL, State.GUARD_BROKEN, State.CRITICAL, State.HURT]:
+		var from_front := signf(attacker.global_position.x - global_position.x) == facing
+		if from_front and _parry_t > 0.0 and attacker.on_parried():
+			_on_parry(attacker)
+			return
+		if from_front and state == State.BLOCK:
+			_on_block(hitbox)
+			return
 	health.take_damage(hitbox.damage, hitbox.non_lethal)
 	_flash(Color(1.0, 0.25, 0.2))
 	Events.camera_shake_requested.emit(0.3, 0.2)
@@ -493,6 +642,32 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	velocity = Vector3(dir.x * hitbox.knockback, 5.0, 0.0)
 	_iframes = stats.hurt_iframes
 	_set_state(State.HURT)
+
+
+func _on_parry(attacker: Dummy) -> void:
+	_parry_t = 0.0
+	HitStop.stop(0.12)
+	Events.camera_shake_requested.emit(0.3, 0.2)
+	var at := (global_position + attacker.global_position) * 0.5 + Vector3(0.0, 1.2, 0.3)
+	HitSpark.spawn(get_parent(), at, Color(1.0, 0.95, 0.6), 26)
+
+
+## Удар принят на блок: урона нет, но он стоит выносливости. Не хватило — блок пробит.
+func _on_block(hitbox: Hitbox) -> void:
+	var cost := hitbox.damage * stats.block_stamina_mult
+	var at := global_position + Vector3(facing * 0.6, 1.2, 0.3)
+	if stamina >= cost:
+		_spend_stamina(cost)
+		velocity.x = -facing * 3.0
+		HitStop.stop(0.05)
+		_flash(Color(0.6, 0.8, 1.0))
+		HitSpark.spawn(get_parent(), at, Color(0.8, 0.9, 1.0), 12)
+	else:
+		_spend_stamina(stamina)
+		velocity.x = -facing * 4.0
+		Events.camera_shake_requested.emit(0.3, 0.2)
+		HitSpark.spawn(get_parent(), at, Color(1.0, 0.6, 0.3), 18)
+		_set_state(State.GUARD_BROKEN)
 
 
 func _on_died() -> void:
@@ -586,6 +761,10 @@ func _update_visual(delta: float) -> void:
 			target_tilt = -SLIDE_LEAN
 		State.CLIMB:
 			target_scale = Vector3(0.9, 1.05, 0.9)
+		State.BLOCK:
+			target_scale = Vector3(1.05, 0.92, 1.05)
+		State.GUARD_BROKEN:
+			target_tilt = 0.3
 	body_mesh.scale = body_mesh.scale.lerp(target_scale, k)
 	body_mesh.position.y = 0.9 * body_mesh.scale.y
 	if state == State.ROLL:
@@ -612,27 +791,36 @@ func _flash(color: Color) -> void:
 
 
 func _swing(step: AttackStep) -> void:
-	if _swing_tween:
-		_swing_tween.kill()
-	sword_pivot.rotation.z = step.blade_from
+	_kill_swing()
+	sword_pivot.rotation = Vector3(0.0, step.blade_yaw_from, step.blade_from)
 	sword_pivot.position = _grip_base + Vector3(step.grip_from.x, step.grip_from.y, 0.0)
 	var to_grip := _grip_base + Vector3(step.grip_to.x, step.grip_to.y, 0.0)
 	var time := step.active_to - step.active_from
 	_swing_tween = create_tween().set_parallel()
-	_swing_tween.tween_property(sword_pivot, "rotation:z", step.blade_to, time) \
-		.set_delay(step.active_from).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_swing_tween.tween_property(sword_pivot, "position", to_grip, time) \
-		.set_delay(step.active_from).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	var targets := {"rotation:z": step.blade_to, "rotation:y": step.blade_yaw_to, "position": to_grip}
+	for prop: String in targets:
+		_swing_tween.tween_property(sword_pivot, prop, targets[prop], time) \
+			.set_delay(step.active_from).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _point_sword_down() -> void:
-	if _swing_tween:
-		_swing_tween.kill()
-	sword_pivot.rotation.z = PI
+	_kill_swing()
+	sword_pivot.rotation = Vector3(0.0, 0.0, PI)
 
 
 func _rest_sword() -> void:
+	_kill_swing()
+	sword_pivot.rotation = Vector3(0.0, 0.0, 0.5)
+	sword_pivot.position = _grip_base
+
+
+## Стойка блока: клинок наискось перед собой.
+func _guard_sword() -> void:
+	_kill_swing()
+	sword_pivot.rotation = Vector3(0.0, 0.0, -0.75)
+	sword_pivot.position = _grip_base + Vector3(0.2, 0.05, 0.0)
+
+
+func _kill_swing() -> void:
 	if _swing_tween:
 		_swing_tween.kill()
-	sword_pivot.rotation.z = 0.5
-	sword_pivot.position = _grip_base

@@ -64,6 +64,24 @@ const AGE_MAX := 22
 @export var plunge_speed := 20.0
 @export var hurt_iframes := 0.7
 
+@export_group("Защита")
+## Окно парирования после нажатия блока.
+@export var parry_window := 0.18
+## Сколько выносливости стоит принятый на блок удар: урон × множитель.
+@export var block_stamina_mult := 1.0
+@export var block_move_mult := 0.35
+## В блоке выносливость восстанавливается медленнее.
+@export var block_regen_mult := 0.4
+@export var guard_break_time := 0.8
+
+@export_group("Особые удары")
+@export var riposte_range := 1.8
+@export var backstab_range := 1.6
+## Сколько после выхода из скольжения ещё срабатывает удар из скольжения.
+@export var slide_attack_window := 0.25
+## Сколько после кувырка ещё срабатывает удар после кувырка.
+@export var roll_attack_window := 0.3
+
 var move_speed: float:
 	get: return _by_age(move_speed_young, move_speed_old)
 var acceleration: float:
