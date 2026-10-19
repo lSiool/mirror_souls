@@ -7,6 +7,9 @@ extends Dummy
 ## (удар в спину невозможен), кол можно парировать — он трескается, у ползуна
 ## «кружится голова»; добивание особое — меч в сердцевину, ползун растекается
 ## лужицей стекла и застывает.
+##
+## Может висеть на потолке каплей в засаде: с него капает стекло (подсказка §5.3).
+## Сбитый стрелой — падает и лежит оглушённый; герой прошёл под ним — падает на героя.
 
 const HEAT_TIME := 0.5
 const BUBBLE_TIME := 0.4
@@ -15,12 +18,21 @@ const SPIKE_GROW := 0.12
 const SPIKE_RETRACT := 0.25
 const SPIKE_ORIGIN_X := 0.25
 const PUDDLE_COLOR := Color(0.75, 0.86, 0.95, 0.55)
+## Насколько близко по X герой должен подойти под висящего ползуна, чтобы тот упал.
+const DROP_SENSE := 3.0
+const DROP_SPEED := 12.0
+const SHOT_FALL_DAMAGE := 15.0
+const SHOT_STUN_TIME := 1.6
+## Сколько удар телом остаётся опасным после приземления на героя.
+const SLAM_LINGER := 0.15
 
 ## Мутное стекло, из которого ползун выдувается.
 @export var source_glass: NodePath
 ## Как близко герой должен подойти к стеклу, чтобы ползун начал выдуваться.
 @export var wake_distance := 3.0
 @export var spike_length := 2.6
+## Висит на потолке в засаде.
+@export var ceiling_hang := false
 
 var _glass: GlassSurface
 var _emerge_t := -1.0
@@ -29,6 +41,11 @@ var _ground_pos := Vector3.ZERO
 var _spike_broken := false
 var _wobble := 0.0
 var _attack_shape: BoxShape3D
+var _hanging := false
+## Падает на героя телом (засада с потолка).
+var _dropping := false
+var _slam_left := 0.0
+var _drips: CPUParticles3D
 
 @onready var spike: Node3D = $Visual/Spike
 @onready var attack_shape_node: CollisionShape3D = $Visual/AttackHitbox/Shape
@@ -47,7 +64,9 @@ func _ready() -> void:
 	attack_shape_node.shape = _attack_shape
 	spike.visible = false
 	_glass = get_node_or_null(source_glass) as GlassSurface
-	if dormant:
+	if ceiling_hang:
+		_start_hanging()
+	elif dormant:
 		visible = false
 
 
@@ -55,6 +74,12 @@ func _ready() -> void:
 
 func _wake_check(delta: float) -> void:
 	_find_player()
+	if _hanging:
+		if _player and not _player.is_dead():
+			var d := _player.global_position - global_position
+			if absf(d.x) < DROP_SENSE and d.y < 0.0:
+				_drop(false)
+		return
 	if _emerge_t < 0.0:
 		if _should_wake():
 			_start_emerge()
@@ -116,6 +141,67 @@ func _set_blob(blob_scale: Vector3, with_sides: bool) -> void:
 	side_right.visible = with_sides
 
 
+# --- Засада на потолке ------------------------------------------------------
+
+func _start_hanging() -> void:
+	_hanging = true
+	state = State.DORMANT
+	visible = true
+	# Капля вниз: тельце вытянуто и перевёрнуто.
+	_set_blob(Vector3(0.75, 1.35, 0.75), false)
+	body_mesh.rotation.z = PI
+	_drips = CPUParticles3D.new()
+	_drips.amount = 3
+	_drips.lifetime = 1.8
+	_drips.direction = Vector3.DOWN
+	_drips.spread = 0.0
+	_drips.gravity = Vector3(0.0, -14.0, 0.0)
+	_drips.initial_velocity_min = 0.5
+	_drips.initial_velocity_max = 1.0
+	var drop_mesh := SphereMesh.new()
+	drop_mesh.radius = 0.05
+	drop_mesh.height = 0.12
+	var drop_mat := StandardMaterial3D.new()
+	drop_mat.albedo_color = Color(0.75, 0.9, 1.0, 0.8)
+	drop_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	drop_mat.emission_enabled = true
+	drop_mat.emission = Color(0.6, 0.85, 1.0)
+	drop_mat.emission_energy_multiplier = 1.5
+	drop_mesh.material = drop_mat
+	_drips.mesh = drop_mesh
+	_drips.position.y = -0.1
+	add_child(_drips)
+
+
+## shot — сбит стрелой: падает оглушённым. Иначе — падает на героя.
+func _drop(shot: bool) -> void:
+	_hanging = false
+	_drips.emitting = false
+	_set_blob(Vector3.ONE, true)
+	body_mesh.rotation = Vector3.ZERO
+	velocity = Vector3(0.0, -DROP_SPEED, 0.0)
+	_find_player()
+	if _player:
+		facing = signf(_player.global_position.x - global_position.x)
+	if shot:
+		health.take_damage(SHOT_FALL_DAMAGE)
+		_flash = 0.15
+		_set_state(State.KNOCKDOWN)
+		# Оглушён дольше обычного сбивания с ног.
+		_state_time = knockdown_time - SHOT_STUN_TIME
+	else:
+		_dropping = true
+		_set_state(State.RECOVER)
+
+
+func _on_hurt(hitbox: Hitbox) -> void:
+	if _hanging:
+		health.take_damage(hitbox.damage)
+		_drop(true)
+		return
+	super(hitbox)
+
+
 # --- Кол ----------------------------------------------------------------------
 
 func _on_attack_started() -> void:
@@ -133,7 +219,22 @@ func on_parried() -> bool:
 	return parried
 
 
-func _update_extra(_delta: float) -> void:
+func _update_extra(delta: float) -> void:
+	if _dropping:
+		# Падение на героя: бьёт всем телом и ещё мгновение после приземления.
+		spike.visible = false
+		_attack_shape.size = Vector3(1.1, 1.0, 1.0)
+		attack_shape_node.position = Vector3(0.0, 0.3, 0.0)
+		attack_hitbox.active = true
+		if is_on_floor():
+			if _slam_left <= 0.0:
+				_slam_left = SLAM_LINGER
+				Events.camera_shake_requested.emit(0.25, 0.2)
+			_slam_left -= delta
+			if _slam_left <= 0.0:
+				_dropping = false
+				attack_hitbox.active = false
+		return
 	var length := _spike_length_now()
 	spike.visible = length > 0.05
 	spike.scale = Vector3(1.0, maxf(length, 0.01), 1.0)
