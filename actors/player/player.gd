@@ -774,8 +774,9 @@ func _update_visual(delta: float) -> void:
 		body_mesh.rotation.z = lerpf(body_mesh.rotation.z, -PI * 0.5, 1.0 - exp(-8.0 * delta))
 	else:
 		body_mesh.rotation.z = lerpf(wrapf(body_mesh.rotation.z, -PI, PI), target_tilt, k)
-	# Мигание в неуязвимости после удара (перекат не мигает).
-	var blink := _iframes > 0.0 and state != State.ROLL and fmod(_iframes, 0.12) < 0.06
+	# Мигание в неуязвимости после удара (перекат и особые удары не мигают).
+	var blink := _iframes > 0.0 and state not in [State.ROLL, State.CRITICAL] \
+		and fmod(_iframes, 0.12) < 0.06
 	body_mesh.visible = not blink
 
 
