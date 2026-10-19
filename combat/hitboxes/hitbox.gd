@@ -5,6 +5,8 @@ extends Area3D
 signal hit_landed(hurtbox: Hurtbox)
 
 @export var damage := 10.0
+## Урон по стойкости цели.
+@export var poise_damage := 15.0
 @export var knockback := 6.0
 @export var heavy := false
 @export var non_lethal := false

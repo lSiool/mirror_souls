@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="WeaponData" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="WeaponData" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://combat/weapons/weapon_data.gd" id="1_weapon"]
 [ext_resource type="Script" path="res://combat/weapons/attack_step.gd" id="2_step"]
@@ -11,6 +11,7 @@ active_from = 0.07
 active_to = 0.18
 chain_from = 0.15
 damage_multiplier = 1.0
+poise_damage = 18.0
 knockback = 4.5
 lunge_speed = 2.5
 hitstop = 0.06
@@ -29,6 +30,7 @@ active_from = 0.06
 active_to = 0.17
 chain_from = 0.14
 damage_multiplier = 1.1
+poise_damage = 20.0
 knockback = 4.0
 lunge_speed = 1.5
 hitstop = 0.06
@@ -47,6 +49,7 @@ active_from = 0.12
 active_to = 0.26
 chain_from = 0.38
 damage_multiplier = 1.6
+poise_damage = 40.0
 knockback = 9.0
 heavy = true
 lunge_speed = 7.0
@@ -58,7 +61,91 @@ blade_to = -1.5708
 grip_from = Vector2(-0.25, 0.0)
 grip_to = Vector2(0.7, 0.0)
 
+[sub_resource type="Resource" id="Step_slide"]
+script = ExtResource("2_step")
+display_name = "размашистый удар"
+duration = 0.4
+active_from = 0.06
+active_to = 0.2
+chain_from = 0.3
+damage_multiplier = 1.3
+poise_damage = 30.0
+knockback = 7.0
+lunge_speed = 3.0
+hitstop = 0.07
+hitbox_offset = Vector2(0.5, 0.8)
+hitbox_size = Vector2(2.8, 1.0)
+blade_from = -1.5708
+blade_to = -1.5708
+grip_from = Vector2(-0.1, -0.2)
+grip_to = Vector2(0.2, -0.2)
+blade_yaw_from = -3.1416
+blade_yaw_to = 0.0
+
+[sub_resource type="Resource" id="Step_roll"]
+script = ExtResource("2_step")
+display_name = "удар после кувырка"
+duration = 0.45
+active_from = 0.1
+active_to = 0.2
+chain_from = 0.34
+damage_multiplier = 1.4
+poise_damage = 30.0
+knockback = 6.0
+lunge_speed = 2.0
+hitstop = 0.08
+hitbox_offset = Vector2(1.0, 0.9)
+hitbox_size = Vector2(1.3, 1.9)
+blade_from = 0.3
+blade_to = -2.9
+grip_from = Vector2(0.0, 0.45)
+grip_to = Vector2(0.55, -0.25)
+
+[sub_resource type="Resource" id="Step_riposte"]
+script = ExtResource("2_step")
+display_name = "добивание"
+duration = 0.9
+active_from = 0.35
+active_to = 0.45
+chain_from = 0.8
+damage_multiplier = 3.0
+poise_damage = 0.0
+knockback = 6.0
+heavy = true
+invulnerable = true
+lunge_speed = 0.0
+hitstop = 0.15
+blade_from = -1.5708
+blade_to = -1.5708
+grip_from = Vector2(-0.35, 0.05)
+grip_to = Vector2(0.85, 0.0)
+blade_yaw_from = 0.6
+blade_yaw_to = 0.0
+
+[sub_resource type="Resource" id="Step_backstab"]
+script = ExtResource("2_step")
+display_name = "удар в спину"
+duration = 1.0
+active_from = 0.4
+active_to = 0.5
+chain_from = 0.9
+damage_multiplier = 3.5
+poise_damage = 0.0
+knockback = 6.0
+heavy = true
+invulnerable = true
+lunge_speed = 0.0
+hitstop = 0.18
+blade_from = 0.2
+blade_to = -2.9
+grip_from = Vector2(0.0, 0.55)
+grip_to = Vector2(0.6, -0.2)
+
 [resource]
 script = ExtResource("1_weapon")
 display_name = "Меч"
 combo = Array[ExtResource("2_step")]([SubResource("Step_slash"), SubResource("Step_rise"), SubResource("Step_thrust")])
+slide_attack = SubResource("Step_slide")
+roll_attack = SubResource("Step_roll")
+riposte = SubResource("Step_riposte")
+backstab = SubResource("Step_backstab")

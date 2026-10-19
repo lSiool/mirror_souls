@@ -4,3 +4,11 @@ extends Resource
 
 @export var display_name := "Меч"
 @export var combo: Array[AttackStep] = []
+## Удар во время скольжения или сразу на выходе из него.
+@export var slide_attack: AttackStep
+## Удар сразу после кувырка.
+@export var roll_attack: AttackStep
+## Добивание после парирования.
+@export var riposte: AttackStep
+## Удар в спину.
+@export var backstab: AttackStep
