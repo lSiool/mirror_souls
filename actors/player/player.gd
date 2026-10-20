@@ -877,7 +877,12 @@ func _update_prompt() -> void:
 # --- Визуал -----------------------------------------------------------------
 
 func _update_visual(delta: float) -> void:
-	visual.rotation.y = 0.0 if facing > 0.0 else PI
+	# Разворот мгновенный: без интерполяции физики модель на кадр вставала
+	# боком к камере, и металл меча ловил блик солнца.
+	var yaw := 0.0 if facing > 0.0 else PI
+	if visual.rotation.y != yaw:
+		visual.rotation.y = yaw
+		visual.reset_physics_interpolation()
 	var k := 1.0 - exp(-18.0 * delta)
 	var target_scale := Vector3.ONE
 	var target_tilt := 0.0

@@ -165,7 +165,12 @@ func _physics_process(delta: float) -> void:
 	# Засада из ниши за стеклом выпрыгивает в плоскость боя.
 	global_position.z = move_toward(global_position.z, 0.0, 12.0 * delta)
 	_check_player_head()
-	visual.rotation.y = 0.0 if facing > 0.0 else PI
+	# Разворот мгновенный: без интерполяции физики модель на кадр вставала
+	# боком к камере, и металл меча ловил блик солнца.
+	var yaw := 0.0 if facing > 0.0 else PI
+	if visual.rotation.y != yaw:
+		visual.rotation.y = yaw
+		visual.reset_physics_interpolation()
 	_update_pose(delta)
 	_update_material(delta)
 	_update_extra(delta)
