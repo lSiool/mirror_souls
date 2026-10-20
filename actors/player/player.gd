@@ -12,6 +12,7 @@ signal arrow_fired(arrow: Arrow)
 
 enum State {
 	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
+	LEDGE_HANG, LEDGE_CLIMB,
 }
 
 const KILL_Y := -15.0
@@ -32,6 +33,8 @@ var facing := 1.0
 var stamina := 0.0
 ## Пока true — игрок не управляется (переход через зеркало, затемнение).
 var frozen := false
+## Позы меча и лук.
+var arms: PlayerArms
 
 var _state_time := 0.0
 var _coyote := 0.0
@@ -62,8 +65,6 @@ var _shoot_buffer := 0.0
 var _draw_t := 0.0
 ## Колышек-стрела, которого сейчас касается герой.
 var _peg: ArrowPeg
-var _bow: Node3D
-var _nocked: Node3D
 var _floor_glass_normal := Vector3.ZERO
 var _floor_glass: GlassSurface
 ## Стоим на голове врага: направление, куда соскальзываем (0 — не стоим).
@@ -73,9 +74,12 @@ var _slide_speed := 0.0
 var _slide_dir := Vector3.RIGHT
 var _interactables: Array[Interactable] = []
 var _prompt := ""
-var _swing_tween: Tween
 var _sword_shape: BoxShape3D
-var _grip_base := Vector3.ZERO
+## Уступ: в какую сторону край, точка виса и точка, куда встаём.
+var _ledge_dir := 1.0
+var _ledge_hang := Vector3.ZERO
+var _ledge_stand := Vector3.ZERO
+var _ledge_cooldown := 0.0
 
 @onready var health: Health = $Health
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -85,6 +89,7 @@ var _grip_base := Vector3.ZERO
 @onready var sword_hitbox: Hitbox = $Visual/SwordHitbox
 @onready var sword_hitbox_shape: CollisionShape3D = $Visual/SwordHitbox/Shape
 @onready var plunge_hitbox: Hitbox = $PlungeHitbox
+@onready var body_shape: CollisionShape3D = $Collision
 
 
 func _ready() -> void:
@@ -100,9 +105,7 @@ func _ready() -> void:
 	# Хитбокс меча меняет форму от стадии к стадии — делаем свою копию формы.
 	_sword_shape = sword_hitbox_shape.shape.duplicate()
 	sword_hitbox_shape.shape = _sword_shape
-	_grip_base = sword_pivot.position
-	_rest_sword()
-	_build_bow()
+	arms = PlayerArms.new(visual, sword_pivot)
 
 
 func _physics_process(delta: float) -> void:
@@ -123,6 +126,8 @@ func _physics_process(delta: float) -> void:
 		State.GUARD_BROKEN: _guard_broken_state(delta)
 		State.CRITICAL: _critical_state(delta)
 		State.BOW: _bow_state(delta)
+		State.LEDGE_HANG: _ledge_hang_state(delta)
+		State.LEDGE_CLIMB: _ledge_climb_state(delta)
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
@@ -147,6 +152,7 @@ func _tick(delta: float) -> void:
 	_iframes = maxf(_iframes - delta, 0.0)
 	_input_lock = maxf(_input_lock - delta, 0.0)
 	_parry_t = maxf(_parry_t - delta, 0.0)
+	_ledge_cooldown = maxf(_ledge_cooldown - delta, 0.0)
 	_shoot_buffer = maxf(_shoot_buffer - delta, 0.0)
 	_since_slide += delta
 	_since_roll += delta
@@ -190,12 +196,12 @@ func _set_state(new_state: State) -> void:
 	if state == State.ATTACK:
 		sword_hitbox.active = false
 		if new_state != State.ATTACK:
-			_rest_sword()
-	if state in [State.PLUNGE, State.BLOCK, State.GUARD_BROKEN, State.CRITICAL]:
+			arms.rest()
+	if state in [State.PLUNGE, State.BLOCK, State.GUARD_BROKEN, State.CRITICAL, State.LEDGE_HANG]:
 		plunge_hitbox.active = false
-		_rest_sword()
+		arms.rest()
 	if state == State.BOW:
-		_show_bow(false)
+		arms.show_bow(false)
 	if state == State.SLIDE:
 		_since_slide = 0.0
 	if state == State.ROLL:
@@ -203,10 +209,12 @@ func _set_state(new_state: State) -> void:
 	state = new_state
 	_state_time = 0.0
 	if state == State.BLOCK:
-		_guard_sword()
+		arms.guard()
 	elif state == State.GUARD_BROKEN:
-		_kill_swing()
-		sword_pivot.rotation = Vector3(0.0, 0.0, 1.5)
+		arms.guard_broken()
+	elif state == State.LEDGE_HANG:
+		# Руки заняты краем — меч прижат клинком вниз.
+		arms.point_down()
 
 
 func _apply_gravity(delta: float) -> void:
@@ -255,6 +263,8 @@ func _move_state(delta: float) -> void:
 		_set_state(State.BLOCK)
 	elif _wants_climb(x, on_floor):
 		_set_state(State.CLIMB)
+	elif not on_floor and x != 0.0:
+		_try_grab_ledge(signf(x))
 
 
 func _jump() -> void:
@@ -332,7 +342,7 @@ func _begin_attack(step: AttackStep, index: int) -> void:
 	_sword_shape.size = Vector3(step.hitbox_size.x, step.hitbox_size.y, 1.8)
 	sword_hitbox_shape.position = Vector3(step.hitbox_offset.x, step.hitbox_offset.y, 0.0)
 	_set_state(State.ATTACK)
-	_swing(step)
+	arms.swing(step)
 	attack_step_started.emit(step, index, weapon.combo.size())
 
 
@@ -370,7 +380,7 @@ func _start_plunge() -> void:
 	_plunge_landed_at = -1.0
 	_set_state(State.PLUNGE)
 	plunge_hitbox.active = true
-	_point_sword_down()
+	arms.point_down()
 
 
 func _plunge_state(_delta: float) -> void:
@@ -439,6 +449,64 @@ func _climb_state(_delta: float) -> void:
 		_input_lock = 0.15
 		_set_state(State.MOVE)
 	elif x * wall.x > 0.5 or (is_on_floor() and v < 0.0):
+		_set_state(State.MOVE)
+
+
+# --- Уступы -------------------------------------------------------------------
+
+## Зацеп за край (§5): в воздухе, держа направление к уступу. Край на уровне груди
+## или головы — повисает на руках, край по пояс — сразу подтягивается.
+func _try_grab_ledge(dir: float) -> bool:
+	if _ledge_cooldown > 0.0 or velocity.y > stats.ledge_max_rise:
+		return false
+	var ledge := LedgeProbe.find(self, body_shape, dir, stats)
+	if ledge == null:
+		return false
+	facing = dir
+	_ledge_dir = dir
+	_ledge_stand = ledge.stand
+	velocity = Vector3.ZERO
+	if ledge.vault:
+		_ledge_hang = global_position
+		_set_state(State.LEDGE_CLIMB)
+	else:
+		_ledge_hang = ledge.hang
+		global_position = _ledge_hang
+		_set_state(State.LEDGE_HANG)
+	return true
+
+
+## Стекло под ногами разбилось: летит вниз, не успевая схватиться за край.
+func fall_through() -> void:
+	_ledge_cooldown = maxf(_ledge_cooldown, stats.ledge_fall_through_block)
+
+
+func _ledge_hang_state(_delta: float) -> void:
+	velocity = Vector3.ZERO
+	global_position = _ledge_hang
+	var x := _input_x()
+	var up := Input.is_action_pressed("move_up") or _jump_buffer > 0.0
+	var toward := x * _ledge_dir > 0.5 and _state_time >= stats.ledge_auto_climb_delay
+	if up or toward:
+		_jump_buffer = 0.0
+		_set_state(State.LEDGE_CLIMB)
+	elif Input.is_action_pressed("move_down") or x * _ledge_dir < -0.5:
+		_ledge_cooldown = stats.ledge_regrab_cooldown
+		_set_state(State.MOVE)
+
+
+## Подтягивание: сначала вверх вдоль стены, потом через край на уступ.
+func _ledge_climb_state(_delta: float) -> void:
+	velocity = Vector3.ZERO
+	var t := clampf(_state_time / stats.ledge_climb_time, 0.0, 1.0)
+	var rise := clampf(t / 0.6, 0.0, 1.0)
+	var over := clampf((t - 0.6) / 0.4, 0.0, 1.0)
+	global_position = Vector3(
+		lerpf(_ledge_hang.x, _ledge_stand.x, over),
+		lerpf(_ledge_hang.y, _ledge_stand.y, rise),
+		0.0)
+	if t >= 1.0:
+		_coyote = stats.coyote_time
 		_set_state(State.MOVE)
 
 
@@ -519,7 +587,7 @@ func _start_critical(enemy: Dummy, step: AttackStep) -> void:
 	_set_state(State.CRITICAL)
 	if step.invulnerable:
 		_iframes = maxf(_iframes, step.duration)
-	_swing(step)
+	arms.swing(step)
 	attack_step_started.emit(step, 0, weapon.combo.size())
 
 
@@ -536,12 +604,12 @@ func _critical_state(delta: float) -> void:
 	if held and not _critical_holding and _state_time >= _step.active_to:
 		_critical_holding = true
 		var hold := _step.release_at - _step.active_to
-		_tween_blade(_step.blade_hold, _step.grip_hold, hold, Tween.TRANS_SINE)
+		arms.tween_blade(_step.blade_hold, _step.grip_hold, hold, Tween.TRANS_SINE)
 	var release := _step.release_at if held else _step.active_from
 	if not _critical_done and _state_time >= release:
 		_critical_done = true
 		if held:
-			_tween_blade(_step.blade_release, _step.grip_release, 0.14, Tween.TRANS_QUAD)
+			arms.tween_blade(_step.blade_release, _step.grip_release, 0.14, Tween.TRANS_QUAD)
 			_critical_spark(1.0)
 		if is_instance_valid(_critical_target):
 			_critical_target.apply_critical(stats.sword_damage * _step.damage_multiplier,
@@ -558,15 +626,6 @@ func _critical_spark(strength: float) -> void:
 		HitSpark.spawn(get_parent(), at, Color(1.0, 0.45, 0.3), int(32 * strength))
 
 
-func _tween_blade(blade: float, grip: Vector2, time: float, trans: Tween.TransitionType) -> void:
-	_kill_swing()
-	_swing_tween = create_tween().set_parallel()
-	_swing_tween.tween_property(sword_pivot, "rotation:z", blade, time).set_trans(trans)
-	_swing_tween.tween_property(sword_pivot, "rotation:y", 0.0, time).set_trans(trans)
-	var to_grip := _grip_base + Vector3(grip.x, grip.y, 0.0)
-	_swing_tween.tween_property(sword_pivot, "position", to_grip, time).set_trans(trans)
-
-
 # --- Лук --------------------------------------------------------------------
 
 func _start_draw() -> void:
@@ -575,7 +634,7 @@ func _start_draw() -> void:
 	_shoot_buffer = 0.0
 	_draw_t = 0.0
 	_set_state(State.BOW)
-	_show_bow(true)
+	arms.show_bow(true)
 
 
 ## Натяжение: держим кнопку — лук натягивается, герой идёт медленно. Отпустили — выстрел.
@@ -587,8 +646,7 @@ func _bow_state(delta: float) -> void:
 	var accel := stats.acceleration if is_on_floor() else stats.air_acceleration
 	velocity.x = move_toward(velocity.x, x * stats.move_speed * stats.bow_move_mult, accel * delta)
 	_apply_gravity(delta)
-	_nocked.position.x = 0.3 - 0.35 * _draw_t
-	_bow.rotation.z = _aim_angle()
+	arms.draw_bow(_draw_t, _aim_angle())
 	if _roll_buffer > 0.0 and is_on_floor():
 		_start_roll()
 	elif not Input.is_action_pressed("shoot"):
@@ -772,6 +830,7 @@ func _on_hurt(hitbox: Hitbox) -> void:
 
 func _on_parry(attacker: Dummy) -> void:
 	_parry_t = 0.0
+	Sfx.play(&"sword_parry", global_position + Vector3(facing * 0.6, 1.2, 0.0))
 	HitStop.stop(0.12)
 	Events.camera_shake_requested.emit(0.3, 0.2)
 	var at := (global_position + attacker.global_position) * 0.5 + Vector3(0.0, 1.2, 0.3)
@@ -782,6 +841,8 @@ func _on_parry(attacker: Dummy) -> void:
 func _on_block(hitbox: Hitbox) -> void:
 	var cost := hitbox.damage * stats.block_stamina_mult
 	var at := global_position + Vector3(facing * 0.6, 1.2, 0.3)
+	# Пробитый блок звенит громче: клинок отбит.
+	Sfx.play(&"sword_block", at, 0.0 if stamina >= cost else 4.0)
 	if stamina >= cost:
 		_spend_stamina(cost)
 		velocity.x = -facing * 3.0
@@ -899,6 +960,12 @@ func _update_visual(delta: float) -> void:
 			target_scale = Vector3(1.05, 0.92, 1.05)
 		State.GUARD_BROKEN:
 			target_tilt = 0.3
+		State.LEDGE_HANG:
+			# Висит на вытянутых руках.
+			target_scale = Vector3(0.88, 1.08, 0.88)
+		State.LEDGE_CLIMB:
+			target_scale = Vector3(1.05, 0.8, 1.05)
+			target_tilt = -0.3
 	body_mesh.scale = body_mesh.scale.lerp(target_scale, k)
 	body_mesh.position.y = 0.9 * body_mesh.scale.y
 	if state == State.ROLL:
@@ -923,67 +990,3 @@ func _flash(color: Color) -> void:
 	mat.emission_energy_multiplier = 2.0
 	var tween := create_tween()
 	tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.25)
-
-
-func _swing(step: AttackStep) -> void:
-	_kill_swing()
-	sword_pivot.rotation = Vector3(0.0, step.blade_yaw_from, step.blade_from)
-	sword_pivot.position = _grip_base + Vector3(step.grip_from.x, step.grip_from.y, 0.0)
-	var to_grip := _grip_base + Vector3(step.grip_to.x, step.grip_to.y, 0.0)
-	var time := step.active_to - step.active_from
-	_swing_tween = create_tween().set_parallel()
-	var targets := {"rotation:z": step.blade_to, "rotation:y": step.blade_yaw_to, "position": to_grip}
-	for prop: String in targets:
-		_swing_tween.tween_property(sword_pivot, prop, targets[prop], time) \
-			.set_delay(step.active_from).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-
-
-func _point_sword_down() -> void:
-	_kill_swing()
-	sword_pivot.rotation = Vector3(0.0, 0.0, PI)
-
-
-func _rest_sword() -> void:
-	_kill_swing()
-	sword_pivot.rotation = Vector3(0.0, 0.0, 0.5)
-	sword_pivot.position = _grip_base
-
-
-## Стойка блока: клинок наискось перед собой.
-func _guard_sword() -> void:
-	_kill_swing()
-	sword_pivot.rotation = Vector3(0.0, 0.0, -0.75)
-	sword_pivot.position = _grip_base + Vector3(0.2, 0.05, 0.0)
-
-
-func _build_bow() -> void:
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.45, 0.3, 0.18)
-	_bow = Node3D.new()
-	_bow.position = Vector3(0.35, 1.25, 0.35)
-	visual.add_child(_bow)
-	var limb := MeshInstance3D.new()
-	var limb_mesh := BoxMesh.new()
-	limb_mesh.size = Vector3(0.06, 1.2, 0.05)
-	limb_mesh.material = wood
-	limb.mesh = limb_mesh
-	limb.position.x = 0.15
-	_bow.add_child(limb)
-	_nocked = MeshInstance3D.new()
-	var arrow_mesh := BoxMesh.new()
-	arrow_mesh.size = Vector3(0.75, 0.035, 0.035)
-	arrow_mesh.material = wood
-	(_nocked as MeshInstance3D).mesh = arrow_mesh
-	_bow.add_child(_nocked)
-	_bow.visible = false
-
-
-## На время стрельбы меч убран, в руке лук.
-func _show_bow(on: bool) -> void:
-	_bow.visible = on
-	sword_pivot.visible = not on
-
-
-func _kill_swing() -> void:
-	if _swing_tween:
-		_swing_tween.kill()

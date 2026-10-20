@@ -6,6 +6,7 @@ var main: Node
 var player: Player
 var rooms: RoomManager
 var game_state: Node
+var sfx: Node
 var failures := 0
 var steps_seen: Array[int] = []
 var last_step: AttackStep
@@ -153,6 +154,7 @@ func run() -> void:
 	player = main.get_node("Player")
 	rooms = main.get_node("RoomManager")
 	game_state = GameState
+	sfx = Sfx
 	player.attack_step_started.connect(func(st: AttackStep, i: int, _t: int) -> void:
 		steps_seen.append(i)
 		last_step = st)
@@ -160,6 +162,14 @@ func run() -> void:
 		last_arrow = a
 		last_arrow_speed = a.velocity.length())
 	await seconds(0.5)
+
+	print("== Звук: банки модального синтеза")
+	for event: StringName in sfx.EVENTS:
+		check(sfx.variants(event) >= 3, "%s: вариантов %d" % [event, sfx.variants(event)])
+	var ring: AudioStreamWAV = ModalSynth.render(ModalMaterial.glass(), 0.7, 0.3, 1.0, 7)
+	var knock: AudioStreamWAV = ModalSynth.render(ModalMaterial.wood(), 0.7, 0.3, 1.0, 7)
+	check(ring.get_length() > knock.get_length() and knock.get_length() > 0.05, \
+		"синтез: стекло звенит дольше дерева (%.2f с > %.2f с)" % [ring.get_length(), knock.get_length()])
 
 	print("== Старт")
 	check(absf(player.global_position.x + 21.0) < 0.5, "игрок у PlayerStart (x=%.2f)" % player.global_position.x)
@@ -223,6 +233,63 @@ func run() -> void:
 	await run_and_jump("move_right", -11.3, -8.0)
 	var on_ledge := player.is_on_floor() and absf(player.global_position.y - 7.0) < 0.2
 	check(on_ledge, "запрыгнул на уступ (%.2f, %.2f)" % [player.global_position.x, player.global_position.y])
+
+	print("== Зацеп за уступ")
+	# Без ввода к краю — не цепляется, падает мимо.
+	await put(Vector3(-9.1, 5.5, 0), 1.0)
+	await seconds(0.25)
+	check(player.state != Player.State.LEDGE_HANG, "без ввода к краю — не цепляется")
+	# Падает у края уступа, держа «вправо» — повисает на руках.
+	await put(Vector3(-9.1, 5.5, 0), 1.0)
+	press("move_right")
+	var hung := false
+	for i in 40:
+		await frames(1)
+		if player.state == Player.State.LEDGE_HANG:
+			hung = true
+			break
+	release("move_right")
+	check(hung, "держит «к краю» — повис на уступе")
+	check(absf(player.global_position.y - (7.0 - player.stats.ledge_hang_depth)) < 0.05, \
+		"висит на руках: ноги на %.2f ниже края" % (7.0 - player.global_position.y))
+	await seconds(0.4)
+	check(player.state == Player.State.LEDGE_HANG, "отпустил ввод — продолжает висеть")
+	press("move_up")
+	await seconds(0.45)
+	release_all()
+	var stood := player.is_on_floor() and absf(player.global_position.y - 7.0) < 0.1
+	check(stood and player.global_position.x > -8.5, \
+		"«вверх» — подтянулся на уступ (%.2f, %.2f)" % [player.global_position.x, player.global_position.y])
+	# «Вниз» — отпускается.
+	await put(Vector3(-9.1, 5.5, 0), 1.0)
+	press("move_right")
+	for i in 40:
+		await frames(1)
+		if player.state == Player.State.LEDGE_HANG:
+			break
+	release("move_right")
+	await frames(3)
+	await tap("move_down")
+	await seconds(0.2)
+	check(player.state == Player.State.MOVE and player.global_position.y < 5.0, \
+		"«вниз» — отпустил край (y=%.2f)" % player.global_position.y)
+	# Низкий прыжок с верха башни к уступу: держим «вправо» — цепляется и встаёт на уступ.
+	await put(Vector3(-12.0, 6.1, 0), 1.0)
+	press("move_right")
+	var grabbed := false
+	for i in 120:
+		await frames(1)
+		if player.global_position.x > -11.25 and not grabbed and player.is_on_floor():
+			await tap("jump")
+		if player.state in [Player.State.LEDGE_HANG, Player.State.LEDGE_CLIMB]:
+			grabbed = true
+		if grabbed and player.state == Player.State.MOVE and player.is_on_floor():
+			break
+	release_all()
+	await seconds(0.2)
+	var on_upper := player.is_on_floor() and absf(player.global_position.y - 7.0) < 0.1
+	check(grabbed and on_upper, "низкий прыжок с башни: зацепился и встал на уступ (%.2f, %.2f)" \
+		% [player.global_position.x, player.global_position.y])
 
 	print("== Скольжение")
 	await start_slide_from_ledge("move_right", Vector3(-7, 7.1, 0))
@@ -367,6 +434,7 @@ func run() -> void:
 	await wait_attack_over(soldier)
 	check(player.health.current == hp_block, "удар спереди принят на блок без урона")
 	check(player.stamina < player.stats.max_stamina, "блок стоил выносливости (%.0f)" % player.stamina)
+	check(sfx.last_played == &"sword_block", "звук блока (%s)" % sfx.last_played)
 	release_all()
 	await seconds(1.2)
 
@@ -440,6 +508,7 @@ func run() -> void:
 	await seconds(0.2)
 	check(soldier.state == Dummy.State.OFF_BALANCE, "парирование: враг потерял равновесие (state=%d)" % soldier.state)
 	check(player.health.current == hp_parry, "парирование без урона")
+	check(sfx.last_played == &"sword_parry", "звук парирования (%s)" % sfx.last_played)
 	var hp_rip := soldier.health.current
 	await tap("attack")
 	check(player.state == Player.State.CRITICAL and last_step == player.weapon.riposte, "удар по потерявшему равновесие — добивание")
@@ -497,6 +566,7 @@ func run() -> void:
 	await seconds(0.25)
 	check(is_instance_valid(bounced) and bounced.ricochets == 1 and bounced.velocity.x > 0.0, "рикошет от стеклянной башни")
 	check(not (room_node("Glass/Tower") as GlassSurface)._broken, "башня цела")
+	check(sfx.last_played == &"arrow_ricochet_glass", "звон рикошета (%s)" % sfx.last_played)
 	await seconds(0.5)
 
 	print("== Зрение врага по направлению взгляда")
@@ -653,6 +723,7 @@ func run() -> void:
 	release("move_down")
 	await seconds(0.6)
 	check(room_node("Glass/TrapGlass")._broken, "стекло пробито ударом вниз")
+	check(sfx.last_played == &"glass_break", "звук разбитого стекла (%s)" % sfx.last_played)
 	await seconds(3.5)
 
 	print("== Вниз + прыжок проваливает разбиваемый скат")

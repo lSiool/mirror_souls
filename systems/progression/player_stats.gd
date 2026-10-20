@@ -44,6 +44,24 @@ const AGE_MAX := 22
 @export var air_drag := 6.0
 @export var roll_duration := 0.42
 
+@export_group("Уступы")
+## Край выше ног на столько — герой повисает на руках; ниже — сразу подтягивается.
+@export var ledge_hang_min := 1.2
+@export var ledge_hang_max := 2.1
+## Ниже этого край не ловим: на него просто наступают.
+@export var ledge_vault_min := 0.25
+## Ловим край только около вершины прыжка или в падении.
+@export var ledge_max_rise := 2.0
+## Длина рук до края: на сколько ноги висящего ниже края.
+@export var ledge_hang_depth := 1.75
+@export var ledge_climb_time := 0.25
+## Задержка перед подтягиванием, если в прыжке держали «к краю»: видно, что герой повис.
+@export var ledge_auto_climb_delay := 0.12
+@export var ledge_regrab_cooldown := 0.3
+## Провалился сквозь стекло — столько секунд не успевает схватиться за край:
+## стекло-ловушка над ямой остаётся ловушкой.
+@export var ledge_fall_through_block := 0.8
+
 @export_group("Стекло")
 @export var slide_gravity_scale := 0.65
 @export var slide_steer := 10.0

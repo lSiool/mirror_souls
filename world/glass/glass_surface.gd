@@ -63,7 +63,7 @@ func _ready() -> void:
 	if role == Role.SLIDE and breakable:
 		_material.set_shader_parameter("cracks", SLIDE_CRACKS_HINT)
 	if breakable and role == Role.PANEL:
-		hurtbox.hurt.connect(func(_hitbox: Hitbox) -> void: shatter())
+		hurtbox.hurt.connect(_on_struck)
 	else:
 		hurtbox.monitorable = false
 	for node in contents:
@@ -93,11 +93,14 @@ func shatter() -> void:
 		return
 	_broken = true
 	_restore_t = restore_time
+	if _player_stands_on_top():
+		(_player as Player).fall_through()
 	remove_from_group("glass_slide")
 	remove_from_group("glass_climb")
 	collision.set_deferred("disabled", true)
 	hurtbox.set_deferred("monitorable", false)
 	mesh_instance.visible = false
+	Sfx.play(&"glass_break", global_position)
 	Events.camera_shake_requested.emit(0.2, 0.15)
 	_spawn_shards()
 	for node in contents:
@@ -105,6 +108,12 @@ func shatter() -> void:
 			_set_awake(node, true)
 			if node.has_method("on_revealed"):
 				node.on_revealed()
+
+
+## Удар по хрупкому стеклу: звон клинка, и стекло разлетается.
+func _on_struck(_hitbox: Hitbox) -> void:
+	Sfx.play(&"sword_hit_glass", global_position)
+	shatter()
 
 
 ## Нагрев 0…1 — из стекла выдувается Стеклянный ползун.
