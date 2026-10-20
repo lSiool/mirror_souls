@@ -65,6 +65,7 @@ var _state_time := 0.0
 var _player: Player
 var _material: StandardMaterial3D
 var _flash := 0.0
+var _lift_tween: Tween
 var _head_slide := 0.0
 var _poise_delay := 0.0
 ## Время с начала разворота; < 0 — не разворачивается.
@@ -147,6 +148,9 @@ func _physics_process(delta: float) -> void:
 		State.CRITICAL_HIT:
 			velocity.x = 0.0
 			if _state_time >= CRITICAL_TIMEOUT:
+				if _lift_tween:
+					_lift_tween.kill()
+				visual.position.y = 0.0
 				_set_state(State.KNOCKDOWN)
 		State.KNOCKDOWN:
 			_brake(25.0, delta)
@@ -312,7 +316,21 @@ func begin_critical() -> void:
 	_set_state(State.CRITICAL_HIT)
 
 
-func apply_critical(damage: float) -> void:
+## Клинок вошёл: враг повисает на нём, приподнятый на lift метров.
+func impale(lift: float, time: float) -> void:
+	_flash = 0.12
+	if _lift_tween:
+		_lift_tween.kill()
+	_lift_tween = create_tween()
+	_lift_tween.tween_property(visual, "position:y", lift, time) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+## Клинок выдернут: урон, враг сброшен с клинка со скоростью throw (X — от героя).
+func apply_critical(damage: float, throw: Vector2, from_x: float) -> void:
+	if _lift_tween:
+		_lift_tween.kill()
+	visual.position.y = 0.0
 	if state == State.DEAD:
 		return
 	health.take_damage(damage)
@@ -320,6 +338,8 @@ func apply_critical(damage: float) -> void:
 	if not health.is_dead():
 		poise = max_poise
 		_set_state(State.KNOCKDOWN)
+		var away := signf(global_position.x - from_x)
+		velocity = Vector3(away * throw.x, throw.y, 0.0)
 
 
 # --- Попадания --------------------------------------------------------------

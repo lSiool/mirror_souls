@@ -66,7 +66,7 @@ const AGE_MAX := 22
 
 @export_group("Защита")
 ## Окно парирования после нажатия блока.
-@export var parry_window := 0.18
+@export var parry_window := 0.23
 ## Сколько выносливости стоит принятый на блок удар: урон × множитель.
 @export var block_stamina_mult := 1.0
 @export var block_move_mult := 0.35

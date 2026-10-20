@@ -31,3 +31,19 @@ extends Resource
 ## из-за спины вперёд через сторону к камере.
 @export var blade_yaw_from := 0.0
 @export var blade_yaw_to := 0.0
+
+@export_group("Критический удар")
+## Добивание и удар в спину идут в три фазы (по ориентиру DS2): клинок входит
+## (active_from–active_to) → враг висит на клинке → в release_at клинок выдёргивают,
+## врага сбрасывают. 0 — без удержания: урон сразу в момент удара.
+@export var release_at := 0.0
+## Поза клинка к концу удержания (враг приподнят на клинке).
+@export var blade_hold := -1.5708
+@export var grip_hold := Vector2.ZERO
+## Поза после рывка: клинок выдернут.
+@export var blade_release := 0.5
+@export var grip_release := Vector2.ZERO
+## Насколько враг приподнимается на клинке, м.
+@export var victim_lift := 0.0
+## Скорость, с которой врага сбрасывают с клинка: X — от героя, Y — вверх.
+@export var victim_throw := Vector2.ZERO

@@ -422,6 +422,9 @@ func run() -> void:
 	check(player.state == Player.State.CRITICAL and last_step == player.weapon.backstab, "удар сзади — удар в спину")
 	check(soldier.state == Dummy.State.CRITICAL_HIT, "враг зафиксирован")
 	await seconds(0.7)
+	check(soldier.visual.position.y > 0.3, "враг висит на клинке (подъём %.2f)" % soldier.visual.position.y)
+	check(soldier.health.current == hp_bs, "урон ещё не прошёл — клинок в спине")
+	await seconds(0.4)
 	var bs_damage := hp_bs - soldier.health.current
 	check(absf(bs_damage - player.stats.sword_damage * 3.5) < 1.0, "урон удара в спину ×3.5 (%.1f)" % bs_damage)
 	await seconds(1.5)
@@ -441,9 +444,21 @@ func run() -> void:
 	await tap("attack")
 	check(player.state == Player.State.CRITICAL and last_step == player.weapon.riposte, "удар по потерявшему равновесие — добивание")
 	check(player.hurtbox.invulnerable, "в добивании герой неуязвим")
-	await seconds(0.6)
+	await seconds(0.95)
 	var rip_damage := hp_rip - soldier.health.current
 	check(absf(rip_damage - player.stats.sword_damage * 3.0) < 1.0, "урон добивания ×3 (%.1f)" % rip_damage)
+	await seconds(1.6)
+
+	print("== Раннее парирование: окно 0.23 с")
+	player.restore()
+	await seconds(0.5)
+	await face_enemy(soldier)
+	await wait_windup(soldier, 0.19)
+	var hp_early := player.health.current
+	await tap("block")
+	await seconds(0.3)
+	check(soldier.state == Dummy.State.OFF_BALANCE, "блок за ~0.2 с до удара — парирование (state=%d)" % soldier.state)
+	check(player.health.current == hp_early, "раннее парирование без урона")
 	await seconds(1.6)
 
 	print("== Позднее парирование — удар проходит")
@@ -849,7 +864,7 @@ func run() -> void:
 	await tap("attack")
 	var special := player.state == Player.State.CRITICAL and last_step == crawler.riposte_step
 	check(special, "добивание ползуна — особое: «%s»" % (last_step.display_name if last_step else "-"))
-	await seconds(1.4)
+	await seconds(1.7)
 	check(is_instance_valid(crawler) and crawler.state == Dummy.State.DEAD, "ползун погиб")
 	check(is_instance_valid(crawler) and crawler.body_mesh.scale.y < 0.3, "растёкся лужицей и застыл (scale.y=%.2f)" % crawler.body_mesh.scale.y)
 

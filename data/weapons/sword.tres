@@ -104,10 +104,10 @@ grip_to = Vector2(0.55, -0.25)
 [sub_resource type="Resource" id="Step_riposte"]
 script = ExtResource("2_step")
 display_name = "добивание"
-duration = 0.9
-active_from = 0.35
-active_to = 0.45
-chain_from = 0.8
+duration = 1.3
+active_from = 0.28
+active_to = 0.38
+chain_from = 1.15
 damage_multiplier = 3.0
 poise_damage = 0.0
 knockback = 6.0
@@ -121,14 +121,21 @@ grip_from = Vector2(-0.35, 0.05)
 grip_to = Vector2(0.85, 0.0)
 blade_yaw_from = 0.6
 blade_yaw_to = 0.0
+release_at = 0.85
+blade_hold = -1.35
+grip_hold = Vector2(0.75, 0.2)
+blade_release = -2.0
+grip_release = Vector2(-0.15, -0.1)
+victim_lift = 0.25
+victim_throw = Vector2(5, 2)
 
 [sub_resource type="Resource" id="Step_backstab"]
 script = ExtResource("2_step")
 display_name = "удар в спину"
-duration = 1.0
-active_from = 0.4
-active_to = 0.5
-chain_from = 0.9
+duration = 1.4
+active_from = 0.35
+active_to = 0.45
+chain_from = 1.3
 damage_multiplier = 3.5
 poise_damage = 0.0
 knockback = 6.0
@@ -140,6 +147,13 @@ blade_from = 0.2
 blade_to = -2.9
 grip_from = Vector2(0.0, 0.55)
 grip_to = Vector2(0.6, -0.2)
+release_at = 1.0
+blade_hold = -2.6
+grip_hold = Vector2(0.55, 0.35)
+blade_release = -1.0
+grip_release = Vector2(-0.1, 0.4)
+victim_lift = 0.45
+victim_throw = Vector2(6, 1.5)
 
 [resource]
 script = ExtResource("1_weapon")

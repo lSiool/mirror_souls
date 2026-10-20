@@ -5,10 +5,10 @@
 [resource]
 script = ExtResource("1_step")
 display_name = "меч в сердцевину"
-duration = 1.0
-active_from = 0.45
-active_to = 0.55
-chain_from = 0.9
+duration = 1.2
+active_from = 0.4
+active_to = 0.5
+chain_from = 1.1
 damage_multiplier = 3.0
 poise_damage = 0.0
 knockback = 0.0
@@ -20,3 +20,8 @@ blade_from = 0.0
 blade_to = -3.0
 grip_from = Vector2(0.1, 0.75)
 grip_to = Vector2(0.75, -0.45)
+release_at = 0.85
+blade_hold = -3.0
+grip_hold = Vector2(0.75, -0.6)
+blade_release = 0.3
+grip_release = Vector2(0.1, 0.6)

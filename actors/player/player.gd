@@ -55,6 +55,8 @@ var _since_roll := 99.0
 var _roll_attack_queued := false
 var _critical_target: Dummy
 var _critical_done := false
+var _critical_pierced := false
+var _critical_holding := false
 var _shoot_buffer := 0.0
 ## Натяжение лука 0…1.
 var _draw_t := 0.0
@@ -505,6 +507,8 @@ func _start_critical(enemy: Dummy, step: AttackStep) -> void:
 	_attack_buffer = 0.0
 	_critical_target = enemy
 	_critical_done = false
+	_critical_pierced = false
+	_critical_holding = false
 	_step = step
 	_combo = 0
 	facing = signf(enemy.global_position.x - global_position.x)
@@ -519,19 +523,48 @@ func _start_critical(enemy: Dummy, step: AttackStep) -> void:
 	attack_step_started.emit(step, 0, weapon.combo.size())
 
 
+## Три фазы: клинок входит → враг висит на клинке → рывок, урон, врага сбрасывают.
 func _critical_state(delta: float) -> void:
 	velocity.x = 0.0
 	_apply_gravity(delta)
-	if not _critical_done and _state_time >= _step.active_from:
+	var held := _step.release_at > _step.active_to
+	if not _critical_pierced and _state_time >= _step.active_from:
+		_critical_pierced = true
+		_critical_spark(0.6 if held else 1.0)
+		if held and is_instance_valid(_critical_target):
+			_critical_target.impale(_step.victim_lift, _step.release_at - _step.active_to)
+	if held and not _critical_holding and _state_time >= _step.active_to:
+		_critical_holding = true
+		var hold := _step.release_at - _step.active_to
+		_tween_blade(_step.blade_hold, _step.grip_hold, hold, Tween.TRANS_SINE)
+	var release := _step.release_at if held else _step.active_from
+	if not _critical_done and _state_time >= release:
 		_critical_done = true
+		if held:
+			_tween_blade(_step.blade_release, _step.grip_release, 0.14, Tween.TRANS_QUAD)
+			_critical_spark(1.0)
 		if is_instance_valid(_critical_target):
-			_critical_target.apply_critical(stats.sword_damage * _step.damage_multiplier)
-			HitStop.stop(_step.hitstop)
-			Events.camera_shake_requested.emit(0.45, 0.3)
-			var at := _critical_target.global_position + Vector3(0.0, 1.1, 0.3)
-			HitSpark.spawn(get_parent(), at, Color(1.0, 0.45, 0.3), 32)
+			_critical_target.apply_critical(stats.sword_damage * _step.damage_multiplier,
+				_step.victim_throw, global_position.x)
 	if _state_time >= _step.duration:
 		_set_state(State.MOVE)
+
+
+func _critical_spark(strength: float) -> void:
+	HitStop.stop(_step.hitstop * strength)
+	Events.camera_shake_requested.emit(0.45 * strength, 0.3)
+	if is_instance_valid(_critical_target):
+		var at := _critical_target.global_position + Vector3(0.0, 1.1 + _step.victim_lift, 0.3)
+		HitSpark.spawn(get_parent(), at, Color(1.0, 0.45, 0.3), int(32 * strength))
+
+
+func _tween_blade(blade: float, grip: Vector2, time: float, trans: Tween.TransitionType) -> void:
+	_kill_swing()
+	_swing_tween = create_tween().set_parallel()
+	_swing_tween.tween_property(sword_pivot, "rotation:z", blade, time).set_trans(trans)
+	_swing_tween.tween_property(sword_pivot, "rotation:y", 0.0, time).set_trans(trans)
+	var to_grip := _grip_base + Vector3(grip.x, grip.y, 0.0)
+	_swing_tween.tween_property(sword_pivot, "position", to_grip, time).set_trans(trans)
 
 
 # --- Лук --------------------------------------------------------------------
