@@ -104,6 +104,7 @@ func _on_hit(hit: Dictionary) -> void:
 		return
 	if collider is ArrowTarget:
 		(collider as ArrowTarget).arrow_hit(self)
+		Sfx.play(&"arrow_hit_wood", at)
 		HitSpark.spawn(get_parent(), at, Color(1.0, 0.9, 0.6), 10)
 		queue_free()
 		return
@@ -114,10 +115,12 @@ func _on_hit(hit: Dictionary) -> void:
 		global_position = at + normal * 0.05
 		_orient()
 		HitSpark.spawn(get_parent(), at, Color(0.8, 0.95, 1.0), 8)
+		Sfx.play(&"arrow_ricochet_glass", at)
 		return
 	Events.noise_made.emit(at, NOISE_RADIUS)
 	if collider is Node and (collider as Node).is_in_group("arrow_soft"):
 		ArrowPeg.plant(get_parent(), at, normal)
+		Sfx.play(&"arrow_hit_wood", at)
 		queue_free()
 		return
 	# Камень: стрела торчит и вскоре исчезает.
