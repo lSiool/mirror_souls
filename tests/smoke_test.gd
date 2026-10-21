@@ -172,7 +172,8 @@ func run() -> void:
 	var chosen: Array[StringName] = [&"player_step_floor", &"player_land", &"player_roll", &"player_knee",
 		&"player_body_fall", &"death_sting", &"sword_block", &"sword_parry", &"critical_pierce",
 		&"critical_release", &"glass_break", &"sword_hit_glass", &"arrow_ricochet_glass", &"enemy_hurt",
-		&"arrow_hit_wood", &"chest_open", &"chest_loot", &"glass_glint", &"glass_glint_trap"]
+		&"arrow_hit_wood", &"chest_open", &"chest_loot", &"glass_glint", &"glass_glint_trap",
+		&"weapon_drop", &"glass_crack", &"enemy_death"]
 	var short: Array[String] = []
 	for event in chosen:
 		if sfx.variants(event) < 2:
@@ -444,8 +445,10 @@ func run() -> void:
 	check(player.weapon.combo[2].heavy, "выпад — тяжёлый удар")
 	check(soldier.health.current < hp0, "комбо попало по врагу")
 	check(staggered, "стойкость сломана — стаггер")
-	check(sfx.history.count(&"sword_swing") == 3 and heard(&"sword_hit_body") and heard(&"enemy_hurt"), \
-		"звуки: три взмаха, удар по телу, враг получил удар")
+	check(sfx.history.count(&"sword_swing") == 3 and heard(&"enemy_hurt"), "звуки: три взмаха, враг получил удар")
+	var hits: Array = sfx.history.filter(func(e: StringName) -> bool: return e in [&"sword_hit", &"sword_hit_finisher"])
+	check(hits.size() >= 2 and hits.back() == &"sword_hit_finisher" and hits.front() == &"sword_hit", \
+		"удары серии звучат одинаково, третий — завершающий (%s)" % str(hits))
 	soldier.detect_range = 7.0
 	soldier.backstab_allowed = true
 	await seconds(1.0)

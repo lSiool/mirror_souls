@@ -820,9 +820,9 @@ func _on_hit_landed(hurtbox_hit: Hurtbox) -> void:
 		Events.camera_shake_requested.emit(0.25, 0.18)
 	var at := hurtbox_hit.global_position + Vector3(0.0, 1.0, 0.3)
 	HitSpark.spawn(get_parent(), at, Color(1.0, 0.85, 0.6))
-	# Стекло звучит само (GlassSurface), здесь — только удар по телу.
+	# Стекло звучит само (GlassSurface), здесь — только удар по врагу; звук задаёт стадия.
 	if hurtbox_hit.owner is Dummy:
-		Sfx.play(&"sword_hit_body", at)
+		Sfx.play(_step.hit_sound if state == State.ATTACK and _step else &"sword_hit", at)
 
 
 func _on_hurt(hitbox: Hitbox) -> void:

@@ -24,6 +24,9 @@ RATE = 44100
 KENNEY: Path
 ## Какие файлы Kenney взял последний рендер — для манифеста лицензий.
 USED: list = []
+## Нарезка присланной записи (--user=<папка с slices.json>), имена в рецептах: "user/slice_08".
+USER: Path = Path()
+USER_SOURCE = ""
 
 
 # --- Источники и эффекты ----------------------------------------------------
@@ -35,10 +38,15 @@ def _ffmpeg(args, data=None):
 
 def src(name, pitch=1.0, lp=None, hp=None, gain=1.0, trim=None, reverse=False):
     """Файл Kenney по имени без расширения. pitch < 1 — ниже и медленнее (тяжелее)."""
-    matches = list(KENNEY.rglob(name + ".ogg"))
-    if not matches:
-        raise FileNotFoundError(name)
-    USED.append(f"{matches[0].parent.parent.name}/{name}.ogg")
+    if name.startswith("user/"):
+        # Кусок присланной записи (tools/sound/slice_source.py).
+        matches = [USER / (name[5:] + ".wav")]
+        USED.append(f"{USER_SOURCE}#{name[5:]}")
+    else:
+        matches = list(KENNEY.rglob(name + ".ogg"))
+        if not matches:
+            raise FileNotFoundError(name)
+        USED.append(f"{matches[0].parent.parent.name}/{name}.ogg")
     chain = [f"asetrate={RATE * pitch:.0f}", f"aresample={RATE}"]
     if trim:
         chain.append(f"atrim=0:{trim}")
@@ -151,6 +159,19 @@ def k(name, v, n=5):
     return f"{name}_{v % n:03d}"
 
 
+## Удары меча из присланной записи: короткие чистые — для серии, с долгим звоном — для завершающего.
+SWORD_HITS = [8, 10, 11, 12, 7]
+SWORD_FINISHERS = [25, 24, 17, 26, 35]
+
+
+def hit(v, pool=SWORD_HITS):
+    return f"user/slice_{pool[v % len(pool)]:02d}"
+
+
+def fin(v):
+    return hit(v, SWORD_FINISHERS)
+
+
 def rpg_step(v):
     return f"footstep{v % 10:02d}"
 
@@ -244,6 +265,23 @@ EVENTS = {
         ("пластина + звенящий клинок", lambda v: mix(
             (src(k("impactPlate_heavy", v)), 0, 1.0),
             (fx(modal(620, *SWORD, decay=4, dur=1.2, seed=v), "lowpass=f=5000"), 0, 0.45))),
+    ]),
+    # Удар меча: 1–2 стадия комбо — один звук, выпад (3) — свой, завершающий серию.
+    "sword_hit": ("combat", -4.0, False, [
+        ("как в записи, чуть темнее", lambda v: src(hit(v), lp=9000)),
+        ("ниже на 10 %, темнее", lambda v: src(hit(v), pitch=0.9, lp=7000)),
+        ("сталь + тело в доспехе", lambda v: mix((src(hit(v), pitch=0.92, lp=8000), 0, 1.0),
+                                                 (src(k("impactSoft_medium", v), lp=2500), 0.0, 0.7))),
+        ("короче и суше", lambda v: src(hit(v), pitch=0.95, lp=8000, trim=0.28)),
+    ]),
+    "sword_hit_finisher": ("combat", -2.0, False, [
+        ("долгий звон ниже", lambda v: src(fin(v), pitch=0.85, lp=7000)),
+        ("двойной удар внахлёст, толще", lambda v: mix((src(fin(v), pitch=0.88, lp=7500), 0, 1.0),
+                                                       (src(fin(v + 1), pitch=0.78, lp=6000), 0.035, 0.6))),
+        ("удар + вес тела", lambda v: mix((src(fin(v), pitch=0.88, lp=7500), 0, 1.0),
+                                          (src(k("impactPunch_heavy", v), pitch=0.7, lp=1800), 0.0, 0.8),
+                                          (src(k("footstep_concrete", v), pitch=0.8, lp=3000), 0.0, 0.5))),
+        ("низко, в зале", lambda v: space(src(fin(v), pitch=0.82, lp=6500), size=1.1, wet=0.28)),
     ]),
     "critical_pierce": ("combat", -3.0, False, [
         ("рез + удар", lambda v: mix((src("knifeSlice"), 0, 0.9), (src(k("impactPunch_medium", v)), 0.02, 0.8))),
@@ -359,8 +397,12 @@ EVENTS = {
 
 
 def main():
-    global KENNEY
+    global KENNEY, USER, USER_SOURCE
     KENNEY = Path(sys.argv[1])
+    user = next((a.split("=", 1)[1] for a in sys.argv[3:] if a.startswith("--user=")), None)
+    if user:
+        USER = Path(user)
+        USER_SOURCE = json.loads((USER / "slices.json").read_text())["source"]
     out = Path(sys.argv[2])
     picks = dict(arg.split("=") for arg in sys.argv[3:] if "=" in arg and not arg.startswith("--"))
     only = next((a.split("=", 1)[1].split(",") for a in sys.argv[3:] if a.startswith("--only=")), None)

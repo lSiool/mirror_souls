@@ -21,6 +21,8 @@ extends Resource
 @export var hitstop := 0.06
 @export var hitbox_offset := Vector2(0.95, 1.0)
 @export var hitbox_size := Vector2(1.5, 1.4)
+## Звук попадания этой стадии (событие Sfx). Последний удар серии звучит по-своему — завершённо.
+@export var hit_sound: StringName = &"sword_hit"
 
 @export_group("Поза клинка")
 @export var blade_from := 0.9
