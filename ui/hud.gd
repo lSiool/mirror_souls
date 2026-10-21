@@ -6,6 +6,8 @@ extends Control
 
 ## Через сколько секунд после смерти появляется «ТЫ ПОГИБ»: тело успевает упасть.
 const DEATH_LABEL_DELAY := 0.95
+## Тон под надписью звучит без места в мире — убавлен до уровня звуков комнаты.
+const DEATH_STING_DB := -9.0
 
 @export var player_path: NodePath
 
@@ -81,7 +83,7 @@ func _on_player_died() -> void:
 	await get_tree().create_timer(DEATH_LABEL_DELAY).timeout
 	if _player.is_dead():
 		death_label.visible = true
-		Sfx.play_ui(&"death_sting")
+		Sfx.play_ui(&"death_sting", DEATH_STING_DB)
 
 
 func _refresh_age() -> void:

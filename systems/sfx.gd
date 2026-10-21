@@ -86,11 +86,12 @@ func play(event: StringName, at: Vector3, volume_db := 0.0) -> void:
 
 
 ## Звук без места в мире — поверх всего (надпись «ТЫ ПОГИБ»).
-func play_ui(event: StringName) -> void:
+func play_ui(event: StringName, volume_db := 0.0) -> void:
 	var stream := _take(event)
 	if stream == null:
 		return
 	_ui_player.stream = stream
+	_ui_player.volume_db = volume_db
 	_ui_player.play()
 
 
