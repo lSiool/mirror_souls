@@ -5,6 +5,8 @@ extends Node
 ## Сброс комнаты после смерти — честное пересоздание сцены: враги, стекло и ловушки как новые.
 
 const NORMAL: StringName = &"normal"
+## Сколько секунд после смерти до затемнения.
+const DEATH_HOLD := 1.9
 
 @export var room_scene: PackedScene
 @export var player_path: NodePath
@@ -97,7 +99,8 @@ func _on_checkpoint_activated(shard: MirrorShard) -> void:
 
 func _on_player_died() -> void:
 	_busy = true
-	await get_tree().create_timer(1.2).timeout
+	# Дать телу упасть и прочитать надпись.
+	await get_tree().create_timer(DEATH_HOLD).timeout
 	await hud.fade_to(1.0, 0.5)
 	_load_room(GameState.checkpoint_reality)
 	player.respawn(_checkpoint_position())

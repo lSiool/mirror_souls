@@ -23,6 +23,8 @@ func interact(_by: Player) -> void:
 	if opened:
 		return
 	_open(true)
+	Sfx.play(&"chest_open", global_position)
+	Sfx.play(&"chest_loot", global_position, -4.0)
 	GameState.add_currency(reward)
 	if flag_id != &"":
 		GameState.set_flag(flag_id)

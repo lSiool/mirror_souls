@@ -55,6 +55,11 @@ func release_all() -> void:
 		Input.action_release(a)
 
 
+## Прозвучало ли событие с последней очистки истории звуков.
+func heard(event: StringName) -> bool:
+	return sfx.history.has(event)
+
+
 func put(at: Vector3, facing := 1.0) -> void:
 	release_all()
 	player.teleport(at)
@@ -163,9 +168,12 @@ func run() -> void:
 		last_arrow_speed = a.velocity.length())
 	await seconds(0.5)
 
-	print("== Звук: банки модального синтеза")
+	print("== Звук: банки")
+	for event: StringName in [&"glass_break", &"sword_hit_glass", &"sword_block", &"sword_parry"]:
+		check(sfx.variants(event) >= 2, "%s: вариантов %d" % [event, sfx.variants(event)])
 	for event: StringName in sfx.EVENTS:
-		check(sfx.variants(event) >= 3, "%s: вариантов %d" % [event, sfx.variants(event)])
+		if sfx.variants(event) == 1:
+			check(false, "%s: один вариант — нужен банк для чередования" % event)
 	var ring: AudioStreamWAV = ModalSynth.render(ModalMaterial.glass(), 0.7, 0.3, 1.0, 7)
 	var knock: AudioStreamWAV = ModalSynth.render(ModalMaterial.wood(), 0.7, 0.3, 1.0, 7)
 	check(ring.get_length() > knock.get_length() and knock.get_length() > 0.05, \
@@ -177,17 +185,24 @@ func run() -> void:
 
 	print("== Бег и прыжок")
 	var x0 := player.global_position.x
+	sfx.history.clear()
 	press("move_right")
 	await seconds(0.5)
 	release("move_right")
 	check(player.global_position.x - x0 > 2.0, "бег вправо (dx=%.2f)" % (player.global_position.x - x0))
+	check(sfx.history.count(&"player_step_floor") >= 2, "шаги на бегу (%d)" % sfx.history.count(&"player_step_floor"))
 	await seconds(0.3)
+	sfx.history.clear()
+	await seconds(0.5)
+	check(not heard(&"player_step_floor"), "стоя — шагов нет")
 	var y0 := player.global_position.y
 	press("jump")
 	await seconds(0.3)
 	check(player.global_position.y - y0 > 1.0, "прыжок (dy=%.2f)" % (player.global_position.y - y0))
+	check(heard(&"player_jump"), "звук прыжка")
 	release("jump")
 	await seconds(0.8)
+	check(heard(&"player_land"), "звук приземления")
 
 	print("== Кувырок")
 	await put(Vector3(-20, 0.1, 0))
@@ -409,6 +424,7 @@ func run() -> void:
 	player.restore()
 	await face_enemy(soldier, 1.0)
 	steps_seen.clear()
+	sfx.history.clear()
 	var hp0 := soldier.health.current
 	var staggered := false
 	for i in 3:
@@ -421,6 +437,8 @@ func run() -> void:
 	check(player.weapon.combo[2].heavy, "выпад — тяжёлый удар")
 	check(soldier.health.current < hp0, "комбо попало по врагу")
 	check(staggered, "стойкость сломана — стаггер")
+	check(sfx.history.count(&"sword_swing") == 3 and heard(&"sword_hit_body") and heard(&"enemy_hurt"), \
+		"звуки: три взмаха, удар по телу, враг получил удар")
 	soldier.detect_range = 7.0
 	soldier.backstab_allowed = true
 	await seconds(1.0)
@@ -428,13 +446,14 @@ func run() -> void:
 	print("== Блок")
 	player.restore()
 	await face_enemy(soldier)
+	sfx.history.clear()
 	press("block")
 	await wait_windup(soldier, 0.1)
 	var hp_block := player.health.current
 	await wait_attack_over(soldier)
 	check(player.health.current == hp_block, "удар спереди принят на блок без урона")
 	check(player.stamina < player.stats.max_stamina, "блок стоил выносливости (%.0f)" % player.stamina)
-	check(sfx.last_played == &"sword_block", "звук блока (%s)" % sfx.last_played)
+	check(heard(&"sword_block"), "звук блока")
 	release_all()
 	await seconds(1.2)
 
@@ -486,6 +505,7 @@ func run() -> void:
 	await seconds(0.3)
 	await put(Vector3(soldier.global_position.x - soldier.facing * 1.3, 0.1, 0), soldier.facing)
 	var hp_bs := soldier.health.current
+	sfx.history.clear()
 	await tap("attack")
 	check(player.state == Player.State.CRITICAL and last_step == player.weapon.backstab, "удар сзади — удар в спину")
 	check(soldier.state == Dummy.State.CRITICAL_HIT, "враг зафиксирован")
@@ -495,6 +515,7 @@ func run() -> void:
 	await seconds(0.4)
 	var bs_damage := hp_bs - soldier.health.current
 	check(absf(bs_damage - player.stats.sword_damage * 3.5) < 1.0, "урон удара в спину ×3.5 (%.1f)" % bs_damage)
+	check(heard(&"critical_pierce") and heard(&"critical_release"), "звуки: клинок входит, рывок")
 	await seconds(1.5)
 	soldier.detect_range = 7.0
 
@@ -504,11 +525,12 @@ func run() -> void:
 	await face_enemy(soldier)
 	await wait_windup(soldier, 0.08)
 	var hp_parry := player.health.current
+	sfx.history.clear()
 	await tap("block")
 	await seconds(0.2)
 	check(soldier.state == Dummy.State.OFF_BALANCE, "парирование: враг потерял равновесие (state=%d)" % soldier.state)
 	check(player.health.current == hp_parry, "парирование без урона")
-	check(sfx.last_played == &"sword_parry", "звук парирования (%s)" % sfx.last_played)
+	check(heard(&"sword_parry"), "звук парирования")
 	var hp_rip := soldier.health.current
 	await tap("attack")
 	check(player.state == Player.State.CRITICAL and last_step == player.weapon.riposte, "удар по потерявшему равновесие — добивание")
@@ -561,12 +583,13 @@ func run() -> void:
 
 	print("== Стрела не ломает стекло — отскакивает")
 	await put(Vector3(-8.0, 0.1, 0), -1.0)
+	sfx.history.clear()
 	await shoot(0.3)
 	var bounced := last_arrow
 	await seconds(0.25)
 	check(is_instance_valid(bounced) and bounced.ricochets == 1 and bounced.velocity.x > 0.0, "рикошет от стеклянной башни")
 	check(not (room_node("Glass/Tower") as GlassSurface)._broken, "башня цела")
-	check(sfx.last_played == &"arrow_ricochet_glass", "звон рикошета (%s)" % sfx.last_played)
+	check(heard(&"bow_draw") and heard(&"arrow_ricochet_glass"), "звук лука и рикошета")
 	await seconds(0.5)
 
 	print("== Зрение врага по направлению взгляда")
@@ -691,12 +714,30 @@ func run() -> void:
 	await seconds(3.0)
 	check(not trap._broken, "через ~2.75 с стекло восстановилось")
 	await put(Vector3(8.55, 0.1, 0), 1.0)
+	sfx.history.clear()
 	press("move_right")
-	await seconds(1.2)
+	for i in 90:
+		await frames(1)
+		if player.is_dead():
+			break
 	release_all()
 	check(player.is_dead(), "шагом не успел — упал на шипы")
-	await seconds(3.0)
+	check(heard(&"glass_crack"), "стекло треснуло под ногами — звук")
+	print("== Смерть: оседает, падает вперёд, оружие выпадает")
+	await seconds(0.25)
+	check(player.body_mesh.scale.y < 0.85 and player.body_mesh.rotation.z > -0.3, \
+		"сначала оседает (scale.y=%.2f)" % player.body_mesh.scale.y)
+	check(heard(&"player_knee"), "звук: оседает")
+	await seconds(0.85)
+	check(absf(player.body_mesh.rotation.z) > 1.4, "лежит (наклон %.2f)" % player.body_mesh.rotation.z)
+	var dropped := player.arms.dropped_weapon()
+	check(dropped != null and absf(dropped.global_basis.y.normalized().y) < 0.15, \
+		"оружие выпало и лежит вдоль пола")
+	check(heard(&"weapon_drop") and heard(&"player_body_fall"), "звук: оружие и тело о пол")
+	check(heard(&"death_sting") and rooms.hud.death_label.visible, "надпись «ТЫ ПОГИБ» и тон под ней")
+	await seconds(2.2)
 	check(not player.is_dead(), "герой возродился")
+	check(player.arms.dropped_weapon() == null and player.sword_pivot.visible, "оружие снова в руке")
 	check(absf(player.global_position.x + 18.5) < 0.6, "возрождение у осколка (x=%.2f)" % player.global_position.x)
 	check(room_node("Objects/Soldier") != null, "комната сброшена: враг снова на месте")
 	check(not room_node("Glass/NicheGlass")._broken, "комната сброшена: стекло в нише целое")
@@ -718,12 +759,13 @@ func run() -> void:
 
 	print("== Удар вниз пробивает стекло над ямой")
 	await put(Vector3(11, 2.5, 0), 1.0)
+	sfx.history.clear()
 	press("move_down")
 	await tap("attack")
 	release("move_down")
 	await seconds(0.6)
 	check(room_node("Glass/TrapGlass")._broken, "стекло пробито ударом вниз")
-	check(sfx.last_played == &"glass_break", "звук разбитого стекла (%s)" % sfx.last_played)
+	check(heard(&"sword_hit_glass") and heard(&"glass_break"), "звук удара по стеклу и разбитого стекла")
 	await seconds(3.5)
 
 	print("== Вниз + прыжок проваливает разбиваемый скат")
@@ -956,5 +998,17 @@ func run() -> void:
 	check(absf(player.global_position.x - 15.5) < 0.6, "герой у зеркала (x=%.2f)" % player.global_position.x)
 
 	print("")
+	print("== Смерть у стены: падает назад, оружие не в стене")
+	player.restore()
+	await put(Vector3(-23.3, 0.1, 0), -1.0)
+	await seconds(0.3)
+	player.health.take_damage(9999.0)
+	await seconds(1.2)
+	check(player.body_mesh.rotation.z > 1.4, "впереди стена — упал назад (наклон %.2f)" % player.body_mesh.rotation.z)
+	var at_wall := player.arms.dropped_weapon()
+	var tip_x := at_wall.global_position.x + at_wall.global_basis.y.x * 1.15 if at_wall else -99.0
+	check(at_wall != null and tip_x > -24.0, "клинок не ушёл в стену (конец x=%.2f, стена -24.0)" % tip_x)
+	await seconds(2.5)
+
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures else 0)

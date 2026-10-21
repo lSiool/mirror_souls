@@ -356,6 +356,7 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	_flash = 0.12
 	if health.is_dead():
 		return
+	Sfx.play(&"enemy_hurt", global_position)
 	# В уязвимых состояниях реакции нет: враг и так беззащитен.
 	if state in [State.CRITICAL_HIT, State.KNOCKDOWN, State.OFF_BALANCE]:
 		return
@@ -377,6 +378,7 @@ func _on_hurt(hitbox: Hitbox) -> void:
 
 func _on_died() -> void:
 	_set_state(State.DEAD)
+	Sfx.play(&"enemy_death", global_position)
 	collision_layer = 0
 	hurtbox.set_deferred("monitorable", false)
 	var tween := create_tween()

@@ -136,6 +136,7 @@ func _update_crumble(delta: float) -> void:
 		if not _player_stands_on_top():
 			return
 		_crumble_t = 0.0
+		Sfx.play(&"glass_crack", global_position)
 	var player := _player as Player
 	var rolling := player != null and player.state == Player.State.ROLL
 	_crumble_t += delta * (ROLL_CRUMBLE_RATE if rolling else 1.0)

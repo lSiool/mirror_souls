@@ -4,6 +4,9 @@ extends Control
 ## подсказка взаимодействия, экран смерти и затемнение.
 ## Отладка возраста (§1.3): F1/F2 меняют стартовый возраст на лету.
 
+## Через сколько секунд после смерти появляется «ТЫ ПОГИБ»: тело успевает упасть.
+const DEATH_LABEL_DELAY := 0.95
+
 @export var player_path: NodePath
 
 var _player: Player
@@ -73,8 +76,12 @@ func _on_prompt_changed(text: String) -> void:
 	prompt_label.text = "[E]  %s" % text if text != "" else ""
 
 
+## Надпись — когда тело уже упало; под ней — приглушённый стеклянный тон.
 func _on_player_died() -> void:
-	death_label.visible = true
+	await get_tree().create_timer(DEATH_LABEL_DELAY).timeout
+	if _player.is_dead():
+		death_label.visible = true
+		Sfx.play_ui(&"death_sting")
 
 
 func _refresh_age() -> void:

@@ -35,6 +35,8 @@ var stamina := 0.0
 var frozen := false
 ## Позы меча и лук.
 var arms: PlayerArms
+## Капсула: вспышки и поза смерти.
+var body: PlayerBody
 
 var _state_time := 0.0
 var _coyote := 0.0
@@ -60,6 +62,8 @@ var _critical_target: Dummy
 var _critical_done := false
 var _critical_pierced := false
 var _critical_holding := false
+var _death_landed := false
+var _death_dir := 1.0
 var _shoot_buffer := 0.0
 ## Натяжение лука 0…1.
 var _draw_t := 0.0
@@ -72,8 +76,8 @@ var _head_slide := 0.0
 ## Скорость вдоль ската. Храним сами: move_and_slide() на склоне срезает вертикаль у velocity.
 var _slide_speed := 0.0
 var _slide_dir := Vector3.RIGHT
-var _interactables: Array[Interactable] = []
-var _prompt := ""
+var _reach := PlayerReach.new()
+var _foley := PlayerFoley.new()
 var _sword_shape: BoxShape3D
 ## Уступ: в какую сторону край, точка виса и точка, куда встаём.
 var _ledge_dir := 1.0
@@ -106,6 +110,7 @@ func _ready() -> void:
 	_sword_shape = sword_hitbox_shape.shape.duplicate()
 	sword_hitbox_shape.shape = _sword_shape
 	arms = PlayerArms.new(visual, sword_pivot)
+	body = PlayerBody.new(body_mesh, body_shape.shape as CapsuleShape3D)
 
 
 func _physics_process(delta: float) -> void:
@@ -136,8 +141,9 @@ func _physics_process(delta: float) -> void:
 	_limit_blocked_slide()
 	_after_move()
 	_check_enemy_head()
+	_foley.update(is_on_floor(), velocity, global_position, delta, state == State.MOVE)
 	_update_visual(delta)
-	_update_prompt()
+	_reach.update_prompt(global_position, state != State.DEAD)
 	if global_position.y < KILL_Y and state != State.DEAD:
 		health.take_damage(INF)
 
@@ -269,6 +275,7 @@ func _move_state(delta: float) -> void:
 
 func _jump() -> void:
 	velocity.y = stats.jump_velocity
+	Sfx.play(&"player_jump", global_position)
 	_jump_buffer = 0.0
 	_coyote = 0.0
 
@@ -287,6 +294,7 @@ func _start_roll() -> void:
 	_iframes = maxf(_iframes, stats.roll_iframes)
 	_roll_attack_queued = false
 	_set_state(State.ROLL)
+	Sfx.play(&"player_roll", global_position)
 
 
 func _roll_state(delta: float) -> void:
@@ -343,6 +351,7 @@ func _begin_attack(step: AttackStep, index: int) -> void:
 	sword_hitbox_shape.position = Vector3(step.hitbox_offset.x, step.hitbox_offset.y, 0.0)
 	_set_state(State.ATTACK)
 	arms.swing(step)
+	Sfx.play(&"sword_swing", global_position)
 	attack_step_started.emit(step, index, weapon.combo.size())
 
 
@@ -520,6 +529,12 @@ func _hurt_state(delta: float) -> void:
 func _dead_state(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, 0.0, 20.0 * delta)
 	_apply_gravity(delta)
+	# Рука разжимается, когда тело начинает падать.
+	if arms.dropped_weapon() == null and _state_time >= PlayerBody.SLUMP_TIME:
+		arms.drop_weapon(get_parent(), facing)
+	if not _death_landed and body.landed(_state_time):
+		_death_landed = true
+		Sfx.play(&"player_body_fall", global_position)
 
 
 func _block_state(delta: float) -> void:
@@ -599,6 +614,7 @@ func _critical_state(delta: float) -> void:
 	if not _critical_pierced and _state_time >= _step.active_from:
 		_critical_pierced = true
 		_critical_spark(0.6 if held else 1.0)
+		Sfx.play(&"critical_pierce", global_position)
 		if held and is_instance_valid(_critical_target):
 			_critical_target.impale(_step.victim_lift, _step.release_at - _step.active_to)
 	if held and not _critical_holding and _state_time >= _step.active_to:
@@ -611,6 +627,7 @@ func _critical_state(delta: float) -> void:
 		if held:
 			arms.tween_blade(_step.blade_release, _step.grip_release, 0.14, Tween.TRANS_QUAD)
 			_critical_spark(1.0)
+			Sfx.play(&"critical_release", global_position)
 		if is_instance_valid(_critical_target):
 			_critical_target.apply_critical(stats.sword_damage * _step.damage_multiplier,
 				_step.victim_throw, global_position.x)
@@ -635,6 +652,7 @@ func _start_draw() -> void:
 	_draw_t = 0.0
 	_set_state(State.BOW)
 	arms.show_bow(true)
+	Sfx.play(&"bow_draw", global_position)
 
 
 ## Натяжение: держим кнопку — лук натягивается, герой идёт медленно. Отпустили — выстрел.
@@ -692,6 +710,7 @@ func _peg_jump() -> void:
 		facing = signf(_peg.normal.x)
 	_input_lock = 0.15
 	_peg.break_off()
+	Sfx.play(&"player_jump", global_position)
 	_peg = null
 
 
@@ -801,6 +820,9 @@ func _on_hit_landed(hurtbox_hit: Hurtbox) -> void:
 		Events.camera_shake_requested.emit(0.25, 0.18)
 	var at := hurtbox_hit.global_position + Vector3(0.0, 1.0, 0.3)
 	HitSpark.spawn(get_parent(), at, Color(1.0, 0.85, 0.6))
+	# Стекло звучит само (GlassSurface), здесь — только удар по телу.
+	if hurtbox_hit.owner is Dummy:
+		Sfx.play(&"sword_hit_body", at)
 
 
 func _on_hurt(hitbox: Hitbox) -> void:
@@ -817,7 +839,8 @@ func _on_hurt(hitbox: Hitbox) -> void:
 			_on_block(hitbox)
 			return
 	health.take_damage(hitbox.damage, hitbox.non_lethal)
-	_flash(Color(1.0, 0.25, 0.2))
+	body.flash(Color(1.0, 0.25, 0.2))
+	Sfx.play(&"player_hurt", global_position)
 	Events.camera_shake_requested.emit(0.3, 0.2)
 	if health.is_dead():
 		return
@@ -847,7 +870,7 @@ func _on_block(hitbox: Hitbox) -> void:
 		_spend_stamina(cost)
 		velocity.x = -facing * 3.0
 		HitStop.stop(0.05)
-		_flash(Color(0.6, 0.8, 1.0))
+		body.flash(Color(0.6, 0.8, 1.0))
 		HitSpark.spawn(get_parent(), at, Color(0.8, 0.9, 1.0), 12)
 	else:
 		_spend_stamina(stamina)
@@ -859,6 +882,9 @@ func _on_block(hitbox: Hitbox) -> void:
 
 func _on_died() -> void:
 	_set_state(State.DEAD)
+	_death_landed = false
+	_death_dir = body.fall_direction(self, facing)
+	Sfx.play(&"player_knee", global_position)
 	died.emit()
 	Events.player_died.emit()
 
@@ -869,6 +895,7 @@ func respawn(at: Vector3) -> void:
 	restore()
 	_iframes = 1.0
 	body_mesh.rotation = Vector3.ZERO
+	arms.restore_weapon()
 	_set_state(State.MOVE)
 
 
@@ -877,9 +904,7 @@ func teleport(at: Vector3) -> void:
 	velocity = Vector3.ZERO
 	reset_physics_interpolation()
 	_peg = null
-	# Не очищаем список целиком: если герой остался внутри зоны (зеркало, сундук),
-	# зона не сообщит о входе повторно. Уходя из зоны, герой и так её отпустит.
-	_interactables = _interactables.filter(is_instance_valid)
+	_reach.prune()
 	_jump_buffer = 0.0
 	_attack_buffer = 0.0
 	_roll_buffer = 0.0
@@ -898,41 +923,19 @@ func is_dead() -> bool:
 # --- Взаимодействие ---------------------------------------------------------
 
 func add_interactable(target: Interactable) -> void:
-	if target not in _interactables:
-		_interactables.append(target)
+	_reach.add(target)
 
 
 func remove_interactable(target: Interactable) -> void:
-	_interactables.erase(target)
-
-
-func _current_interactable() -> Interactable:
-	var best: Interactable = null
-	var best_distance := INF
-	for target in _interactables:
-		if not is_instance_valid(target) or not target.enabled or not target.is_inside_tree():
-			continue
-		var d := global_position.distance_to(target.global_position)
-		if d < best_distance:
-			best = target
-			best_distance = d
-	return best
+	_reach.remove(target)
 
 
 func _try_interact() -> void:
 	if state != State.MOVE or not is_on_floor():
 		return
-	var target := _current_interactable()
+	var target := _reach.nearest(global_position)
 	if target:
 		target.interact(self)
-
-
-func _update_prompt() -> void:
-	var target := _current_interactable() if state != State.DEAD else null
-	var text := target.prompt if target else ""
-	if text != _prompt:
-		_prompt = text
-		Events.interact_prompt_changed.emit(text)
 
 
 # --- Визуал -----------------------------------------------------------------
@@ -966,27 +969,17 @@ func _update_visual(delta: float) -> void:
 		State.LEDGE_CLIMB:
 			target_scale = Vector3(1.05, 0.8, 1.05)
 			target_tilt = -0.3
+	if state == State.DEAD:
+		body.death_pose(_state_time, _death_dir)
+		return
 	body_mesh.scale = body_mesh.scale.lerp(target_scale, k)
-	body_mesh.position.y = 0.9 * body_mesh.scale.y
+	body_mesh.position = Vector3(0.0, 0.9 * body_mesh.scale.y, 0.0)
 	if state == State.ROLL:
 		# Кувырок вперёд: полный оборот за время переката.
 		body_mesh.rotation.z = -TAU * clampf(_state_time / stats.roll_duration, 0.0, 1.0)
-	elif state == State.DEAD:
-		body_mesh.rotation.z = lerpf(body_mesh.rotation.z, -PI * 0.5, 1.0 - exp(-8.0 * delta))
 	else:
 		body_mesh.rotation.z = lerpf(wrapf(body_mesh.rotation.z, -PI, PI), target_tilt, k)
 	# Мигание в неуязвимости после удара (перекат и особые удары не мигают).
 	var blink := _iframes > 0.0 and state not in [State.ROLL, State.CRITICAL] \
 		and fmod(_iframes, 0.12) < 0.06
 	body_mesh.visible = not blink
-
-
-func _flash(color: Color) -> void:
-	var mat := body_mesh.get_active_material(0) as StandardMaterial3D
-	if mat == null:
-		return
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 2.0
-	var tween := create_tween()
-	tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.25)
