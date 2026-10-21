@@ -173,7 +173,7 @@ func run() -> void:
 		&"player_body_fall", &"death_sting", &"sword_block", &"sword_parry", &"critical_pierce",
 		&"critical_release", &"glass_break", &"sword_hit_glass", &"arrow_ricochet_glass", &"enemy_hurt",
 		&"arrow_hit_wood", &"chest_open", &"chest_loot", &"glass_glint", &"glass_glint_trap",
-		&"weapon_drop", &"glass_crack", &"enemy_death"]
+		&"weapon_drop", &"glass_crack", &"enemy_death", &"sword_hit", &"sword_hit_finisher"]
 	var short: Array[String] = []
 	for event in chosen:
 		if sfx.variants(event) < 2:

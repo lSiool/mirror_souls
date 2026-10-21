@@ -1,0 +1,408 @@
+{
+ "source": "freesound.org/s/811456 (WEAPSwrd Sword Hits Scrapes Shings, Nicholas Judy, TDC)",
+ "slices": [
+  {
+   "n": 1,
+   "file": "slice_01.wav",
+   "at": 0.12,
+   "length": 0.24,
+   "peak_db": -3.3,
+   "tail40": 1.17,
+   "floor_db": -42.3,
+   "centroid": 9006
+  },
+  {
+   "n": 2,
+   "file": "slice_02.wav",
+   "at": 2.86,
+   "length": 0.58,
+   "peak_db": -5.3,
+   "tail40": 0.34,
+   "floor_db": -64.7,
+   "centroid": 8031
+  },
+  {
+   "n": 3,
+   "file": "slice_03.wav",
+   "at": 5.56,
+   "length": 0.65,
+   "peak_db": -5.2,
+   "tail40": 0.43,
+   "floor_db": -63.8,
+   "centroid": 8256
+  },
+  {
+   "n": 4,
+   "file": "slice_04.wav",
+   "at": 7.44,
+   "length": 1.6,
+   "peak_db": -4.5,
+   "tail40": 1.53,
+   "floor_db": -68.2,
+   "centroid": 9030
+  },
+  {
+   "n": 5,
+   "file": "slice_05.wav",
+   "at": 9.22,
+   "length": 0.6,
+   "peak_db": -3.1,
+   "tail40": 0.33,
+   "floor_db": -61.3,
+   "centroid": 8334
+  },
+  {
+   "n": 6,
+   "file": "slice_06.wav",
+   "at": 10.92,
+   "length": 0.72,
+   "peak_db": -4.4,
+   "tail40": 0.7,
+   "floor_db": -57.1,
+   "centroid": 8822
+  },
+  {
+   "n": 7,
+   "file": "slice_07.wav",
+   "at": 13.08,
+   "length": 0.71,
+   "peak_db": -3.4,
+   "tail40": 0.25,
+   "floor_db": -65.4,
+   "centroid": 8672
+  },
+  {
+   "n": 8,
+   "file": "slice_08.wav",
+   "at": 14.8,
+   "length": 0.42,
+   "peak_db": -2.9,
+   "tail40": 0.34,
+   "floor_db": -71.0,
+   "centroid": 8863
+  },
+  {
+   "n": 9,
+   "file": "slice_09.wav",
+   "at": 16.66,
+   "length": 0.49,
+   "peak_db": -4.1,
+   "tail40": 0.34,
+   "floor_db": -69.2,
+   "centroid": 8687
+  },
+  {
+   "n": 10,
+   "file": "slice_10.wav",
+   "at": 18.45,
+   "length": 0.41,
+   "peak_db": -3.0,
+   "tail40": 0.32,
+   "floor_db": -68.2,
+   "centroid": 8524
+  },
+  {
+   "n": 11,
+   "file": "slice_11.wav",
+   "at": 20.19,
+   "length": 0.39,
+   "peak_db": -2.0,
+   "tail40": 0.26,
+   "floor_db": -68.2,
+   "centroid": 9107
+  },
+  {
+   "n": 12,
+   "file": "slice_12.wav",
+   "at": 22.32,
+   "length": 0.38,
+   "peak_db": -2.2,
+   "tail40": 0.24,
+   "floor_db": -66.9,
+   "centroid": 8782
+  },
+  {
+   "n": 13,
+   "file": "slice_13.wav",
+   "at": 24.24,
+   "length": 0.51,
+   "peak_db": -3.6,
+   "tail40": 0.4,
+   "floor_db": -69.2,
+   "centroid": 8345
+  },
+  {
+   "n": 14,
+   "file": "slice_14.wav",
+   "at": 26.35,
+   "length": 0.24,
+   "peak_db": -4.0,
+   "tail40": 0.18,
+   "floor_db": -70.4,
+   "centroid": 8545
+  },
+  {
+   "n": 15,
+   "file": "slice_15.wav",
+   "at": 27.22,
+   "length": 0.95,
+   "peak_db": -7.1,
+   "tail40": 0.54,
+   "floor_db": -67.7,
+   "centroid": 8867
+  },
+  {
+   "n": 16,
+   "file": "slice_16.wav",
+   "at": 29.77,
+   "length": 0.73,
+   "peak_db": -5.4,
+   "tail40": 0.52,
+   "floor_db": -68.7,
+   "centroid": 8842
+  },
+  {
+   "n": 17,
+   "file": "slice_17.wav",
+   "at": 32.06,
+   "length": 0.88,
+   "peak_db": -3.6,
+   "tail40": 0.79,
+   "floor_db": -66.5,
+   "centroid": 8783
+  },
+  {
+   "n": 18,
+   "file": "slice_18.wav",
+   "at": 34.23,
+   "length": 0.94,
+   "peak_db": -9.1,
+   "tail40": 0.9,
+   "floor_db": -64.1,
+   "centroid": 8074
+  },
+  {
+   "n": 19,
+   "file": "slice_19.wav",
+   "at": 36.6,
+   "length": 0.41,
+   "peak_db": -7.3,
+   "tail40": 0.41,
+   "floor_db": -54.0,
+   "centroid": 8482
+  },
+  {
+   "n": 20,
+   "file": "slice_20.wav",
+   "at": 38.72,
+   "length": 1.61,
+   "peak_db": -7.5,
+   "tail40": 0.45,
+   "floor_db": -67.7,
+   "centroid": 8394
+  },
+  {
+   "n": 21,
+   "file": "slice_21.wav",
+   "at": 40.81,
+   "length": 0.77,
+   "peak_db": -6.5,
+   "tail40": 0.52,
+   "floor_db": -63.2,
+   "centroid": 8433
+  },
+  {
+   "n": 22,
+   "file": "slice_22.wav",
+   "at": 42.65,
+   "length": 1.57,
+   "peak_db": -12.4,
+   "tail40": 0.51,
+   "floor_db": -66.5,
+   "centroid": 7756
+  },
+  {
+   "n": 23,
+   "file": "slice_23.wav",
+   "at": 44.26,
+   "length": 0.85,
+   "peak_db": -7.0,
+   "tail40": 0.53,
+   "floor_db": -67.3,
+   "centroid": 8824
+  },
+  {
+   "n": 24,
+   "file": "slice_24.wav",
+   "at": 45.71,
+   "length": 0.66,
+   "peak_db": -2.9,
+   "tail40": 0.46,
+   "floor_db": -65.7,
+   "centroid": 8567
+  },
+  {
+   "n": 25,
+   "file": "slice_25.wav",
+   "at": 48.82,
+   "length": 0.6,
+   "peak_db": -0.7,
+   "tail40": 0.45,
+   "floor_db": -67.3,
+   "centroid": 8786
+  },
+  {
+   "n": 26,
+   "file": "slice_26.wav",
+   "at": 50.95,
+   "length": 1.52,
+   "peak_db": -3.7,
+   "tail40": 1.52,
+   "floor_db": -67.3,
+   "centroid": 8535
+  },
+  {
+   "n": 27,
+   "file": "slice_27.wav",
+   "at": 52.51,
+   "length": 0.95,
+   "peak_db": -8.0,
+   "tail40": 0.5,
+   "floor_db": -65.0,
+   "centroid": 8556
+  },
+  {
+   "n": 28,
+   "file": "slice_28.wav",
+   "at": 54.64,
+   "length": 0.71,
+   "peak_db": -6.4,
+   "tail40": 0.49,
+   "floor_db": -66.1,
+   "centroid": 9026
+  },
+  {
+   "n": 29,
+   "file": "slice_29.wav",
+   "at": 56.52,
+   "length": 1.12,
+   "peak_db": -7.9,
+   "tail40": 1.04,
+   "floor_db": -67.7,
+   "centroid": 8911
+  },
+  {
+   "n": 30,
+   "file": "slice_30.wav",
+   "at": 58.24,
+   "length": 0.98,
+   "peak_db": -9.3,
+   "tail40": 0.83,
+   "floor_db": -66.1,
+   "centroid": 8853
+  },
+  {
+   "n": 31,
+   "file": "slice_31.wav",
+   "at": 59.62,
+   "length": 0.66,
+   "peak_db": -7.0,
+   "tail40": 0.44,
+   "floor_db": -65.7,
+   "centroid": 9062
+  },
+  {
+   "n": 32,
+   "file": "slice_32.wav",
+   "at": 61.38,
+   "length": 0.7,
+   "peak_db": -6.7,
+   "tail40": 0.5,
+   "floor_db": -67.3,
+   "centroid": 8531
+  },
+  {
+   "n": 33,
+   "file": "slice_33.wav",
+   "at": 63.7,
+   "length": 0.7,
+   "peak_db": -8.2,
+   "tail40": 0.51,
+   "floor_db": -66.9,
+   "centroid": 8880
+  },
+  {
+   "n": 34,
+   "file": "slice_34.wav",
+   "at": 66.12,
+   "length": 0.8,
+   "peak_db": -6.7,
+   "tail40": 0.52,
+   "floor_db": -67.7,
+   "centroid": 9087
+  },
+  {
+   "n": 35,
+   "file": "slice_35.wav",
+   "at": 68.51,
+   "length": 1.38,
+   "peak_db": -4.7,
+   "tail40": 1.38,
+   "floor_db": -67.3,
+   "centroid": 9267
+  },
+  {
+   "n": 36,
+   "file": "slice_36.wav",
+   "at": 69.93,
+   "length": 0.79,
+   "peak_db": -7.8,
+   "tail40": 0.77,
+   "floor_db": -55.1,
+   "centroid": 8976
+  },
+  {
+   "n": 37,
+   "file": "slice_37.wav",
+   "at": 72.5,
+   "length": 0.52,
+   "peak_db": -4.0,
+   "tail40": 0.43,
+   "floor_db": -54.9,
+   "centroid": 9495
+  },
+  {
+   "n": 38,
+   "file": "slice_38.wav",
+   "at": 74.37,
+   "length": 0.49,
+   "peak_db": -3.9,
+   "tail40": 0.41,
+   "floor_db": -55.5,
+   "centroid": 9377
+  },
+  {
+   "n": 39,
+   "file": "slice_39.wav",
+   "at": 76.25,
+   "length": 0.95,
+   "peak_db": -6.7,
+   "tail40": 0.92,
+   "floor_db": -55.4,
+   "centroid": 9100
+  },
+  {
+   "n": 40,
+   "file": "slice_40.wav",
+   "at": 78.55,
+   "length": 0.58,
+   "peak_db": -5.7,
+   "tail40": 0.54,
+   "floor_db": -54.4,
+   "centroid": 8942
+  }
+ ],
+ "author": "designerschoice / Nicholas Judy (Freesound)",
+ "license": "unconfirmed - check freesound.org/s/811456",
+ "commercial": "unconfirmed"
+}

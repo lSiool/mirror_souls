@@ -27,6 +27,10 @@ USED: list = []
 ## Нарезка присланной записи (--user=<папка с slices.json>), имена в рецептах: "user/slice_08".
 USER: Path = Path()
 USER_SOURCE = ""
+## Автор и лицензия записи — поля "author", "license", "commercial" в slices.json.
+USER_AUTHOR = "unknown"
+USER_LICENSE = "unconfirmed"
+USER_COMMERCIAL = "unconfirmed"
 
 
 # --- Источники и эффекты ----------------------------------------------------
@@ -397,12 +401,16 @@ EVENTS = {
 
 
 def main():
-    global KENNEY, USER, USER_SOURCE
+    global KENNEY, USER, USER_SOURCE, USER_AUTHOR, USER_LICENSE, USER_COMMERCIAL
     KENNEY = Path(sys.argv[1])
     user = next((a.split("=", 1)[1] for a in sys.argv[3:] if a.startswith("--user=")), None)
     if user:
         USER = Path(user)
-        USER_SOURCE = json.loads((USER / "slices.json").read_text())["source"]
+        meta = json.loads((USER / "slices.json").read_text())
+        USER_SOURCE = meta["source"]
+        USER_AUTHOR = meta.get("author", "unknown")
+        USER_LICENSE = meta.get("license", "unconfirmed")
+        USER_COMMERCIAL = meta.get("commercial", "unconfirmed")
     out = Path(sys.argv[2])
     picks = dict(arg.split("=") for arg in sys.argv[3:] if "=" in arg and not arg.startswith("--"))
     only = next((a.split("=", 1)[1].split(",") for a in sys.argv[3:] if a.startswith("--only=")), None)
@@ -419,7 +427,12 @@ def main():
                 name = f"{group}/{event}_{v + 1:02d}.wav"
                 save(finish(x, peak), out / name, preview=False)
                 sources = " + ".join(dict.fromkeys(USED)) or "modal synthesis"
-                rows.append(f'sfx/{name},"Kenney: {sources}",Kenney (kenney.nl),CC0,yes,"{label}; '
+                if "#" in sources:
+                    # Кусок присланной записи: автор и лицензия — её, а не Kenney.
+                    author, license_, commercial = USER_AUTHOR, USER_LICENSE, USER_COMMERCIAL
+                else:
+                    author, license_, commercial = "Kenney (kenney.nl)", "CC0", "yes"
+                rows.append(f'sfx/{name},"{sources}",{author},{license_},{commercial},"{label}; '
                             f'make_candidates.py {event}={letter}"')
                 print(name)
         _update_manifest(out.parent / "_source" / "manifest.csv", picks, rows)
