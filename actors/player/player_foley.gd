@@ -6,6 +6,9 @@ extends RefCounted
 const STEP_DISTANCE := 1.55
 ## С какой скорости падения приземление слышно.
 const LAND_SPEED := 4.0
+## Шаги звучат постоянно — в миксе они тише остального.
+const STEP_VOLUME_DB := -8.0
+const LAND_VOLUME_DB := -3.0
 
 var _stride := 0.0
 var _was_on_floor := true
@@ -18,13 +21,13 @@ func update(on_floor: bool, velocity: Vector3, at: Vector3, delta: float, walkin
 		# На кадре касания скорость уже погашена — помним скорость падения с прошлого кадра.
 		_fall_speed = maxf(-velocity.y, 0.0)
 	elif not _was_on_floor and _fall_speed > LAND_SPEED:
-		Sfx.play(&"player_land", at)
+		Sfx.play(&"player_land", at, LAND_VOLUME_DB)
 		_stride = 0.0
 	elif walking and absf(velocity.x) > 0.5:
 		_stride += absf(velocity.x) * delta
 		if _stride >= STEP_DISTANCE:
 			_stride -= STEP_DISTANCE
-			Sfx.play(&"player_step_floor", at)
+			Sfx.play(&"player_step_floor", at, STEP_VOLUME_DB)
 	else:
 		# Стоит — первый шаг прозвучит вскоре после старта.
 		_stride = STEP_DISTANCE * 0.6

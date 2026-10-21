@@ -1,29 +1,89 @@
 file,source,author,license,commercial,notes
-sfx/combat/arrow_hit_wood_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/arrow_hit_wood_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/arrow_hit_wood_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/arrow_hit_wood_04.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/arrow_ricochet_glass_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/arrow_ricochet_glass_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/arrow_ricochet_glass_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/arrow_ricochet_glass_04.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_block_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_block_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_block_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_block_04.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_hit_glass_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_hit_glass_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_hit_glass_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_hit_glass_04.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_parry_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_parry_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/combat/sword_parry_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/glass/glass_break_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/glass/glass_break_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/glass/glass_break_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/glass/glass_glint_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/glass/glass_glint_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/glass/glass_glint_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/glass/glass_glint_trap_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/glass/glass_glint_trap_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
-sfx/glass/glass_glint_trap_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,first layer
+sfx/glass/glass_glint_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,glass glint
+sfx/glass/glass_glint_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,glass glint
+sfx/glass/glass_glint_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,glass glint
+sfx/glass/glass_glint_trap_01.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,glass glint
+sfx/glass/glass_glint_trap_02.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,glass glint
+sfx/glass/glass_glint_trap_03.wav,modal synthesis (tools/bake_modal_sounds.gd),project,own,yes,glass glint
+sfx/player/player_step_floor_01.wav,"Kenney: impact-sounds/footstep_concrete_000.ogg",Kenney (kenney.nl),CC0,yes,"шаг по камню ниже и глуше — тяжёлый сапог; make_candidates.py player_step_floor=C"
+sfx/player/player_step_floor_02.wav,"Kenney: impact-sounds/footstep_concrete_001.ogg",Kenney (kenney.nl),CC0,yes,"шаг по камню ниже и глуше — тяжёлый сапог; make_candidates.py player_step_floor=C"
+sfx/player/player_step_floor_03.wav,"Kenney: impact-sounds/footstep_concrete_002.ogg",Kenney (kenney.nl),CC0,yes,"шаг по камню ниже и глуше — тяжёлый сапог; make_candidates.py player_step_floor=C"
+sfx/player/player_step_floor_04.wav,"Kenney: impact-sounds/footstep_concrete_003.ogg",Kenney (kenney.nl),CC0,yes,"шаг по камню ниже и глуше — тяжёлый сапог; make_candidates.py player_step_floor=C"
+sfx/player/player_step_floor_05.wav,"Kenney: impact-sounds/footstep_concrete_004.ogg",Kenney (kenney.nl),CC0,yes,"шаг по камню ниже и глуше — тяжёлый сапог; make_candidates.py player_step_floor=C"
+sfx/player/player_land_01.wav,"Kenney: impact-sounds/impactSoft_medium_000.ogg + impact-sounds/footstep_concrete_000.ogg",Kenney (kenney.nl),CC0,yes,"мягкий удар + шаг; make_candidates.py player_land=A"
+sfx/player/player_land_02.wav,"Kenney: impact-sounds/impactSoft_medium_001.ogg + impact-sounds/footstep_concrete_001.ogg",Kenney (kenney.nl),CC0,yes,"мягкий удар + шаг; make_candidates.py player_land=A"
+sfx/player/player_land_03.wav,"Kenney: impact-sounds/impactSoft_medium_002.ogg + impact-sounds/footstep_concrete_002.ogg",Kenney (kenney.nl),CC0,yes,"мягкий удар + шаг; make_candidates.py player_land=A"
+sfx/player/player_land_04.wav,"Kenney: impact-sounds/impactSoft_medium_003.ogg + impact-sounds/footstep_concrete_003.ogg",Kenney (kenney.nl),CC0,yes,"мягкий удар + шаг; make_candidates.py player_land=A"
+sfx/player/player_land_05.wav,"Kenney: impact-sounds/impactSoft_medium_004.ogg + impact-sounds/footstep_concrete_004.ogg",Kenney (kenney.nl),CC0,yes,"мягкий удар + шаг; make_candidates.py player_land=A"
+sfx/player/player_roll_01.wav,"Kenney: rpg-audio/cloth1.ogg + impact-sounds/impactSoft_medium_000.ogg",Kenney (kenney.nl),CC0,yes,"шорох + касание пола; make_candidates.py player_roll=A"
+sfx/player/player_roll_02.wav,"Kenney: rpg-audio/cloth2.ogg + impact-sounds/impactSoft_medium_001.ogg",Kenney (kenney.nl),CC0,yes,"шорох + касание пола; make_candidates.py player_roll=A"
+sfx/player/player_roll_03.wav,"Kenney: rpg-audio/cloth3.ogg + impact-sounds/impactSoft_medium_002.ogg",Kenney (kenney.nl),CC0,yes,"шорох + касание пола; make_candidates.py player_roll=A"
+sfx/player/player_roll_04.wav,"Kenney: rpg-audio/cloth4.ogg + impact-sounds/impactSoft_medium_003.ogg",Kenney (kenney.nl),CC0,yes,"шорох + касание пола; make_candidates.py player_roll=A"
+sfx/player/player_roll_05.wav,"Kenney: rpg-audio/cloth1.ogg + impact-sounds/impactSoft_medium_004.ogg",Kenney (kenney.nl),CC0,yes,"шорох + касание пола; make_candidates.py player_roll=A"
+sfx/player/player_knee_01.wav,"Kenney: rpg-audio/dropLeather.ogg + rpg-audio/beltHandle1.ogg",Kenney (kenney.nl),CC0,yes,"колено + звяк снаряжения; make_candidates.py player_knee=B"
+sfx/player/player_knee_02.wav,"Kenney: rpg-audio/dropLeather.ogg + rpg-audio/beltHandle1.ogg",Kenney (kenney.nl),CC0,yes,"колено + звяк снаряжения; make_candidates.py player_knee=B"
+sfx/player/player_knee_03.wav,"Kenney: rpg-audio/dropLeather.ogg + rpg-audio/beltHandle1.ogg",Kenney (kenney.nl),CC0,yes,"колено + звяк снаряжения; make_candidates.py player_knee=B"
+sfx/player/player_knee_04.wav,"Kenney: rpg-audio/dropLeather.ogg + rpg-audio/beltHandle1.ogg",Kenney (kenney.nl),CC0,yes,"колено + звяк снаряжения; make_candidates.py player_knee=B"
+sfx/player/player_knee_05.wav,"Kenney: rpg-audio/dropLeather.ogg + rpg-audio/beltHandle1.ogg",Kenney (kenney.nl),CC0,yes,"колено + звяк снаряжения; make_candidates.py player_knee=B"
+sfx/player/player_body_fall_01.wav,"Kenney: impact-sounds/impactSoft_heavy_000.ogg + rpg-audio/dropLeather.ogg + rpg-audio/beltHandle2.ogg",Kenney (kenney.nl),CC0,yes,"тяжелее + звяк снаряжения; make_candidates.py player_body_fall=B"
+sfx/player/player_body_fall_02.wav,"Kenney: impact-sounds/impactSoft_heavy_001.ogg + rpg-audio/dropLeather.ogg + rpg-audio/beltHandle2.ogg",Kenney (kenney.nl),CC0,yes,"тяжелее + звяк снаряжения; make_candidates.py player_body_fall=B"
+sfx/player/player_body_fall_03.wav,"Kenney: impact-sounds/impactSoft_heavy_002.ogg + rpg-audio/dropLeather.ogg + rpg-audio/beltHandle2.ogg",Kenney (kenney.nl),CC0,yes,"тяжелее + звяк снаряжения; make_candidates.py player_body_fall=B"
+sfx/player/player_body_fall_04.wav,"Kenney: impact-sounds/impactSoft_heavy_003.ogg + rpg-audio/dropLeather.ogg + rpg-audio/beltHandle2.ogg",Kenney (kenney.nl),CC0,yes,"тяжелее + звяк снаряжения; make_candidates.py player_body_fall=B"
+sfx/player/player_body_fall_05.wav,"Kenney: impact-sounds/impactSoft_heavy_004.ogg + rpg-audio/dropLeather.ogg + rpg-audio/beltHandle2.ogg",Kenney (kenney.nl),CC0,yes,"тяжелее + звяк снаряжения; make_candidates.py player_body_fall=B"
+sfx/ui/death_sting_01.wav,"Kenney: impact-sounds/impactGlass_heavy_000.ogg",Kenney (kenney.nl),CC0,yes,"тяжёлое стекло совсем низко + гул; make_candidates.py death_sting=C"
+sfx/ui/death_sting_02.wav,"Kenney: impact-sounds/impactGlass_heavy_001.ogg",Kenney (kenney.nl),CC0,yes,"тяжёлое стекло совсем низко + гул; make_candidates.py death_sting=C"
+sfx/combat/sword_block_01.wav,"Kenney: impact-sounds/impactPlate_heavy_000.ogg",Kenney (kenney.nl),CC0,yes,"пластина; make_candidates.py sword_block=B"
+sfx/combat/sword_block_02.wav,"Kenney: impact-sounds/impactPlate_heavy_001.ogg",Kenney (kenney.nl),CC0,yes,"пластина; make_candidates.py sword_block=B"
+sfx/combat/sword_block_03.wav,"Kenney: impact-sounds/impactPlate_heavy_002.ogg",Kenney (kenney.nl),CC0,yes,"пластина; make_candidates.py sword_block=B"
+sfx/combat/sword_block_04.wav,"Kenney: impact-sounds/impactPlate_heavy_003.ogg",Kenney (kenney.nl),CC0,yes,"пластина; make_candidates.py sword_block=B"
+sfx/combat/sword_block_05.wav,"Kenney: impact-sounds/impactPlate_heavy_004.ogg",Kenney (kenney.nl),CC0,yes,"пластина; make_candidates.py sword_block=B"
+sfx/combat/sword_parry_01.wav,"Kenney: impact-sounds/impactPlate_heavy_000.ogg",Kenney (kenney.nl),CC0,yes,"пластина + звенящий клинок; make_candidates.py sword_parry=C"
+sfx/combat/sword_parry_02.wav,"Kenney: impact-sounds/impactPlate_heavy_001.ogg",Kenney (kenney.nl),CC0,yes,"пластина + звенящий клинок; make_candidates.py sword_parry=C"
+sfx/combat/sword_parry_03.wav,"Kenney: impact-sounds/impactPlate_heavy_002.ogg",Kenney (kenney.nl),CC0,yes,"пластина + звенящий клинок; make_candidates.py sword_parry=C"
+sfx/combat/sword_parry_04.wav,"Kenney: impact-sounds/impactPlate_heavy_003.ogg",Kenney (kenney.nl),CC0,yes,"пластина + звенящий клинок; make_candidates.py sword_parry=C"
+sfx/combat/sword_parry_05.wav,"Kenney: impact-sounds/impactPlate_heavy_004.ogg",Kenney (kenney.nl),CC0,yes,"пластина + звенящий клинок; make_candidates.py sword_parry=C"
+sfx/combat/critical_pierce_01.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactPunch_heavy_000.ogg",Kenney (kenney.nl),CC0,yes,"рез ниже + глухой тяжёлый; make_candidates.py critical_pierce=C"
+sfx/combat/critical_pierce_02.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactPunch_heavy_001.ogg",Kenney (kenney.nl),CC0,yes,"рез ниже + глухой тяжёлый; make_candidates.py critical_pierce=C"
+sfx/combat/critical_pierce_03.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactPunch_heavy_002.ogg",Kenney (kenney.nl),CC0,yes,"рез ниже + глухой тяжёлый; make_candidates.py critical_pierce=C"
+sfx/combat/critical_pierce_04.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactPunch_heavy_003.ogg",Kenney (kenney.nl),CC0,yes,"рез ниже + глухой тяжёлый; make_candidates.py critical_pierce=C"
+sfx/combat/critical_pierce_05.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactPunch_heavy_004.ogg",Kenney (kenney.nl),CC0,yes,"рез ниже + глухой тяжёлый; make_candidates.py critical_pierce=C"
+sfx/combat/critical_release_01.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactSoft_heavy_000.ogg",Kenney (kenney.nl),CC0,yes,"выдернул: рез + глухо; make_candidates.py critical_release=B"
+sfx/combat/critical_release_02.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactSoft_heavy_001.ogg",Kenney (kenney.nl),CC0,yes,"выдернул: рез + глухо; make_candidates.py critical_release=B"
+sfx/combat/critical_release_03.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactSoft_heavy_002.ogg",Kenney (kenney.nl),CC0,yes,"выдернул: рез + глухо; make_candidates.py critical_release=B"
+sfx/combat/critical_release_04.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactSoft_heavy_003.ogg",Kenney (kenney.nl),CC0,yes,"выдернул: рез + глухо; make_candidates.py critical_release=B"
+sfx/combat/critical_release_05.wav,"Kenney: rpg-audio/knifeSlice2.ogg + impact-sounds/impactSoft_heavy_004.ogg",Kenney (kenney.nl),CC0,yes,"выдернул: рез + глухо; make_candidates.py critical_release=B"
+sfx/glass/glass_break_01.wav,"Kenney: impact-sounds/impactGlass_heavy_000.ogg + impact-sounds/impactGlass_light_001.ogg + impact-sounds/impactGlass_light_003.ogg",Kenney (kenney.nl),CC0,yes,"то же + низкий гул плиты; make_candidates.py glass_break=B"
+sfx/glass/glass_break_02.wav,"Kenney: impact-sounds/impactGlass_heavy_001.ogg + impact-sounds/impactGlass_light_002.ogg + impact-sounds/impactGlass_light_004.ogg",Kenney (kenney.nl),CC0,yes,"то же + низкий гул плиты; make_candidates.py glass_break=B"
+sfx/glass/glass_break_03.wav,"Kenney: impact-sounds/impactGlass_heavy_002.ogg + impact-sounds/impactGlass_light_003.ogg + impact-sounds/impactGlass_light_000.ogg",Kenney (kenney.nl),CC0,yes,"то же + низкий гул плиты; make_candidates.py glass_break=B"
+sfx/glass/glass_break_04.wav,"Kenney: impact-sounds/impactGlass_heavy_003.ogg + impact-sounds/impactGlass_light_004.ogg + impact-sounds/impactGlass_light_001.ogg",Kenney (kenney.nl),CC0,yes,"то же + низкий гул плиты; make_candidates.py glass_break=B"
+sfx/glass/glass_break_05.wav,"Kenney: impact-sounds/impactGlass_heavy_004.ogg + impact-sounds/impactGlass_light_000.ogg + impact-sounds/impactGlass_light_002.ogg",Kenney (kenney.nl),CC0,yes,"то же + низкий гул плиты; make_candidates.py glass_break=B"
+sfx/combat/sword_hit_glass_01.wav,"Kenney: impact-sounds/impactGlass_medium_000.ogg + impact-sounds/impactMetal_light_000.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл клинка; make_candidates.py sword_hit_glass=A"
+sfx/combat/sword_hit_glass_02.wav,"Kenney: impact-sounds/impactGlass_medium_001.ogg + impact-sounds/impactMetal_light_001.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл клинка; make_candidates.py sword_hit_glass=A"
+sfx/combat/sword_hit_glass_03.wav,"Kenney: impact-sounds/impactGlass_medium_002.ogg + impact-sounds/impactMetal_light_002.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл клинка; make_candidates.py sword_hit_glass=A"
+sfx/combat/sword_hit_glass_04.wav,"Kenney: impact-sounds/impactGlass_medium_003.ogg + impact-sounds/impactMetal_light_003.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл клинка; make_candidates.py sword_hit_glass=A"
+sfx/combat/sword_hit_glass_05.wav,"Kenney: impact-sounds/impactGlass_medium_004.ogg + impact-sounds/impactMetal_light_004.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл клинка; make_candidates.py sword_hit_glass=A"
+sfx/combat/arrow_ricochet_glass_01.wav,"Kenney: impact-sounds/impactGlass_light_000.ogg + impact-sounds/impactMetal_light_000.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл наконечника; make_candidates.py arrow_ricochet_glass=B"
+sfx/combat/arrow_ricochet_glass_02.wav,"Kenney: impact-sounds/impactGlass_light_001.ogg + impact-sounds/impactMetal_light_001.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл наконечника; make_candidates.py arrow_ricochet_glass=B"
+sfx/combat/arrow_ricochet_glass_03.wav,"Kenney: impact-sounds/impactGlass_light_002.ogg + impact-sounds/impactMetal_light_002.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл наконечника; make_candidates.py arrow_ricochet_glass=B"
+sfx/combat/arrow_ricochet_glass_04.wav,"Kenney: impact-sounds/impactGlass_light_003.ogg + impact-sounds/impactMetal_light_003.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл наконечника; make_candidates.py arrow_ricochet_glass=B"
+sfx/combat/arrow_ricochet_glass_05.wav,"Kenney: impact-sounds/impactGlass_light_004.ogg + impact-sounds/impactMetal_light_004.ogg",Kenney (kenney.nl),CC0,yes,"стекло + металл наконечника; make_candidates.py arrow_ricochet_glass=B"
+sfx/enemy/enemy_hurt_01.wav,"Kenney: impact-sounds/impactPunch_heavy_000.ogg + impact-sounds/impactPlate_light_000.ogg",Kenney (kenney.nl),CC0,yes,"удар + звяк брони; make_candidates.py enemy_hurt=B"
+sfx/enemy/enemy_hurt_02.wav,"Kenney: impact-sounds/impactPunch_heavy_001.ogg + impact-sounds/impactPlate_light_001.ogg",Kenney (kenney.nl),CC0,yes,"удар + звяк брони; make_candidates.py enemy_hurt=B"
+sfx/enemy/enemy_hurt_03.wav,"Kenney: impact-sounds/impactPunch_heavy_002.ogg + impact-sounds/impactPlate_light_002.ogg",Kenney (kenney.nl),CC0,yes,"удар + звяк брони; make_candidates.py enemy_hurt=B"
+sfx/enemy/enemy_hurt_04.wav,"Kenney: impact-sounds/impactPunch_heavy_003.ogg + impact-sounds/impactPlate_light_003.ogg",Kenney (kenney.nl),CC0,yes,"удар + звяк брони; make_candidates.py enemy_hurt=B"
+sfx/enemy/enemy_hurt_05.wav,"Kenney: impact-sounds/impactPunch_heavy_004.ogg + impact-sounds/impactPlate_light_004.ogg",Kenney (kenney.nl),CC0,yes,"удар + звяк брони; make_candidates.py enemy_hurt=B"
+sfx/combat/arrow_hit_wood_01.wav,"Kenney: impact-sounds/impactPlank_medium_000.ogg",Kenney (kenney.nl),CC0,yes,"доска; make_candidates.py arrow_hit_wood=B"
+sfx/combat/arrow_hit_wood_02.wav,"Kenney: impact-sounds/impactPlank_medium_001.ogg",Kenney (kenney.nl),CC0,yes,"доска; make_candidates.py arrow_hit_wood=B"
+sfx/combat/arrow_hit_wood_03.wav,"Kenney: impact-sounds/impactPlank_medium_002.ogg",Kenney (kenney.nl),CC0,yes,"доска; make_candidates.py arrow_hit_wood=B"
+sfx/combat/arrow_hit_wood_04.wav,"Kenney: impact-sounds/impactPlank_medium_003.ogg",Kenney (kenney.nl),CC0,yes,"доска; make_candidates.py arrow_hit_wood=B"
+sfx/combat/arrow_hit_wood_05.wav,"Kenney: impact-sounds/impactPlank_medium_004.ogg",Kenney (kenney.nl),CC0,yes,"доска; make_candidates.py arrow_hit_wood=B"
+sfx/world/chest_open_01.wav,"Kenney: rpg-audio/metalLatch.ogg + rpg-audio/doorOpen_1.ogg",Kenney (kenney.nl),CC0,yes,"скрип крышки + защёлка; make_candidates.py chest_open=A"
+sfx/world/chest_open_02.wav,"Kenney: rpg-audio/metalLatch.ogg + rpg-audio/doorOpen_1.ogg",Kenney (kenney.nl),CC0,yes,"скрип крышки + защёлка; make_candidates.py chest_open=A"
+sfx/world/chest_open_03.wav,"Kenney: rpg-audio/metalLatch.ogg + rpg-audio/doorOpen_1.ogg",Kenney (kenney.nl),CC0,yes,"скрип крышки + защёлка; make_candidates.py chest_open=A"
+sfx/world/chest_open_04.wav,"Kenney: rpg-audio/metalLatch.ogg + rpg-audio/doorOpen_1.ogg",Kenney (kenney.nl),CC0,yes,"скрип крышки + защёлка; make_candidates.py chest_open=A"
+sfx/world/chest_open_05.wav,"Kenney: rpg-audio/metalLatch.ogg + rpg-audio/doorOpen_1.ogg",Kenney (kenney.nl),CC0,yes,"скрип крышки + защёлка; make_candidates.py chest_open=A"
+sfx/world/chest_loot_01.wav,"Kenney: rpg-audio/handleCoins2.ogg",Kenney (kenney.nl),CC0,yes,"монеты, другие; make_candidates.py chest_loot=B"
+sfx/world/chest_loot_02.wav,"Kenney: rpg-audio/handleCoins2.ogg",Kenney (kenney.nl),CC0,yes,"монеты, другие; make_candidates.py chest_loot=B"
+sfx/world/chest_loot_03.wav,"Kenney: rpg-audio/handleCoins2.ogg",Kenney (kenney.nl),CC0,yes,"монеты, другие; make_candidates.py chest_loot=B"
+sfx/world/chest_loot_04.wav,"Kenney: rpg-audio/handleCoins2.ogg",Kenney (kenney.nl),CC0,yes,"монеты, другие; make_candidates.py chest_loot=B"
+sfx/world/chest_loot_05.wav,"Kenney: rpg-audio/handleCoins2.ogg",Kenney (kenney.nl),CC0,yes,"монеты, другие; make_candidates.py chest_loot=B"

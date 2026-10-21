@@ -2,8 +2,8 @@ extends Node
 ## Звуковые события (docs/SOUND_PLAN.md): Sfx.play(&"glass_break", где).
 ## Каждое событие — банк вариантов res://audio/sfx/<группа>/<событие>_NN.wav,
 ## варианты идут по кругу (round-robin) с лёгким разбросом высоты, чтобы не было «пулемёта».
-## Первый слой — запечённый модальный синтез (tools/bake_modal_sounds.gd); библиотечные
-## звуки лягут в те же папки и имена.
+## Банки собираются из записей Kenney (tools/sound/make_candidates.py --bank),
+## блики стекла — модальным синтезом (tools/bake_modal_sounds.gd).
 
 const ROOT := "res://audio/sfx"
 const MAX_VARIANTS := 12

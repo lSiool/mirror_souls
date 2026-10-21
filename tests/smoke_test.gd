@@ -169,8 +169,15 @@ func run() -> void:
 	await seconds(0.5)
 
 	print("== Звук: банки")
-	for event: StringName in [&"glass_break", &"sword_hit_glass", &"sword_block", &"sword_parry"]:
-		check(sfx.variants(event) >= 2, "%s: вариантов %d" % [event, sfx.variants(event)])
+	var chosen: Array[StringName] = [&"player_step_floor", &"player_land", &"player_roll", &"player_knee",
+		&"player_body_fall", &"death_sting", &"sword_block", &"sword_parry", &"critical_pierce",
+		&"critical_release", &"glass_break", &"sword_hit_glass", &"arrow_ricochet_glass", &"enemy_hurt",
+		&"arrow_hit_wood", &"chest_open", &"chest_loot", &"glass_glint", &"glass_glint_trap"]
+	var short: Array[String] = []
+	for event in chosen:
+		if sfx.variants(event) < 2:
+			short.append("%s=%d" % [event, sfx.variants(event)])
+	check(short.is_empty(), "банки выбранных звуков на месте (%d событий) %s" % [chosen.size(), ", ".join(short)])
 	for event: StringName in sfx.EVENTS:
 		if sfx.variants(event) == 1:
 			check(false, "%s: один вариант — нужен банк для чередования" % event)

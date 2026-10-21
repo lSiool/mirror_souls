@@ -21,6 +21,8 @@ import numpy as np
 
 RATE = 44100
 KENNEY: Path
+## Какие файлы Kenney взял последний рендер — для манифеста лицензий.
+USED: list = []
 
 
 # --- Источники и эффекты ----------------------------------------------------
@@ -35,6 +37,7 @@ def src(name, pitch=1.0, lp=None, hp=None, gain=1.0, trim=None, reverse=False):
     matches = list(KENNEY.rglob(name + ".ogg"))
     if not matches:
         raise FileNotFoundError(name)
+    USED.append(f"{matches[0].parent.parent.name}/{name}.ogg")
     chain = [f"asetrate={RATE * pitch:.0f}", f"aresample={RATE}"]
     if trim:
         chain.append(f"atrim=0:{trim}")
@@ -346,12 +349,22 @@ def main():
     out = Path(sys.argv[2])
     picks = dict(arg.split("=") for arg in sys.argv[3:] if "=" in arg)
     if picks:
+        rows = []
         for event, letter in picks.items():
             group, peak, _, cands = EVENTS[event]
-            _, recipe = cands["ABCD".index(letter)]
+            label, recipe = cands["ABCD".index(letter)]
             for v in range(5 if event != "death_sting" else 2):
-                save(finish(recipe(v), peak), out / group / f"{event}_{v + 1:02d}.wav", preview=False)
-                print(f"{group}/{event}_{v + 1:02d}.wav")
+                USED.clear()
+                # Варианты чуть разной высоты — даже если рецепт берёт один и тот же файл.
+                spread = 1.0 + (v - 2) * 0.025
+                x = fx(recipe(v), f"asetrate={RATE * spread:.0f},aresample={RATE}")
+                name = f"{group}/{event}_{v + 1:02d}.wav"
+                save(finish(x, peak), out / name, preview=False)
+                sources = " + ".join(dict.fromkeys(USED)) or "modal synthesis"
+                rows.append(f'sfx/{name},"Kenney: {sources}",Kenney (kenney.nl),CC0,yes,"{label}; '
+                            f'make_candidates.py {event}={letter}"')
+                print(name)
+        _update_manifest(out.parent / "_source" / "manifest.csv", picks, rows)
         return
     info = []
     for event, (group, peak, is_seq, cands) in EVENTS.items():
@@ -363,6 +376,14 @@ def main():
                          "duration": round(len(x) / RATE, 2)})
             print(f"{event}_{letter}  {len(x) / RATE:.2f} с  {label}")
     (out / "candidates.json").write_text(json.dumps(info, ensure_ascii=False, indent=1))
+
+
+def _update_manifest(path, picks, rows):
+    """Строки выбранных событий заменяются, остальные остаются."""
+    header = "file,source,author,license,commercial,notes"
+    old = path.read_text().splitlines()[1:] if path.exists() else []
+    keep = [r for r in old if not any(f"/{e}_" in r.split(",")[0] for e in picks)]
+    path.write_text("\n".join([header, *keep, *rows]) + "\n")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 extends SceneTree
-## Запекает модальные звуки (первый слой звука, docs/SOUND_PLAN.md) в WAV:
+## Запекает модальные звуки (блики стекла, docs/SOUND_PLAN.md) в WAV:
 ##   godot --headless --path . -s res://tools/bake_modal_sounds.gd
 ## Файлы: res://audio/sfx/<группа>/<событие>_NN.wav — 44.1 кГц, 16 бит, моно, пик по событию.
 ## Сид каждого варианта фиксирован: повторный запуск даёт те же файлы.
@@ -12,23 +12,8 @@ const FADE := 88  # 2 мс
 ## Событие: группа, материал, вариантов, сила, точка удара, высота, пик dBFS, слои.
 ## Слои — дополнительные мелкие удары поверх основного: [задержка с, высота, сила, громкость].
 var events := [
-	{"id": "sword_hit_glass", "group": "combat", "mat": "glass", "count": 4,
-		"strength": 0.75, "position": 0.35, "pitch": 1.0, "peak": -3.0, "layers": [
-			[0.0, 0.5, 0.9, 0.5]]},
-	{"id": "glass_break", "group": "glass", "mat": "glass", "count": 3,
-		"strength": 1.0, "position": 0.7, "pitch": 0.8, "peak": -2.0, "layers": [
-			[0.03, 1.3, 0.6, 0.5], [0.07, 1.7, 0.5, 0.4], [0.12, 1.45, 0.45, 0.35],
-			[0.2, 2.1, 0.4, 0.3], [0.3, 1.9, 0.35, 0.25], [0.45, 2.4, 0.3, 0.2]]},
-	{"id": "arrow_ricochet_glass", "group": "combat", "mat": "glass", "count": 4,
-		"strength": 0.5, "position": 0.5, "pitch": 1.4, "peak": -6.0, "layers": []},
-	{"id": "sword_block", "group": "combat", "mat": "sword", "count": 4,
-		"strength": 0.6, "position": 0.4, "pitch": 0.9, "peak": -4.0, "layers": [
-			[0.0, 0.55, 0.6, 0.4]]},
-	{"id": "sword_parry", "group": "combat", "mat": "sword", "count": 3,
-		"strength": 1.0, "position": 0.15, "pitch": 1.12, "peak": -1.5, "layers": [
-			[0.0, 1.5, 0.8, 0.35]]},
-	{"id": "arrow_hit_wood", "group": "combat", "mat": "wood", "count": 4,
-		"strength": 0.8, "position": 0.3, "pitch": 1.0, "peak": -4.0, "layers": []},
+	# Удары, блок, парирование и стекло теперь из записей (tools/sound/make_candidates.py);
+	# синтез остаётся для языка бликов.
 	{"id": "glass_glint", "group": "glass", "mat": "glass", "count": 3,
 		"strength": 0.15, "position": 0.0, "pitch": 1.0, "peak": -14.0, "layers": []},
 	# Блик стекла-ловушки — та же нота на полтона ниже (язык бликов, §3 плана).
