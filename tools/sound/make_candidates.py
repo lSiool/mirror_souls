@@ -6,6 +6,7 @@
 
 Без --bank: по каждому событию рендерит кандидатов A/B/C/D (вариант 0) в <выход>/<событие>_<буква>.wav
 и mp3-превью, плюс candidates.json с подписями — из него собирается страница выбора.
+С --only=событие,событие: кандидаты только этих событий.
 С --bank: для выбранных кандидатов рендерит банк вариантов в <выход>/<группа>/<событие>_NN.wav.
 
 Обработка: моно 44.1 кГц / 16 бит, обрезка тишины, фейды, пик по событию. Нужен ffmpeg в PATH.
@@ -200,12 +201,14 @@ EVENTS = {
                                             (src(f"cloth{v % 4 + 1}", trim=0.3), 0.03, 0.4))),
     ]),
     "weapon_drop": ("player", -6.0, False, [
-        ("металл о камень + отскок", lambda v: mix((src(k("impactMetal_light", v)), 0, 1.0),
-                                                   (src(k("impactMetal_light", v + 2)), 0.13, 0.45))),
-        ("пластина, два удара", lambda v: mix((src(k("impactPlate_light", v)), 0, 1.0),
-                                              (src(k("impactPlate_light", v + 1)), 0.11, 0.4))),
-        ("глуше, тяжёлый клинок", lambda v: mix((src(k("impactMetal_medium", v), lp=4000), 0, 1.0),
-                                                (src(k("impactMetal_light", v), lp=3500), 0.15, 0.35))),
+        # Второй круг: сталь о камень (кирка по камню), без «жестяного» металла.
+        ("сталь о камень + отскок", lambda v: mix((src(k("impactMining", v)), 0, 1.0),
+                                                  (src(k("impactMining", v + 2), lp=4000), 0.14, 0.4))),
+        ("сталь о камень, ниже и глуше", lambda v: mix((src(k("impactMining", v), pitch=0.8, lp=3500), 0, 1.0),
+                                                       (src(k("impactMining", v + 1), pitch=0.8, lp=3000), 0.12, 0.35))),
+        ("клинок глухо + шорох по камню", lambda v: mix((src(k("impactMetal_light", v), pitch=0.85, lp=3000), 0, 0.9),
+                                                        (src(k("footstep_concrete", v), pitch=1.2), 0.03, 0.6),
+                                                        (src(k("impactMining", v + 3), pitch=0.9, lp=3000), 0.15, 0.3))),
     ]),
     # --- Меч ---
     "sword_swing": ("combat", -8.0, False, [
@@ -215,10 +218,15 @@ EVENTS = {
                                                   (src(f"cloth{v % 4 + 1}", trim=0.2), 0, 0.35))),
     ]),
     "sword_hit_body": ("combat", -3.0, False, [
-        ("удар + рез", lambda v: mix((src(k("impactPunch_heavy", v)), 0, 1.0), (src("knifeSlice"), 0, 0.6))),
-        ("удар средний + рубка", lambda v: mix((src(k("impactPunch_medium", v)), 0, 1.0), (src("chop"), 0, 0.6))),
-        ("мягкий тяжёлый + рез", lambda v: mix((src(k("impactSoft_heavy", v)), 0, 1.0),
-                                               (src("knifeSlice2"), 0, 0.55))),
+        # Второй круг: клинок в плоть и кожаный доспех — без «кулака».
+        ("плоть + рез ниже + кожа", lambda v: mix((src(k("impactSoft_medium", v)), 0, 1.0),
+                                                  (src("knifeSlice2", pitch=0.75), 0, 0.6),
+                                                  (src("dropLeather"), 0.01, 0.45))),
+        ("тяжело + рубящий, глуше", lambda v: mix((src(k("impactSoft_heavy", v), lp=3000), 0, 1.0),
+                                                  (src("chop", pitch=0.8, lp=3500), 0, 0.7))),
+        ("рез ниже + рвётся ткань", lambda v: mix((src("knifeSlice", pitch=0.8), 0, 0.8),
+                                                  (src(f"cloth{v % 4 + 1}", pitch=1.2, trim=0.2), 0, 0.6),
+                                                  (src(k("impactSoft_medium", v), lp=2500), 0.01, 0.7))),
     ]),
     "sword_block": ("combat", -4.0, False, [
         ("металл, тяжёлый", lambda v: src(k("impactMetal_heavy", v))),
@@ -275,11 +283,14 @@ EVENTS = {
                                                 (dark_glass(640, decay=3, dur=1.4, seed=v), 0, 0.5))),
     ]),
     "glass_crack": ("glass", -10.0, False, [
-        ("тихий треск ниже", lambda v: src(k("impactGlass_light", v), pitch=0.7, lp=3500)),
-        ("скрип + треск", lambda v: mix((src(f"creak{v % 3 + 1}", pitch=1.3, trim=0.5), 0, 0.6),
-                                        (src(k("impactGlass_light", v), pitch=0.8, lp=4000), 0.05, 0.8))),
-        ("короткий хруст (реверс)", lambda v: mix((src(k("impactGlass_light", v), pitch=0.9, lp=4000, reverse=True), 0, 0.6),
-                                                  (src(k("impactGlass_light", v + 1), pitch=0.75, lp=3500), 0.18, 0.8))),
+        # Второй круг: стекло хрустит под ногой.
+        ("хруст под ногой + тонкий треск", lambda v: mix((src(k("footstep_snow", v), lp=5000), 0, 0.9),
+                                                         (src(k("impactGlass_light", v), pitch=0.8, lp=4500), 0.02, 0.5))),
+        ("хруст ниже + треск назад", lambda v: mix((src(k("footstep_snow", v), pitch=0.8, lp=4000), 0, 0.9),
+                                                   (src(k("impactGlass_light", v + 1), pitch=0.75, lp=4000, reverse=True), 0.0, 0.4))),
+        ("два-три тихих щелчка", lambda v: mix((src(k("impactGlass_light", v), pitch=0.7, lp=3500), 0, 0.6),
+                                               (src(k("impactGlass_light", v + 1), pitch=0.65, lp=3000), 0.11, 0.45),
+                                               (src(k("impactGlass_light", v + 2), pitch=0.6, lp=3000), 0.19, 0.35))),
     ]),
     "arrow_ricochet_glass": ("combat", -6.0, False, [
         ("лёгкое стекло", lambda v: src(k("impactGlass_light", v))),
@@ -297,12 +308,16 @@ EVENTS = {
                                                   (src("metalClick"), 0.01, 0.3))),
     ]),
     "enemy_death": ("enemy", -3.0, False, [
-        ("падение в броне", lambda v: mix((src(k("impactSoft_heavy", v)), 0, 1.0),
-                                          (src(k("impactPlate_heavy", v), lp=4000), 0.03, 0.5))),
-        ("два глухих удара", lambda v: mix((src(k("impactSoft_heavy", v)), 0, 1.0),
-                                           (src(k("impactSoft_heavy", v + 2), pitch=0.85), 0.22, 0.7))),
-        ("тяжело + снаряжение", lambda v: mix((src(k("impactPunch_heavy", v), pitch=0.75, lp=2000), 0, 1.0),
-                                              (src("beltHandle1"), 0.05, 0.4))),
+        # Второй круг: тело в доспехе падает на камень.
+        ("тело на камень + звяк доспеха", lambda v: mix((src(k("impactSoft_heavy", v)), 0, 1.0),
+                                                        (src(k("footstep_concrete", v), pitch=0.7, lp=2500), 0.01, 0.7),
+                                                        (src("beltHandle2"), 0.04, 0.45))),
+        ("тяжело ниже + доспех о камень", lambda v: mix((src(k("impactSoft_heavy", v), pitch=0.8, lp=2200), 0, 1.0),
+                                                        (src(k("impactMining", v), pitch=0.7, lp=2500), 0.03, 0.35))),
+        ("колени, потом тело", lambda v: mix((src(k("impactSoft_medium", v), pitch=0.85, lp=2500), 0, 0.7),
+                                             (src("beltHandle1"), 0.02, 0.3),
+                                             (src(k("impactSoft_heavy", v + 1), pitch=0.8), 0.38, 1.0),
+                                             (src(k("footstep_concrete", v + 2), pitch=0.7, lp=2000), 0.39, 0.6))),
     ]),
     # --- Мир ---
     "arrow_hit_wood": ("combat", -4.0, False, [
@@ -347,7 +362,8 @@ def main():
     global KENNEY
     KENNEY = Path(sys.argv[1])
     out = Path(sys.argv[2])
-    picks = dict(arg.split("=") for arg in sys.argv[3:] if "=" in arg)
+    picks = dict(arg.split("=") for arg in sys.argv[3:] if "=" in arg and not arg.startswith("--"))
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv[3:] if a.startswith("--only=")), None)
     if picks:
         rows = []
         for event, letter in picks.items():
@@ -368,6 +384,8 @@ def main():
         return
     info = []
     for event, (group, peak, is_seq, cands) in EVENTS.items():
+        if only and event not in only:
+            continue
         for i, (label, recipe) in enumerate(cands):
             letter = "ABCD"[i]
             x = seq(*[finish(recipe(v), peak) for v in range(4)], gap=0.18) if is_seq else finish(recipe(0), peak)
