@@ -173,7 +173,9 @@ func run() -> void:
 		&"player_body_fall", &"death_sting", &"sword_block", &"sword_parry", &"critical_pierce",
 		&"critical_release", &"glass_break", &"sword_hit_glass", &"arrow_ricochet_glass", &"enemy_hurt",
 		&"arrow_hit_wood", &"chest_open", &"chest_loot", &"glass_glint", &"glass_glint_trap",
-		&"weapon_drop", &"glass_crack", &"enemy_death", &"sword_hit", &"sword_hit_finisher"]
+		&"weapon_drop", &"glass_crack", &"enemy_death", &"sword_hit", &"sword_hit_finisher", &"player_jump",
+		&"player_jump_voice", &"player_hurt", &"sword_swing", &"sword_swing_thrust", &"bow_draw",
+		&"enemy_hurt_voice", &"enemy_death_voice", &"bow_release", &"player_fall_hurt"]
 	var short: Array[String] = []
 	for event in chosen:
 		if sfx.variants(event) < 2:
@@ -207,10 +209,33 @@ func run() -> void:
 	press("jump")
 	await seconds(0.3)
 	check(player.global_position.y - y0 > 1.0, "прыжок (dy=%.2f)" % (player.global_position.y - y0))
-	check(heard(&"player_jump"), "звук прыжка")
+	check(heard(&"player_jump") and not heard(&"player_jump_voice"), "обычный прыжок — толчок без голоса")
+	player.stamina = player.stats.max_stamina * 0.2
+	check(player.jump_is_effort(), "выдохся — прыжок с усилием, с голосом")
+	player.stamina = player.stats.max_stamina
 	release("jump")
 	await seconds(0.8)
 	check(heard(&"player_land"), "звук приземления")
+	check(player.health.current == player.stats.max_health, "обычный прыжок — без урона от падения")
+
+	print("== Падение с высоты")
+	var hp_full := player.health.current
+	player._land_from(player.stats.fall_safe_height - 0.5)
+	check(player.health.current == hp_full, "невысоко — без урона")
+	sfx.history.clear()
+	player._land_from(lerpf(player.stats.fall_safe_height, player.stats.fall_lethal_height, 0.5))
+	var lost := hp_full - player.health.current
+	check(absf(lost - player.stats.max_health * 0.25) < 0.5 and heard(&"player_fall_hurt"), \
+		"полпути до смертельной высоты — четверть здоровья и голос (%.1f)" % lost)
+	player.health.heal_full()
+	await seconds(0.3)
+
+	print("== Музыка и гул зеркала")
+	var manager := get_tree().root.find_children("*", "RoomManager", true, false)[0] as RoomManager
+	check(manager.music != null and manager.music.playing, "музыка комнаты играет")
+	var portals := get_tree().root.find_children("*", "MirrorPortal", true, false)
+	check(not portals.is_empty() and portals.all(func(p: MirrorPortal) -> bool: return p.hum and p.hum.playing),
+		"зеркала гудят (%d)" % portals.size())
 
 	print("== Кувырок")
 	await put(Vector3(-20, 0.1, 0))
@@ -445,7 +470,8 @@ func run() -> void:
 	check(player.weapon.combo[2].heavy, "выпад — тяжёлый удар")
 	check(soldier.health.current < hp0, "комбо попало по врагу")
 	check(staggered, "стойкость сломана — стаггер")
-	check(sfx.history.count(&"sword_swing") == 3 and heard(&"enemy_hurt"), "звуки: три взмаха, враг получил удар")
+	check(sfx.history.count(&"sword_swing") == 2 and sfx.history.count(&"sword_swing_thrust") == 1 \
+		and heard(&"enemy_hurt"), "звуки: два режущих взмаха, колющий выпад, враг получил удар")
 	var hits: Array = sfx.history.filter(func(e: StringName) -> bool: return e in [&"sword_hit", &"sword_hit_finisher"])
 	check(hits.size() >= 2 and hits.back() == &"sword_hit_finisher" and hits.front() == &"sword_hit", \
 		"удары серии звучат одинаково, третий — завершающий (%s)" % str(hits))
@@ -677,6 +703,7 @@ func run() -> void:
 			pegs += 1
 	check(pegs == 1, "работает только одна стрела-колышек (%d)" % pegs)
 	await put(Vector3(23.2, 0.1, 0), 1.0)
+	sfx.history.clear()
 	press("jump")
 	var used := false
 	for i in 40:
@@ -694,6 +721,9 @@ func run() -> void:
 	check(used, "дотянулся до колышка в прыжке")
 	check(player.is_on_floor() and player.global_position.y > 3.4, "прыжок от колышка — на тайный уступ (y=%.2f)" % player.global_position.y)
 	check(ArrowPeg.current == null, "колышек сломался — второго прыжка нет")
+	check(sfx.history.count(&"player_jump") == 2 and sfx.history.count(&"player_jump_voice") == 1, \
+		"толчок на обоих прыжках, голос — только от колышка (%d толчка, %d голос)" \
+		% [sfx.history.count(&"player_jump"), sfx.history.count(&"player_jump_voice")])
 	await seconds(0.5)
 
 	print("== Чистое стекло в нише → сундук")

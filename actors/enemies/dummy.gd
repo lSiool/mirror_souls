@@ -56,6 +56,9 @@ const CRITICAL_TIMEOUT := 2.0
 @export var knockdown_time := 0.8
 ## Особое добивание этого врага. Пусто — герой бьёт добиванием своего оружия.
 @export var riposte_step: AttackStep
+## Голос врага (события Sfx) поверх звука удара и падения. Пусто — безголосый (стекло, механизм).
+@export var hurt_voice: StringName = &"enemy_hurt_voice"
+@export var death_voice: StringName = &"enemy_death_voice"
 
 var state := State.PATROL
 var poise := 0.0
@@ -357,6 +360,7 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	if health.is_dead():
 		return
 	Sfx.play(&"enemy_hurt", global_position)
+	Sfx.play(hurt_voice, global_position)
 	# В уязвимых состояниях реакции нет: враг и так беззащитен.
 	if state in [State.CRITICAL_HIT, State.KNOCKDOWN, State.OFF_BALANCE]:
 		return
@@ -379,6 +383,7 @@ func _on_hurt(hitbox: Hitbox) -> void:
 func _on_died() -> void:
 	_set_state(State.DEAD)
 	Sfx.play(&"enemy_death", global_position)
+	Sfx.play(death_voice, global_position)
 	collision_layer = 0
 	hurtbox.set_deferred("monitorable", false)
 	var tween := create_tween()

@@ -7,6 +7,10 @@ extends Node
 const NORMAL: StringName = &"normal"
 ## Сколько секунд после смерти до затемнения.
 const DEATH_HOLD := 1.9
+## Музыка комнаты — пока вместо тона комнаты (тихий фон зала ещё не выбран). Играет без перерыва:
+## смерть и переход через зеркало пересоздают комнату, а не менеджер.
+const MUSIC_PATH := "res://audio/music/room_music.ogg"
+const MUSIC_VOLUME_DB := -14.0
 
 @export var room_scene: PackedScene
 @export var player_path: NodePath
@@ -27,6 +31,7 @@ var reality: StringName = NORMAL
 ## Правила, с которыми строится каждая реальность (запоминаются, чтобы возрождаться в отражении).
 var _reality_rules: Dictionary = {NORMAL: []}
 var _busy := false
+var music: AudioStreamPlayer
 
 @onready var player: Player = get_node(player_path)
 @onready var camera_rig: CameraRig = get_node(camera_rig_path)
@@ -43,6 +48,19 @@ func _ready() -> void:
 	player.respawn(_checkpoint_position())
 	camera_rig.snap_to_target()
 	hud.fade_to(0.0, 0.6)
+	_start_music()
+
+
+func _start_music() -> void:
+	if not ResourceLoader.exists(MUSIC_PATH):
+		return
+	var stream := load(MUSIC_PATH) as AudioStreamOggVorbis
+	stream.loop = true
+	music = AudioStreamPlayer.new()
+	music.stream = stream
+	music.volume_db = MUSIC_VOLUME_DB
+	add_child(music)
+	music.play()
 
 
 func _load_room(target_reality: StringName) -> void:

@@ -13,3 +13,8 @@ export/
 # ОС
 .DS_Store
 Thumbs.db
+
+# Исходники звука: превью Freesound пересобирает tools/sound/freesound_fetch.py по candidates.json
+audio/_source/freesound/**/*.mp3
+audio/_source/freesound/**/*.ogg
+__pycache__/

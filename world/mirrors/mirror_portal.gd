@@ -7,6 +7,10 @@ extends Interactable
 
 enum Kind { REALITY, BIOME_GATE, ANOMALY }
 
+## Гул зеркала — петля из самого стекла: громче вблизи, издалека не слышно (docs/SOUND_PLAN.md).
+const HUM_PATH := "res://audio/loops/mirror_idle.ogg"
+const HUM_VOLUME_DB := -6.0
+
 @export var kind := Kind.REALITY
 ## Пусто — та же комната.
 @export var destination_room: StringName
@@ -19,6 +23,7 @@ enum Kind { REALITY, BIOME_GATE, ANOMALY }
 @export var half_width := 0.8
 @export var glass_height := 2.6
 
+var hum: AudioStreamPlayer3D
 var _time := 0.0
 var _history: Array[Dictionary] = []
 var _player: Player
@@ -31,6 +36,23 @@ func _ready() -> void:
 	prompt = "Шагнуть в зеркало"
 	reflection.visible = false
 	reflection.scale = Vector3(reflection_age_scale, reflection_age_scale, 0.35)
+	_start_hum()
+
+
+func _start_hum() -> void:
+	if not ResourceLoader.exists(HUM_PATH):
+		return
+	var stream := load(HUM_PATH) as AudioStreamOggVorbis
+	stream.loop = true
+	hum = AudioStreamPlayer3D.new()
+	hum.stream = stream
+	hum.volume_db = HUM_VOLUME_DB
+	hum.unit_size = 2.5
+	hum.max_distance = 14.0
+	hum.position = Vector3(0.0, glass_height * 0.5, 0.0)
+	add_child(hum)
+	# Разные зеркала гудят не в такт.
+	hum.play(randf() * stream.get_length())
 
 
 func interact(_by: Player) -> void:

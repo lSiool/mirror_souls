@@ -7,6 +7,9 @@
 Каждый звук — от атаки (−threshold dB от общего пика) до следующей атаки или до max секунд;
 хвост обрезается там, где звук тонет в шуме записи. Кусок: моно 44.1 кГц float, без нормализации.
 Рядом — slices.json: время в записи, длина, пик, длина хвоста до −40 dB, шумовой пол, яркость.
+
+С --from=<slices.json> куски режутся по готовой разметке (время и длина из json), без поиска атак:
+так нарезку можно повторить на другой копии той же записи (например, на превью Freesound).
 """
 
 import json
@@ -43,6 +46,14 @@ def main():
     max_len = float(opts.get("max", 1.6))
     out.mkdir(parents=True, exist_ok=True)
     x = load(src)
+    if "from" in opts:
+        meta = json.loads(Path(opts["from"]).read_text(encoding="utf-8"))
+        for s in meta["slices"]:
+            a = int(s["at"] * RATE)
+            save(x[a:a + int(s["length"] * RATE)], out / s["file"])
+        (out / "slices.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(len(meta["slices"]), "кусков по разметке")
+        return
     env = np.array([np.abs(x[i:i + HOP]).max() for i in range(0, len(x) - HOP, HOP)])
     db = 20 * np.log10(env + 1e-9)
     peak = db.max()

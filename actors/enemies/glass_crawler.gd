@@ -54,6 +54,9 @@ var _drips: CPUParticles3D
 
 
 func _ready() -> void:
+	# Желе из стекла не кричит: голоса нет, звучат только удар и стекло.
+	hurt_voice = &""
+	death_voice = &""
 	super()
 	side_left.material_override = _material
 	side_right.material_override = _material

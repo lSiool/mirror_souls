@@ -23,6 +23,8 @@ extends Resource
 @export var hitbox_size := Vector2(1.5, 1.4)
 ## Звук попадания этой стадии (событие Sfx). Последний удар серии звучит по-своему — завершённо.
 @export var hit_sound: StringName = &"sword_hit"
+## Свист взмаха этой стадии: режущие — sword_swing, колющий выпад — свой.
+@export var swing_sound: StringName = &"sword_swing"
 
 @export_group("Поза клинка")
 @export var blade_from := 0.9

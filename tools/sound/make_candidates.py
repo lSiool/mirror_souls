@@ -13,6 +13,7 @@
 """
 
 import json
+import re
 import subprocess
 import sys
 import wave
@@ -31,6 +32,9 @@ USER_SOURCE = ""
 USER_AUTHOR = "unknown"
 USER_LICENSE = "unconfirmed"
 USER_COMMERCIAL = "unconfirmed"
+## Превью Freesound (tools/sound/freesound_fetch.py), имена в рецептах: "fs/667292".
+FS = Path(__file__).resolve().parents[2] / "audio" / "_source" / "freesound"
+_FS_META: dict = {}
 
 
 # --- Источники и эффекты ----------------------------------------------------
@@ -46,6 +50,11 @@ def src(name, pitch=1.0, lp=None, hp=None, gain=1.0, trim=None, reverse=False):
         # Кусок присланной записи (tools/sound/slice_source.py).
         matches = [USER / (name[5:] + ".wav")]
         USED.append(f"{USER_SOURCE}#{name[5:]}")
+    elif name.startswith("fs/"):
+        matches = list(FS.rglob(name[3:] + ".ogg"))
+        if not matches:
+            raise FileNotFoundError(name)
+        USED.append(name)
     else:
         matches = list(KENNEY.rglob(name + ".ogg"))
         if not matches:
@@ -115,6 +124,20 @@ def whoosh(dur=0.32, low=500, high=1800, seed=0):
     return (a * (1 - k) + b * k) * env
 
 
+def fit(x, seconds):
+    """Растянуть или сжать по времени без смены высоты (atempo) — под длительность действия."""
+    x = finish(x, 0.0)
+    return fx(x, f"atempo={len(x) / RATE / seconds:.4f}")
+
+
+def fs_meta(sound_id):
+    """Автор, лицензия и название звука Freesound — из candidates.json."""
+    if not _FS_META:
+        for c in json.loads((FS / "candidates.json").read_text(encoding="utf-8")):
+            _FS_META[str(c["id"])] = c
+    return _FS_META[sound_id]
+
+
 def mix(*layers):
     """layers: (сигнал, задержка с, громкость)."""
     end = max(int(off * RATE) + len(x) for x, off, _ in layers)
@@ -166,6 +189,16 @@ def k(name, v, n=5):
 ## Удары меча из присланной записи: короткие чистые — для серии, с долгим звоном — для завершающего.
 SWORD_HITS = [8, 10, 11, 12, 7]
 SWORD_FINISHERS = [25, 24, 17, 26, 35]
+## Freesound: один исполнитель на событие — банк из соседей по паку.
+JUMP_VOICES = [667293, 667292, 667291, 667290, 667297, 667296]  # pekena_larva, VOC_Male_Jump_01–06
+BOW_DRAWS = [649332, 649337]  # SonoFxAudio, Bow_draw_fast01–02
+ENEMY_HURTS = [632242, 632241]  # AUDACITIER, Male Hurt #1–2
+## Натяжение лука в игре (PlayerStats.bow_draw_time): звук кончается вместе с полным натяжением.
+BOW_DRAW_TIME = 0.6
+## Буквы кандидатов события по порядку рецептов.
+LETTERS = "ABCDEFGH"
+## Сколько вариантов в банке, если не 5.
+BANK_SIZE = {"death_sting": 2, "player_jump_voice": 6, "bow_draw": 4, "enemy_hurt_voice": 4}
 
 
 def hit(v, pool=SWORD_HITS):
@@ -192,6 +225,17 @@ EVENTS = {
         ("ремень и одежда", lambda v: src("clothBelt" if v % 2 == 0 else "clothBelt2", trim=0.35)),
         ("толчок ногой + шорох", lambda v: mix((src(k("footstep_concrete", v), pitch=0.9, lp=3500), 0, 0.8),
                                                (src(f"cloth{v % 4 + 1}", trim=0.3), 0.02, 0.6))),
+    ]),
+    # Голос прыжка — слоем поверх толчка, не на каждый прыжок (Sfx.CHANCE).
+    "player_jump_voice": ("player", -10.0, False, [
+        ("выдох при толчке (pekena_larva)", lambda v: src(f"fs/{JUMP_VOICES[v % len(JUMP_VOICES)]}")),
+    ]),
+    "player_hurt": ("player", -6.0, False, [
+        ("стон боли (elynch0901)", lambda v: src("fs/464486")),
+    ]),
+    # Голос при уроне от падения с большой высоты (актёр прыжка, его «приземление»).
+    "player_fall_hurt": ("player", -5.0, False, [
+        ("VOC_Male_Land_01 (pekena_larva)", lambda v: src("fs/667295")),
     ]),
     "player_land": ("player", -5.0, False, [
         ("мягкий удар + шаг", lambda v: mix((src(k("impactSoft_medium", v)), 0, 0.8),
@@ -241,6 +285,11 @@ EVENTS = {
         ("ниже и тяжелее (синтез)", lambda v: whoosh(0.38, 300, 1100, seed=v + 10)),
         ("короткий + шорох одежды", lambda v: mix((whoosh(0.26, 600, 2200, seed=v + 20), 0, 1.0),
                                                   (src(f"cloth{v % 4 + 1}", trim=0.2), 0, 0.35))),
+        ("WeaponSwipe01 (Yap Audio)", lambda v: src("fs/219002")),
+    ]),
+    # Режущие стадии — sword_swing, колющий выпад — свой свист (AttackStep.swing_sound).
+    "sword_swing_thrust": ("combat", -8.0, False, [
+        ("WeaponSwipe02 (Yap Audio)", lambda v: src("fs/219004")),
     ]),
     "sword_hit_body": ("combat", -3.0, False, [
         # Второй круг: клинок в плоть и кожаный доспех — без «кулака».
@@ -292,6 +341,7 @@ EVENTS = {
         ("рубка + мягкий удар", lambda v: mix((src("chop"), 0, 0.9), (src(k("impactSoft_medium", v)), 0.02, 0.8))),
         ("рез ниже + глухой тяжёлый", lambda v: mix((src("knifeSlice2", pitch=0.8), 0, 0.9),
                                                     (src(k("impactPunch_heavy", v), lp=2500), 0.03, 0.9))),
+        ("Sword Stab Body Hit (GeorgeDiamond)", lambda v: src("fs/718259")),
     ]),
     "critical_release": ("combat", -2.0, False, [
         ("тяжёлый удар + одежда", lambda v: mix((src(k("impactPunch_heavy", v)), 0, 1.0),
@@ -300,6 +350,14 @@ EVENTS = {
                                                 (src(k("impactSoft_heavy", v)), 0.06, 1.0))),
         ("рубка + удар ниже", lambda v: mix((src("chop", pitch=0.85), 0, 0.8),
                                             (src(k("impactPunch_heavy", v), pitch=0.8, lp=2500), 0.04, 1.0))),
+        ("Sword stab 4 (ihitokage) + сброшенное тело", lambda v: mix(
+            (src("fs/395365", pitch=0.9), 0, 1.0),
+            (src(k("impactSoft_heavy", v), pitch=0.85, lp=2500), 0.12, 0.8))),
+        ("Hit Impact Sword (CogFireStudios)", lambda v: src("fs/547035")),
+    ]),
+    # Спуск тетивы — пара к натяжению, тот же автор.
+    "bow_release": ("combat", -6.0, False, [
+        ("Arrow_loose01 (SonoFxAudio)", lambda v: src("fs/649335")),
     ]),
     # --- Стекло: мрачнее, ниже, без «бокала» ---
     "glass_break": ("glass", -2.0, False, [
@@ -349,6 +407,12 @@ EVENTS = {
         ("мягкий + щелчок металла", lambda v: mix((src(k("impactSoft_medium", v)), 0, 1.0),
                                                   (src("metalClick"), 0.01, 0.3))),
     ]),
+    "enemy_hurt_voice": ("enemy", -8.0, False, [
+        ("Male Hurt #1–2 (AUDACITIER)", lambda v: src(f"fs/{ENEMY_HURTS[v % len(ENEMY_HURTS)]}")),
+    ]),
+    "enemy_death_voice": ("enemy", -6.0, False, [
+        ("monster medium death (Leadstarson)", lambda v: src("fs/559621")),
+    ]),
     "enemy_death": ("enemy", -3.0, False, [
         # Второй круг: тело в доспехе падает на камень.
         ("тело на камень + звяк доспеха", lambda v: mix((src(k("impactSoft_heavy", v)), 0, 1.0),
@@ -371,6 +435,8 @@ EVENTS = {
         ("скрип дерева", lambda v: src("creak1")),
         ("скрип выше, туже", lambda v: src("creak2", pitch=1.2)),
         ("скрип медленный", lambda v: src("creak3", pitch=0.85)),
+        ("тетива (SonoFxAudio), подогнана под натяжение",
+         lambda v: fit(src(f"fs/{BOW_DRAWS[v % len(BOW_DRAWS)]}"), BOW_DRAW_TIME)),
     ]),
     "chest_open": ("world", -5.0, False, [
         ("скрип крышки + защёлка", lambda v: mix((src("metalLatch"), 0, 0.8), (src("doorOpen_1"), 0.08, 1.0))),
@@ -406,7 +472,7 @@ def main():
     user = next((a.split("=", 1)[1] for a in sys.argv[3:] if a.startswith("--user=")), None)
     if user:
         USER = Path(user)
-        meta = json.loads((USER / "slices.json").read_text())
+        meta = json.loads((USER / "slices.json").read_text(encoding="utf-8"))
         USER_SOURCE = meta["source"]
         USER_AUTHOR = meta.get("author", "unknown")
         USER_LICENSE = meta.get("license", "unconfirmed")
@@ -418,21 +484,37 @@ def main():
         rows = []
         for event, letter in picks.items():
             group, peak, _, cands = EVENTS[event]
-            label, recipe = cands["ABCD".index(letter)]
-            for v in range(5 if event != "death_sting" else 2):
+            label, recipe = cands[LETTERS.index(letter)]
+            count = BANK_SIZE.get(event, 5)
+            for v in range(count):
                 USED.clear()
                 # Варианты чуть разной высоты — даже если рецепт берёт один и тот же файл.
-                spread = 1.0 + (v - 2) * 0.025
+                spread = 1.0 + (v - (count - 1) / 2) * 0.025
                 x = fx(recipe(v), f"asetrate={RATE * spread:.0f},aresample={RATE}")
                 name = f"{group}/{event}_{v + 1:02d}.wav"
                 save(finish(x, peak), out / name, preview=False)
-                sources = " + ".join(dict.fromkeys(USED)) or "modal synthesis"
-                if "#" in sources:
-                    # Кусок присланной записи: автор и лицензия — её, а не Kenney.
-                    author, license_, commercial = USER_AUTHOR, USER_LICENSE, USER_COMMERCIAL
-                else:
-                    author, license_, commercial = "Kenney (kenney.nl)", "CC0", "yes"
-                rows.append(f'sfx/{name},"{sources}",{author},{license_},{commercial},"{label}; '
+                # Автор и лицензия по каждому источнику: Kenney, присланная запись, Freesound.
+                sources, authors, licenses, commercial = [], [], [], "yes"
+                for used in dict.fromkeys(USED):
+                    if "#" in used:
+                        sources.append(used)
+                        authors.append(USER_AUTHOR)
+                        licenses.append(USER_LICENSE)
+                        if USER_COMMERCIAL != "yes":
+                            commercial = USER_COMMERCIAL
+                    elif used.startswith("fs/"):
+                        meta = fs_meta(used[3:])
+                        sources.append(f"freesound.org/s/{meta['id']} ({meta['name']})")
+                        authors.append(f"{meta['author']} (Freesound)")
+                        licenses.append(meta["license"])
+                    else:
+                        sources.append(f"Kenney: {used}")
+                        authors.append("Kenney (kenney.nl)")
+                        licenses.append("CC0")
+                joined = " + ".join(sources) or "modal synthesis"
+                author = " + ".join(dict.fromkeys(authors)) or "project"
+                license_ = " + ".join(dict.fromkeys(licenses)) or "own"
+                rows.append(f'sfx/{name},"{joined}","{author}","{license_}",{commercial},"{label}; '
                             f'make_candidates.py {event}={letter}"')
                 print(name)
         _update_manifest(out.parent / "_source" / "manifest.csv", picks, rows)
@@ -442,21 +524,22 @@ def main():
         if only and event not in only:
             continue
         for i, (label, recipe) in enumerate(cands):
-            letter = "ABCD"[i]
+            letter = LETTERS[i]
             x = seq(*[finish(recipe(v), peak) for v in range(4)], gap=0.18) if is_seq else finish(recipe(0), peak)
             save(x, out / f"{event}_{letter}.wav")
             info.append({"event": event, "group": group, "letter": letter, "label": label,
                          "duration": round(len(x) / RATE, 2)})
             print(f"{event}_{letter}  {len(x) / RATE:.2f} с  {label}")
-    (out / "candidates.json").write_text(json.dumps(info, ensure_ascii=False, indent=1))
+    (out / "candidates.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def _update_manifest(path, picks, rows):
     """Строки выбранных событий заменяются, остальные остаются."""
     header = "file,source,author,license,commercial,notes"
-    old = path.read_text().splitlines()[1:] if path.exists() else []
-    keep = [r for r in old if not any(f"/{e}_" in r.split(",")[0] for e in picks)]
-    path.write_text("\n".join([header, *keep, *rows]) + "\n")
+    old = path.read_text(encoding="utf-8").splitlines()[1:] if path.exists() else []
+    # Точное имя банка: sword_swing_NN не задевает sword_swing_thrust_NN.
+    keep = [r for r in old if not any(re.search(rf"/{e}_\d\d\.wav$", r.split(",")[0]) for e in picks)]
+    path.write_text("\n".join([header, *keep, *rows]) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

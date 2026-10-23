@@ -23,6 +23,13 @@ const SLIDE_LEAN := 0.35
 const HEAD_SLIDE_SPEED := 5.0
 ## На каком расстоянии герой встаёт к врагу для добивания и удара в спину.
 const CRITICAL_DISTANCE := 1.0
+## На какое натяжение подогнан банк bow_draw (tools/sound/make_candidates.py, BOW_DRAW_TIME).
+## Лук натягивается быстрее или медленнее — звук ускоряется или замедляется (в пределах ±25 %).
+const BOW_DRAW_SOUND_TIME := 0.6
+## Прыжок с усилием — с голосом: с разгона быстрее бега (доля move_speed) или когда выносливости
+## меньше этой доли. Ещё — сразу после кувырка и от стрелы-колышка. Обычный прыжок — только толчок.
+const EFFORT_SPEED := 1.15
+const EFFORT_STAMINA := 0.3
 
 @export var stats: PlayerStats
 ## Оружие и его набор атак (§6.2).
@@ -67,6 +74,10 @@ var _death_dir := 1.0
 var _shoot_buffer := 0.0
 ## Натяжение лука 0…1.
 var _draw_t := 0.0
+var _draw_sound: AudioStreamPlayer3D
+## Верхняя точка текущего полёта — от неё считается высота падения.
+var _air_top := 0.0
+var _airborne := false
 ## Колышек-стрела, которого сейчас касается герой.
 var _peg: ArrowPeg
 var _floor_glass_normal := Vector3.ZERO
@@ -142,6 +153,7 @@ func _physics_process(delta: float) -> void:
 	_after_move()
 	_check_enemy_head()
 	_foley.update(is_on_floor(), velocity, global_position, delta, state == State.MOVE)
+	_track_fall()
 	_update_visual(delta)
 	_reach.update_prompt(global_position, state != State.DEAD)
 	if global_position.y < KILL_Y and state != State.DEAD:
@@ -208,6 +220,11 @@ func _set_state(new_state: State) -> void:
 		arms.rest()
 	if state == State.BOW:
 		arms.show_bow(false)
+		# Выстрел или перекат до полного натяжения — скрип тетивы обрывается. После полного
+		# натяжения звук уже кончился, а плеер мог уйти другому событию — его не трогаем.
+		if _draw_t < 1.0:
+			Sfx.stop(_draw_sound)
+		_draw_sound = null
 	if state == State.SLIDE:
 		_since_slide = 0.0
 	if state == State.ROLL:
@@ -276,8 +293,17 @@ func _move_state(delta: float) -> void:
 func _jump() -> void:
 	velocity.y = stats.jump_velocity
 	Sfx.play(&"player_jump", global_position)
+	if jump_is_effort():
+		Sfx.play(&"player_jump_voice", global_position)
 	_jump_buffer = 0.0
 	_coyote = 0.0
+
+
+## Прыжок с усилием: с разгона (скольжение, подкат), сразу после кувырка или когда герой выдохся.
+func jump_is_effort() -> bool:
+	return absf(velocity.x) > stats.move_speed * EFFORT_SPEED \
+		or _since_roll < stats.roll_attack_window \
+		or stamina < stats.max_stamina * EFFORT_STAMINA
 
 
 func _start_roll() -> void:
@@ -351,7 +377,7 @@ func _begin_attack(step: AttackStep, index: int) -> void:
 	sword_hitbox_shape.position = Vector3(step.hitbox_offset.x, step.hitbox_offset.y, 0.0)
 	_set_state(State.ATTACK)
 	arms.swing(step)
-	Sfx.play(&"sword_swing", global_position)
+	Sfx.play(step.swing_sound, global_position)
 	attack_step_started.emit(step, index, weapon.combo.size())
 
 
@@ -652,7 +678,9 @@ func _start_draw() -> void:
 	_draw_t = 0.0
 	_set_state(State.BOW)
 	arms.show_bow(true)
-	Sfx.play(&"bow_draw", global_position)
+	_draw_sound = Sfx.play(&"bow_draw", global_position)
+	if _draw_sound:
+		_draw_sound.pitch_scale *= clampf(BOW_DRAW_SOUND_TIME / stats.bow_draw_time, 0.8, 1.25)
 
 
 ## Натяжение: держим кнопку — лук натягивается, герой идёт медленно. Отпустили — выстрел.
@@ -679,6 +707,7 @@ func _fire() -> void:
 	var poise_dmg := lerpf(stats.bow_poise_min, stats.bow_poise_max, _draw_t)
 	var at := global_position + Vector3(facing * 0.55, 1.3, 0.0)
 	var arrow := Arrow.spawn(get_parent(), at, dir * speed, damage, poise_dmg)
+	Sfx.play(&"bow_release", at)
 	_spend_stamina(stats.bow_cost)
 	_set_state(State.MOVE)
 	arrow_fired.emit(arrow)
@@ -711,6 +740,7 @@ func _peg_jump() -> void:
 	_input_lock = 0.15
 	_peg.break_off()
 	Sfx.play(&"player_jump", global_position)
+	Sfx.play(&"player_jump_voice", global_position)
 	_peg = null
 
 
@@ -908,6 +938,37 @@ func teleport(at: Vector3) -> void:
 	_jump_buffer = 0.0
 	_attack_buffer = 0.0
 	_roll_buffer = 0.0
+	_airborne = false
+	_air_top = global_position.y
+
+
+## Высота падения: от верхней точки полёта до пола. Лазание, скольжение по скату и вис
+## на краю полёт прерывают — с них высота считается заново.
+func _track_fall() -> void:
+	if state == State.DEAD:
+		_airborne = false
+		return
+	var y := global_position.y
+	var grounded := is_on_floor()
+	if grounded or state in [State.CLIMB, State.SLIDE, State.LEDGE_HANG, State.LEDGE_CLIMB]:
+		if _airborne and grounded:
+			_land_from(_air_top - y)
+		_airborne = false
+		_air_top = y
+	else:
+		_airborne = true
+		_air_top = maxf(_air_top, y)
+
+
+## Урон от падения с высоты drop (м): кувырок и неуязвимость не спасают.
+func _land_from(drop: float) -> void:
+	if drop <= stats.fall_safe_height:
+		return
+	var t := (drop - stats.fall_safe_height) / maxf(stats.fall_lethal_height - stats.fall_safe_height, 0.01)
+	Sfx.play(&"player_fall_hurt", global_position)
+	body.flash(Color(1.0, 0.25, 0.2))
+	Events.camera_shake_requested.emit(lerpf(0.2, 0.7, minf(t, 1.0)), 0.25)
+	health.take_damage(stats.max_health * t * t if t < 1.0 else INF)
 
 
 func restore() -> void:
