@@ -3,8 +3,8 @@ extends Node
 ## Загружает комнату в нужной реальности, применяет правила отражения,
 ## переносит героя через зеркала и возрождает его у осколка (§12.2).
 ## Комната каждый раз пересоздаётся, но мир помнит своё (GameState): открытые сундуки — навсегда,
-## убитые враги — до отдыха у осколка или смерти героя (переход через зеркало их не воскрешает),
-## отзвук героя — на месте гибели. Стекло и ловушки пока пересоздаются как новые.
+## убитые враги и разбитые скаты — до отдыха у осколка или смерти героя (переход через зеркало
+## их не возвращает), панели с сундуком — навсегда, отзвук героя — на месте гибели.
 
 const NORMAL: StringName = &"normal"
 ## Сколько секунд после смерти до затемнения.
@@ -48,6 +48,7 @@ func _ready() -> void:
 	Events.mirror_used.connect(_on_mirror_used)
 	Events.checkpoint_activated.connect(_on_checkpoint_activated)
 	Events.enemy_killed.connect(_on_enemy_killed)
+	Events.glass_broken.connect(_on_glass_broken)
 	player.died.connect(_on_player_died)
 	_load_room(GameState.checkpoint_reality)
 	player.respawn(_checkpoint_position())
@@ -84,6 +85,10 @@ func _load_room(target_reality: StringName) -> void:
 			dead.free()
 	add_child(room)
 	current_room = room
+	for path: NodePath in GameState.broken_glass_in(target_reality):
+		var glass := room.get_node_or_null(path) as GlassSurface
+		if glass:
+			glass.set_broken()
 	reality = target_reality
 	_apply_mood()
 	var shard := current_room.get_node_or_null(GameState.checkpoint_path) as MirrorShard
@@ -137,7 +142,7 @@ func _rest() -> void:
 	_busy = true
 	player.frozen = true
 	await hud.fade_to(1.0, 0.3)
-	GameState.revive_enemies()
+	GameState.restore_world()
 	_load_room(reality)
 	player.respawn(_checkpoint_position())
 	camera_rig.snap_to_target()
@@ -152,7 +157,7 @@ func _on_player_died() -> void:
 	# Дать телу упасть и прочитать надпись.
 	await get_tree().create_timer(DEATH_HOLD).timeout
 	await hud.fade_to(1.0, 0.5)
-	GameState.revive_enemies()
+	GameState.restore_world()
 	_load_room(GameState.checkpoint_reality)
 	player.respawn(_checkpoint_position())
 	camera_rig.snap_to_target()
@@ -166,6 +171,12 @@ func _on_enemy_killed(enemy: Dummy) -> void:
 	GameState.mark_killed(reality, current_room.get_path_to(enemy))
 	if enemy.echoes > 0:
 		EchoDrop.spawn(current_room, enemy.global_position + Vector3(0.0, 0.8, 0.0), enemy.echoes, player)
+
+
+func _on_glass_broken(glass: GlassSurface) -> void:
+	var memory := glass.memory()
+	if memory != GlassSurface.Memory.NONE and current_room.is_ancestor_of(glass):
+		GameState.mark_glass(reality, current_room.get_path_to(glass), memory == GlassSurface.Memory.FOREVER)
 
 
 func _spawn_hero_echo() -> void:

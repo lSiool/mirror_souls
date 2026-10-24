@@ -852,7 +852,7 @@ func run() -> void:
 	check(player.arms.dropped_weapon() == null and player.sword_pivot.visible, "оружие снова в руке")
 	check(absf(player.global_position.x + 18.5) < 0.6, "возрождение у осколка (x=%.2f)" % player.global_position.x)
 	check(room_node("Objects/Soldier") != null, "комната сброшена: враг снова на месте")
-	check(not room_node("Glass/NicheGlass")._broken, "комната сброшена: стекло в нише целое")
+	check(room_node("Glass/NicheGlass")._broken, "панель с сундуком осталась разбитой — открытый проход навсегда")
 	check((room_node("Objects/Chest") as Chest).opened, "открытый сундук остался открытым")
 
 	print("== Ползун на потолке: засада — падает на героя")
@@ -891,6 +891,13 @@ func run() -> void:
 	check(room_node("Glass/Slope")._broken, "скат разбит")
 	check(not player.is_on_floor() and player.state == Player.State.MOVE, "герой падает сквозь скат")
 	await seconds(1.0)
+	rooms._load_room(rooms.reality)
+	await frames(2)
+	check(room_node("Glass/Slope")._broken, "комната пересоздана без отдыха (как при переходе через зеркало) — скат разбит")
+	rooms._rest()
+	await seconds(1.0)
+	check(not room_node("Glass/Slope")._broken, "отдых у осколка — скат снова цел")
+	check(room_node("Glass/NicheGlass")._broken, "отдых не возвращает панель с сундуком")
 
 	print("== Путь назад: от зеркала к старту")
 	player.restore()

@@ -7,9 +7,13 @@ extends StaticBody3D
 ## - CLIMB — стеклянная стена, по которой можно лезть.
 ## Скаты и стены мечом не разбиваются — только намеренно.
 ## Блик подсказывает, что за стеклом: подсказка есть всегда (§5.3).
+## Разбитое стекло мир помнит по виду (memory): панель с сундуком или тайником — навсегда,
+## скат и панель с засадой — до отдыха или смерти (как враги), стекло с таймером — только таймер.
 
 enum GlassType { CLEAR, MURKY, RED_VEIN }
 enum Role { PANEL, SLIDE, CLIMB }
+## Как долго мир помнит разбитое стекло.
+enum Memory { NONE, UNTIL_REST, FOREVER }
 
 const GLASS_SHADER := preload("res://effects/shaders/glass_gleam.gdshader")
 const SHARD_COUNT := 12
@@ -93,6 +97,7 @@ func shatter() -> void:
 		return
 	_broken = true
 	_restore_t = restore_time
+	Events.glass_broken.emit(self)
 	if _player_stands_on_top():
 		(_player as Player).fall_through()
 	remove_from_group("glass_slide")
@@ -108,6 +113,32 @@ func shatter() -> void:
 			_set_awake(node, true)
 			if node.has_method("on_revealed"):
 				node.on_revealed()
+
+
+## Сколько мир помнит это стекло разбитым. Таймер восстановления — сам себе память; панель
+## с засадой оживает вместе с врагами; остальные панели — открытый проход навсегда.
+func memory() -> Memory:
+	if restore_time > 0.0:
+		return Memory.NONE
+	if role == Role.PANEL:
+		for node in contents:
+			if node is Dummy:
+				return Memory.UNTIL_REST
+		return Memory.FOREVER
+	return Memory.UNTIL_REST
+
+
+## Комната пересоздана, а стекло мир помнит разбитым: без звука, осколков и провала героя.
+func set_broken() -> void:
+	_broken = true
+	remove_from_group("glass_slide")
+	remove_from_group("glass_climb")
+	collision.disabled = true
+	hurtbox.monitorable = false
+	mesh_instance.visible = false
+	for node in contents:
+		if is_instance_valid(node):
+			_set_awake(node, true)
 
 
 ## Удар по хрупкому стеклу: звон клинка, и стекло разлетается.
