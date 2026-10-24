@@ -57,6 +57,8 @@ func _ready() -> void:
 	# Желе из стекла не кричит: голоса нет, звучат только удар и стекло.
 	hurt_voice = &""
 	death_voice = &""
+	# Мелкий враг — и отзвук мельче.
+	echoes = 15
 	super()
 	side_left.material_override = _material
 	side_right.material_override = _material
@@ -284,6 +286,7 @@ func _update_pose(delta: float) -> void:
 ## Смерть: ползун растекается лужицей стекла и застывает — лужица остаётся.
 func _on_died() -> void:
 	_set_state(State.DEAD)
+	Events.enemy_killed.emit(self)
 	collision_layer = 0
 	hurtbox.set_deferred("monitorable", false)
 	attack_hitbox.active = false

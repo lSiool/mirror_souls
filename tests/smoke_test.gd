@@ -225,8 +225,9 @@ func run() -> void:
 	sfx.history.clear()
 	player._land_from(lerpf(player.stats.fall_safe_height, player.stats.fall_lethal_height, 0.5))
 	var lost := hp_full - player.health.current
-	check(absf(lost - player.stats.max_health * 0.25) < 0.5 and heard(&"player_fall_hurt"), \
-		"полпути до смертельной высоты — четверть здоровья и голос (%.1f)" % lost)
+	var expected := player.stats.max_health * pow(0.5, player.stats.fall_damage_power)
+	check(absf(lost - expected) < 0.5 and heard(&"player_fall_hurt"), \
+		"полпути до смертельной высоты — %.0f здоровья и голос (%.1f)" % [expected, lost])
 	player.health.heal_full()
 	await seconds(0.3)
 
@@ -257,13 +258,80 @@ func run() -> void:
 	player.stats.age = 17
 	check(is_equal_approx(speed_17, player.stats.move_speed), "возраст 17 восстановлен")
 
+	print("== Лечебное зелье")
+	player.restore()
+	player.health.take_damage(70.0)
+	await tap("heal")
+	check(player.state == Player.State.DRINK and player.flasks == 1, "пьёт зелье, глотков осталось 1")
+	await seconds(1.0)
+	check(absf(player.health.current - 90.0) < 0.5, "глоток лечит 60 %% (здоровье %.0f)" % player.health.current)
+	await tap("heal")
+	await seconds(1.0)
+	check(player.health.current == player.stats.max_health and player.flasks == 0, "второй глоток — до полного, глотков 0")
+	await tap("heal")
+	check(player.state != Player.State.DRINK, "зелье кончилось — пить нечего")
+
 	print("== Осколок-чекпоинт")
 	await put(Vector3(-18.5, 0.1, 0))
 	await seconds(0.2)
+	var room_before := rooms.current_room
+	player.health.take_damage(30.0)
 	await tap("interact")
 	check(String(game_state.checkpoint_path) == "Objects/MirrorShard", "чекпоинт = осколок (%s)" % game_state.checkpoint_path)
+	await seconds(1.0)
+	check(rooms.current_room != room_before and player.health.current == player.stats.max_health,
+		"отдых у осколка: комната пересоздана, здоровье полное")
+	room_before = rooms.current_room
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room != room_before, "у осколка можно отдыхать снова")
+	check(player.flasks == player.stats.flask_charges, "отдых пополнил зелье (%d)" % player.flasks)
+	var chest_flags: Dictionary = game_state.flags.duplicate()
+
+	print("== Отзвуки врагов и память мира")
+	var victim := room_node("Objects/Soldier") as Dummy
+	var victim_path := rooms.current_room.get_path_to(victim)
+	var echoes_before: int = game_state.echoes
+	var worth := victim.echoes
+	victim.health.take_damage(INF)
+	await seconds(2.5)
+	check(game_state.echoes == echoes_before + worth,
+		"отзвук врага долетел до героя (+%d из %d)" % [game_state.echoes - echoes_before, worth])
+	rooms._load_room(rooms.reality)
+	await frames(2)
+	check(room_node(String(victim_path)) == null, "комната пересоздана без отдыха (как при переходе через зеркало) — враг мёртв")
+	rooms._rest()
+	await seconds(1.0)
+	check(room_node(String(victim_path)) != null, "отдых у осколка — враг снова на месте")
+	check(game_state.flags == chest_flags, "отдых не трогает открытые сундуки")
+
+	print("== Прицел стиком")
+	press("shoot")
+	Input.action_press("aim_left")
+	Input.action_press("aim_up")
+	await frames(4)
+	check(player.aim_source == Player.Aim.STICK and player.facing < 0.0 and absf(rad_to_deg(player._aim_angle()) - 45.0) < 1.0,
+		"правый стик влево-вверх — лук влево-вверх на 45°")
+	Input.action_release("aim_left")
+	Input.action_release("aim_up")
+	await frames(2)
+	check(absf(rad_to_deg(player._aim_angle()) - 45.0) < 1.0, "стик отпущен — направление осталось")
+	release("shoot")
+	await seconds(0.6)
+	player.aim_source = Player.Aim.BUTTONS
+
+	print("== Прицел мышью")
+	var aim_from := player.global_position + Vector3(0.0, player.BOW_HEIGHT, 0.0)
+	var up_left := player.aim_toward(aim_from + Vector3(-3.0, 3.0, 0.0))
+	check(player.facing < 0.0 and absf(rad_to_deg(up_left) - 45.0) < 0.5,
+		"курсор вверху слева — герой развернулся, лук на 45° (%.1f°)" % rad_to_deg(up_left))
+	var down_right := player.aim_toward(aim_from + Vector3(2.0, -2.0, 0.0))
+	check(player.facing > 0.0 and absf(rad_to_deg(down_right) + 45.0) < 0.5,
+		"курсор внизу справа — лук на −45° (%.1f°)" % rad_to_deg(down_right))
+	check(player.aim_source == Player.Aim.BUTTONS, "без мыши и стика — прицел клавишами, как раньше")
 
 	print("== Башня проходится в обе стороны")
+	check(player.state == Player.State.MOVE and not player.frozen, "герой свободен (состояние %d)" % player.state)
 	await put(Vector3(-15.8, 0.1, 0), 1.0)
 	await climb("move_right")
 	check(player.global_position.y > 5.8 and absf(player.global_position.x + 13.0) < 2.2, "залез на башню слева (%.2f, %.2f)" % [player.global_position.x, player.global_position.y])
@@ -634,6 +702,8 @@ func run() -> void:
 	soldier._set_state(Dummy.State.PATROL)
 	soldier._turn_t = -1.0
 	soldier.patrol_speed = 0.0
+	# Стоит у края маршрута патруля — развернулся бы сам; маршрут начинается там, где стоит.
+	soldier._origin = soldier.global_position
 	await put(Vector3(soldier.global_position.x - soldier.facing * 4.0, 0.1, 0), soldier.facing)
 	await seconds(0.5)
 	check(soldier.state == Dummy.State.PATROL, "сзади на 4 м враг героя не замечает")
@@ -732,14 +802,16 @@ func run() -> void:
 	var chest := room_node("Objects/Chest") as Chest
 	check(chest.visible, "сундук виден сквозь чистое стекло")
 	await put(Vector3(19.6, 0.1, 0), 1.0)
+	var echoes_at_chest: int = game_state.echoes
 	await tap("interact")
-	check(game_state.currency == 0, "сквозь целое стекло сундук не открыть")
+	check(game_state.echoes == echoes_at_chest, "сквозь целое стекло сундук не открыть")
 	await tap("attack")
 	await seconds(0.5)
 	check(glass._broken, "стекло разбито")
 	await tap("interact")
 	await seconds(0.2)
-	check(game_state.currency == 50, "сундук открыт, блики = %d" % game_state.currency)
+	check(game_state.echoes == echoes_at_chest + chest.reward,
+		"сундук открыт, отзвуки +%d" % (game_state.echoes - echoes_at_chest))
 
 	print("== Стекло над ямой: кувырком — успел, шагом — провалился")
 	var trap := room_node("Glass/TrapGlass") as GlassSurface
@@ -1025,9 +1097,12 @@ func run() -> void:
 	player.restore()
 	await put(Vector3(10.5, 8.7, 0), 1.0)
 	await seconds(0.3)
+	var echoes_at_mirror_chest: int = game_state.echoes
 	await tap("interact")
 	await seconds(0.2)
-	check(game_state.currency == 200, "сундук отражения открыт, блики = %d" % game_state.currency)
+	var mirror_chest := room_node("Objects/MirrorChest") as Chest
+	check(game_state.echoes == echoes_at_mirror_chest + mirror_chest.reward,
+		"сундук отражения открыт, отзвуки +%d" % (game_state.echoes - echoes_at_mirror_chest))
 
 	print("== Обратно через зеркало")
 	await put(Vector3(-15.5, 0.1, 0), 1.0)
@@ -1049,6 +1124,39 @@ func run() -> void:
 	var tip_x := at_wall.global_position.x + at_wall.global_basis.y.x * 1.15 if at_wall else -99.0
 	check(at_wall != null and tip_x > -24.0, "клинок не ушёл в стену (конец x=%.2f, стена -24.0)" % tip_x)
 	await seconds(2.5)
+
+	print("== Отзвук героя")
+	game_state.add_echoes(100 - game_state.echoes)
+	await put(Vector3(-16.0, 0.1, 0))
+	await seconds(0.3)
+	press("shoot")
+	await seconds(0.3)
+	player.health.take_damage(INF)
+	release("shoot")
+	await seconds(3.8)
+	var hero_echoes := rooms.current_room.find_children("*", "HeroEcho", true, false)
+	check(game_state.echoes == 0 and game_state.hero_echo.get("amount", 0) == 50,
+		"смерть: половина пропала, половина — в отзвуке героя (%d)" % game_state.hero_echo.get("amount", 0))
+	check(hero_echoes.size() == 1 and absf(hero_echoes[0].global_position.x + 16.0) < 0.6, "силуэт стоит на месте гибели")
+	if hero_echoes.size() == 1:
+		var shade := (hero_echoes[0] as HeroEcho)._silhouette
+		var bow_node := shade.find_child("Bow", true, false) as Node3D
+		check(bow_node != null and bow_node.visible and shade.find_child("Face", true, false) == null,
+			"погиб с луком — в силуэте лук, лица нет")
+	game_state.add_echoes(40)
+	await put(Vector3(-17.0, 0.1, 0))
+	await seconds(0.3)
+	player.health.take_damage(INF)
+	await seconds(3.8)
+	hero_echoes = rooms.current_room.find_children("*", "HeroEcho", true, false)
+	check(game_state.hero_echo.get("amount", 0) == 20 and hero_echoes.size() == 1,
+		"погиб снова, не забрав: прежний отзвук пропал, в новом половина (%d)" % game_state.hero_echo.get("amount", 0))
+	if hero_echoes.size() == 1:
+		await put(hero_echoes[0].global_position + Vector3(0.0, 0.1, 0.0))
+		await seconds(0.2)
+		await tap("interact")
+		await seconds(0.8)
+	check(game_state.echoes == 20 and game_state.hero_echo.is_empty(), "коснулся отзвука — отзвуки вернулись (%d)" % game_state.echoes)
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures else 0)

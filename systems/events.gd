@@ -5,7 +5,9 @@ signal camera_shake_requested(strength: float, duration: float)
 signal mirror_used(portal: MirrorPortal)
 signal checkpoint_activated(shard: MirrorShard)
 signal player_died
-signal currency_changed(total: int)
+signal echoes_changed(total: int)
+## Враг погиб (ещё в дереве): менеджер комнаты запоминает его и выпускает отзвук.
+signal enemy_killed(enemy: Dummy)
 signal reality_changed(reality: StringName)
 signal interact_prompt_changed(text: String)
 ## Шум в мире (стрела ударилась о стену): враги, не видящие героя, идут проверить.

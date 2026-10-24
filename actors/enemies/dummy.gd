@@ -59,6 +59,8 @@ const CRITICAL_TIMEOUT := 2.0
 ## Голос врага (события Sfx) поверх звука удара и падения. Пусто — безголосый (стекло, механизм).
 @export var hurt_voice: StringName = &"enemy_hurt_voice"
 @export var death_voice: StringName = &"enemy_death_voice"
+## Сколько отзвуков прошлого остаётся после врага (летят к герою сами).
+@export var echoes := 30
 
 var state := State.PATROL
 var poise := 0.0
@@ -384,6 +386,7 @@ func _on_died() -> void:
 	_set_state(State.DEAD)
 	Sfx.play(&"enemy_death", global_position)
 	Sfx.play(death_voice, global_position)
+	Events.enemy_killed.emit(self)
 	collision_layer = 0
 	hurtbox.set_deferred("monitorable", false)
 	var tween := create_tween()

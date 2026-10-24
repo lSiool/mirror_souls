@@ -2,7 +2,9 @@ class_name RoomManager
 extends Node
 ## Загружает комнату в нужной реальности, применяет правила отражения,
 ## переносит героя через зеркала и возрождает его у осколка (§12.2).
-## Сброс комнаты после смерти — честное пересоздание сцены: враги, стекло и ловушки как новые.
+## Комната каждый раз пересоздаётся, но мир помнит своё (GameState): открытые сундуки — навсегда,
+## убитые враги — до отдыха у осколка или смерти героя (переход через зеркало их не воскрешает),
+## отзвук героя — на месте гибели. Стекло и ловушки пока пересоздаются как новые.
 
 const NORMAL: StringName = &"normal"
 ## Сколько секунд после смерти до затемнения.
@@ -24,6 +26,8 @@ const MUSIC_VOLUME_DB := -14.0
 @export var mirror_environment: Environment
 @export var normal_sun_color := Color(1.0, 0.88, 0.72)
 @export var mirror_sun_color := Color(0.62, 0.78, 1.0)
+## Указатель мыши в игре не виден: куда целится герой, показывает сам лук.
+@export var hide_cursor := true
 
 var current_room: Room
 var reality: StringName = NORMAL
@@ -43,12 +47,15 @@ var music: AudioStreamPlayer
 func _ready() -> void:
 	Events.mirror_used.connect(_on_mirror_used)
 	Events.checkpoint_activated.connect(_on_checkpoint_activated)
+	Events.enemy_killed.connect(_on_enemy_killed)
 	player.died.connect(_on_player_died)
 	_load_room(GameState.checkpoint_reality)
 	player.respawn(_checkpoint_position())
 	camera_rig.snap_to_target()
 	hud.fade_to(0.0, 0.6)
 	_start_music()
+	if hide_cursor:
+		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 
 
 func _start_music() -> void:
@@ -71,6 +78,10 @@ func _load_room(target_reality: StringName) -> void:
 	room.apply_reality(target_reality)
 	for rule: MirrorTransformation in _reality_rules.get(target_reality, []):
 		rule.apply(room)
+	for path: NodePath in GameState.killed_in(target_reality):
+		var dead := room.get_node_or_null(path)
+		if dead:
+			dead.free()
 	add_child(room)
 	current_room = room
 	reality = target_reality
@@ -79,6 +90,8 @@ func _load_room(target_reality: StringName) -> void:
 	if shard and GameState.checkpoint_reality == reality:
 		shard.set_lit(true)
 	Events.reality_changed.emit(reality)
+	# После возрождения героя: силуэт строится из его облика, а не из позы смерти.
+	_spawn_hero_echo.call_deferred()
 
 
 func _apply_mood() -> void:
@@ -113,19 +126,53 @@ func _on_checkpoint_activated(shard: MirrorShard) -> void:
 	for other in get_tree().get_nodes_in_group("mirror_shard"):
 		if other != shard:
 			other.set_lit(false)
+	_rest()
+
+
+## Отдых у осколка — как у костра в Souls: каждое касание пересоздаёт комнату (враги снова
+## на местах), герой встаёт у осколка с полным здоровьем и выносливостью.
+func _rest() -> void:
+	if _busy:
+		return
+	_busy = true
+	player.frozen = true
+	await hud.fade_to(1.0, 0.3)
+	GameState.revive_enemies()
+	_load_room(reality)
+	player.respawn(_checkpoint_position())
+	camera_rig.snap_to_target()
+	player.frozen = false
+	await hud.fade_to(0.0, 0.4)
+	_busy = false
 
 
 func _on_player_died() -> void:
 	_busy = true
+	GameState.drop_echoes(reality, player.last_ground, player.death_weapon, player.facing)
 	# Дать телу упасть и прочитать надпись.
 	await get_tree().create_timer(DEATH_HOLD).timeout
 	await hud.fade_to(1.0, 0.5)
+	GameState.revive_enemies()
 	_load_room(GameState.checkpoint_reality)
 	player.respawn(_checkpoint_position())
 	camera_rig.snap_to_target()
 	hud.hide_death()
 	await hud.fade_to(0.0, 0.5)
 	_busy = false
+
+
+## Враг погиб: мир его запоминает, а отзвук летит к герою.
+func _on_enemy_killed(enemy: Dummy) -> void:
+	GameState.mark_killed(reality, current_room.get_path_to(enemy))
+	if enemy.echoes > 0:
+		EchoDrop.spawn(current_room, enemy.global_position + Vector3(0.0, 0.8, 0.0), enemy.echoes, player)
+
+
+func _spawn_hero_echo() -> void:
+	var echo := GameState.hero_echo
+	if echo.is_empty() or echo["reality"] != reality or not is_instance_valid(current_room):
+		return
+	HeroEcho.spawn(current_room, echo["position"], player, echo["weapon"], echo["facing"])
 
 
 func _checkpoint_position() -> Vector3:

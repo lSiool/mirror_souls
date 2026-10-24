@@ -179,6 +179,7 @@ func _build_bow(visual: Node3D) -> void:
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.45, 0.3, 0.18)
 	_bow = Node3D.new()
+	_bow.name = &"Bow"
 	_bow.position = Vector3(0.35, 1.25, 0.35)
 	visual.add_child(_bow)
 	var limb := MeshInstance3D.new()

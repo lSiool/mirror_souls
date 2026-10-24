@@ -1,6 +1,6 @@
 class_name Hud
 extends Control
-## Интерфейс прототипа: здоровье, выносливость, блики, текущая реальность,
+## Интерфейс прототипа: здоровье, выносливость, отзвуки, зелье, текущая реальность,
 ## подсказка взаимодействия, экран смерти и затемнение.
 ## Отладка возраста (§1.3): F1/F2 меняют стартовый возраст на лету.
 
@@ -12,10 +12,12 @@ const DEATH_STING_DB := -9.0
 @export var player_path: NodePath
 
 var _player: Player
+var _echoes_shown := 0
 
 @onready var health_bar: ProgressBar = %HealthBar
 @onready var stamina_bar: ProgressBar = %StaminaBar
 @onready var currency_label: Label = %Currency
+@onready var flasks_label: Label = %Flasks
 @onready var reality_label: Label = %Reality
 @onready var age_label: Label = %AgeInfo
 @onready var prompt_label: Label = %Prompt
@@ -28,14 +30,17 @@ func _ready() -> void:
 	_player.health_changed.connect(_on_health_changed)
 	_player.stamina_changed.connect(_on_stamina_changed)
 	_player.stats.changed.connect(_refresh_age)
-	Events.currency_changed.connect(_on_currency_changed)
+	Events.echoes_changed.connect(_on_echoes_changed)
+	_player.flasks_changed.connect(_on_flasks_changed)
 	Events.reality_changed.connect(_on_reality_changed)
 	Events.interact_prompt_changed.connect(_on_prompt_changed)
 	Events.player_died.connect(_on_player_died)
 	death_label.visible = false
 	prompt_label.text = ""
 	fade.color.a = 1.0
-	_on_currency_changed(GameState.currency)
+	_on_echoes_changed(GameState.echoes)
+	_on_flasks_changed(_player.flasks, _player.stats.flask_charges)
+	currency_label.pivot_offset = Vector2(0.0, 12.0)
 	_refresh_age()
 
 
@@ -66,8 +71,19 @@ func _on_stamina_changed(current: float, maximum: float) -> void:
 	stamina_bar.value = current
 
 
-func _on_currency_changed(total: int) -> void:
-	currency_label.text = "Блики: %d" % total
+## Отзвуки: прибавились — счётчик коротко вспыхивает.
+func _on_echoes_changed(total: int) -> void:
+	var grew := total > _echoes_shown
+	_echoes_shown = total
+	currency_label.text = "Отзвуки: %d" % total
+	if grew:
+		var tween := create_tween()
+		tween.tween_property(currency_label, "scale", Vector2(1.25, 1.25), 0.08)
+		tween.tween_property(currency_label, "scale", Vector2.ONE, 0.2)
+
+
+func _on_flasks_changed(current: int, maximum: int) -> void:
+	flasks_label.text = "Зелье: %s%s" % ["◆".repeat(current), "◇".repeat(maxi(maximum - current, 0))]
 
 
 func _on_reality_changed(reality: StringName) -> void:

@@ -1,6 +1,6 @@
 class_name Chest
 extends Interactable
-## Сундук с «бликами» (валюта). Открытый сундук остаётся открытым после смерти:
+## Сундук с отзвуками (валюта). Открытый сундук остаётся открытым после смерти:
 ## мир постоянен (§8.5).
 
 @export var reward := 50
@@ -25,7 +25,7 @@ func interact(_by: Player) -> void:
 	_open(true)
 	Sfx.play(&"chest_open", global_position)
 	Sfx.play(&"chest_loot", global_position, -4.0)
-	GameState.add_currency(reward)
+	GameState.add_echoes(reward)
 	if flag_id != &"":
 		GameState.set_flag(flag_id)
 	HitSpark.spawn(get_parent(), global_position + Vector3(0, 0.8, 0.3), Color(1.0, 0.85, 0.35), 24)

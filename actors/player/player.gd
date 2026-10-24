@@ -9,10 +9,11 @@ signal health_changed(current: float, maximum: float)
 signal stamina_changed(current: float, maximum: float)
 signal attack_step_started(step: AttackStep, index: int, total: int)
 signal arrow_fired(arrow: Arrow)
+signal flasks_changed(current: int, maximum: int)
 
 enum State {
 	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
-	LEDGE_HANG, LEDGE_CLIMB,
+	LEDGE_HANG, LEDGE_CLIMB, DRINK,
 }
 
 const KILL_Y := -15.0
@@ -30,6 +31,9 @@ const BOW_DRAW_SOUND_TIME := 0.6
 ## меньше этой доли. Ещё — сразу после кувырка и от стрелы-колышка. Обычный прыжок — только толчок.
 const EFFORT_SPEED := 1.15
 const EFFORT_STAMINA := 0.3
+## Лук — на высоте плеча; стрела появляется на этом расстоянии от плеча по линии прицела.
+const BOW_HEIGHT := 1.3
+const BOW_REACH := 0.55
 
 @export var stats: PlayerStats
 ## Оружие и его набор атак (§6.2).
@@ -72,12 +76,26 @@ var _critical_holding := false
 var _death_landed := false
 var _death_dir := 1.0
 var _shoot_buffer := 0.0
+var _heal_buffer := 0.0
+## Глотки лечебного зелья; пополняются при отдыхе у осколка.
+var flasks := 0
+var _sipped := false
 ## Натяжение лука 0…1.
 var _draw_t := 0.0
 var _draw_sound: AudioStreamPlayer3D
 ## Верхняя точка текущего полёта — от неё считается высота падения.
 var _air_top := 0.0
 var _airborne := false
+## Где герой последний раз стоял на полу: там остаётся его отзвук, даже если он погиб в яме.
+var last_ground := Vector3.ZERO
+## С каким оружием погиб — оно угадывается в отзвуке героя.
+var death_weapon: StringName = &"sword"
+## Чем целится лук: кнопками (прямо / вверх / вниз), мышью — на курсор, правым стиком — куда
+## он указывает. Источник меняется сам: двинул мышь, наклонил стик или нажал «вверх»/«вниз».
+enum Aim { BUTTONS, MOUSE, STICK }
+var aim_source := Aim.BUTTONS
+var _aim_point := Vector3.ZERO
+var _stick_dir := Vector2.RIGHT
 ## Колышек-стрела, которого сейчас касается герой.
 var _peg: ArrowPeg
 var _floor_glass_normal := Vector3.ZERO
@@ -110,6 +128,7 @@ var _ledge_cooldown := 0.0
 func _ready() -> void:
 	add_to_group("player")
 	health.max_health = stats.max_health
+	flasks = stats.flask_charges
 	health.heal_full()
 	stamina = stats.max_stamina
 	health.changed.connect(health_changed.emit)
@@ -144,6 +163,7 @@ func _physics_process(delta: float) -> void:
 		State.BOW: _bow_state(delta)
 		State.LEDGE_HANG: _ledge_hang_state(delta)
 		State.LEDGE_CLIMB: _ledge_climb_state(delta)
+		State.DRINK: _drink_state(delta)
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
@@ -172,6 +192,7 @@ func _tick(delta: float) -> void:
 	_parry_t = maxf(_parry_t - delta, 0.0)
 	_ledge_cooldown = maxf(_ledge_cooldown - delta, 0.0)
 	_shoot_buffer = maxf(_shoot_buffer - delta, 0.0)
+	_heal_buffer = maxf(_heal_buffer - delta, 0.0)
 	_since_slide += delta
 	_since_roll += delta
 	hurtbox.invulnerable = _iframes > 0.0 or state == State.DEAD
@@ -187,6 +208,8 @@ func _tick(delta: float) -> void:
 			_parry_t = stats.parry_window
 		if Input.is_action_just_pressed("shoot"):
 			_shoot_buffer = stats.input_buffer
+		if Input.is_action_just_pressed("heal"):
+			_heal_buffer = stats.input_buffer
 		if Input.is_action_just_pressed("interact"):
 			_try_interact()
 
@@ -282,6 +305,8 @@ func _move_state(delta: float) -> void:
 			_start_attack()
 	elif _shoot_buffer > 0.0:
 		_start_draw()
+	elif _heal_buffer > 0.0 and on_floor:
+		_start_drink()
 	elif on_floor and Input.is_action_pressed("block"):
 		_set_state(State.BLOCK)
 	elif _wants_climb(x, on_floor):
@@ -669,6 +694,36 @@ func _critical_spark(strength: float) -> void:
 		HitSpark.spawn(get_parent(), at, Color(1.0, 0.45, 0.3), int(32 * strength))
 
 
+# --- Зелье ------------------------------------------------------------------
+
+## Глоток зелья: глоток тратится сразу, лечит в момент глотка (flask_sip_at). Ударили раньше —
+## зелье пролито, как в Souls. Пока пьёт — идёт шагом, оружие опущено.
+func _start_drink() -> void:
+	_heal_buffer = 0.0
+	if flasks <= 0:
+		return
+	flasks -= 1
+	flasks_changed.emit(flasks, stats.flask_charges)
+	_sipped = false
+	_set_state(State.DRINK)
+
+
+func _drink_state(delta: float) -> void:
+	var x := _input_x()
+	if x != 0.0:
+		facing = signf(x)
+	var accel := stats.acceleration if is_on_floor() else stats.air_acceleration
+	velocity.x = move_toward(velocity.x, x * stats.move_speed * stats.flask_move_mult, accel * delta)
+	_apply_gravity(delta)
+	if not _sipped and _state_time >= stats.flask_drink_time * stats.flask_sip_at:
+		_sipped = true
+		health.heal(stats.max_health * stats.flask_heal)
+		body.flash(Color(0.45, 1.0, 0.6))
+		HitSpark.spawn(get_parent(), global_position + Vector3(0.0, 1.2, 0.3), Color(0.5, 1.0, 0.65), 14)
+	if _state_time >= stats.flask_drink_time:
+		_set_state(State.MOVE)
+
+
 # --- Лук --------------------------------------------------------------------
 
 func _start_draw() -> void:
@@ -684,10 +739,18 @@ func _start_draw() -> void:
 
 
 ## Натяжение: держим кнопку — лук натягивается, герой идёт медленно. Отпустили — выстрел.
+## Мышью лук смотрит на курсор, правым стиком — куда наклонён стик (отпустил — направление
+## остаётся); герой разворачивается к цели и может пятиться. Кнопками — прямо, вверх или вниз.
 func _bow_state(delta: float) -> void:
 	_draw_t = minf(_draw_t + delta / stats.bow_draw_time, 1.0)
 	var x := _input_x()
-	if x != 0.0:
+	var stick := Input.get_vector("aim_left", "aim_right", "aim_down", "aim_up")
+	if stick != Vector2.ZERO:
+		aim_source = Aim.STICK
+		_stick_dir = stick.normalized()
+	if aim_source == Aim.MOUSE:
+		_mouse_aim_point()
+	elif aim_source == Aim.BUTTONS and x != 0.0:
 		facing = signf(x)
 	var accel := stats.acceleration if is_on_floor() else stats.air_acceleration
 	velocity.x = move_toward(velocity.x, x * stats.move_speed * stats.bow_move_mult, accel * delta)
@@ -705,7 +768,8 @@ func _fire() -> void:
 	var speed := lerpf(stats.bow_speed_min, stats.bow_speed_max, _draw_t)
 	var damage := lerpf(stats.bow_damage_min, stats.bow_damage_max, _draw_t)
 	var poise_dmg := lerpf(stats.bow_poise_min, stats.bow_poise_max, _draw_t)
-	var at := global_position + Vector3(facing * 0.55, 1.3, 0.0)
+	# Стрела вылетает из лука — по линии прицела от плеча.
+	var at := global_position + Vector3(0.0, BOW_HEIGHT, 0.0) + dir * BOW_REACH
 	var arrow := Arrow.spawn(get_parent(), at, dir * speed, damage, poise_dmg)
 	Sfx.play(&"bow_release", at)
 	_spend_stamina(stats.bow_cost)
@@ -713,13 +777,51 @@ func _fire() -> void:
 	arrow_fired.emit(arrow)
 
 
-## Прицел: прямо; с «вверх» — круто вверх; с «вниз» в воздухе — вниз.
+## Прицел — угол от горизонтали вперёд по взгляду: −90° — вниз, +90° — вверх.
+## Мышью — на курсор, стиком — по стику; кнопками — прямо, с «вверх» круто вверх,
+## с «вниз» в воздухе вниз.
 func _aim_angle() -> float:
+	if aim_source == Aim.MOUSE:
+		return aim_toward(_aim_point)
+	if aim_source == Aim.STICK:
+		var origin := global_position + Vector3(0.0, BOW_HEIGHT, 0.0)
+		return aim_toward(origin + Vector3(_stick_dir.x, _stick_dir.y, 0.0))
 	if Input.is_action_pressed("move_up"):
 		return deg_to_rad(stats.aim_up_angle)
 	if Input.is_action_pressed("move_down") and not is_on_floor():
 		return -deg_to_rad(stats.aim_down_angle)
 	return 0.0
+
+
+## Повернуться к точке мира и вернуть угол прицела на неё (от лука на высоте плеча).
+## Курсор почти над головой или под ногами — взгляд не дёргается туда-сюда.
+func aim_toward(point: Vector3) -> float:
+	var d := point - (global_position + Vector3(0.0, BOW_HEIGHT, 0.0))
+	if absf(d.x) > 0.15:
+		facing = signf(d.x)
+	return atan2(d.y, maxf(absf(d.x), 0.001))
+
+
+## Куда смотрит курсор в плоскости боя (z = 0): луч камеры через указатель.
+func _mouse_aim_point() -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var mouse := get_viewport().get_mouse_position()
+	var from := camera.project_ray_origin(mouse)
+	var normal := camera.project_ray_normal(mouse)
+	if absf(normal.z) < 0.001:
+		return
+	_aim_point = from + normal * (-from.z / normal.z)
+
+
+## Мышь двинулась — целимся ею; нажали «вверх»/«вниз» с клавиатуры или крестовины — по-старому.
+## Стик включается сам в _bow_state, когда его наклоняют.
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		aim_source = Aim.MOUSE
+	elif event.is_action_pressed("move_up") or event.is_action_pressed("move_down"):
+		aim_source = Aim.BUTTONS
 
 
 func set_peg(peg: ArrowPeg) -> void:
@@ -911,6 +1013,7 @@ func _on_block(hitbox: Hitbox) -> void:
 
 
 func _on_died() -> void:
+	death_weapon = held_weapon()
 	_set_state(State.DEAD)
 	_death_landed = false
 	_death_dir = body.fall_direction(self, facing)
@@ -940,6 +1043,7 @@ func teleport(at: Vector3) -> void:
 	_roll_buffer = 0.0
 	_airborne = false
 	_air_top = global_position.y
+	last_ground = global_position
 
 
 ## Высота падения: от верхней точки полёта до пола. Лазание, скольжение по скату и вис
@@ -953,6 +1057,8 @@ func _track_fall() -> void:
 	if grounded or state in [State.CLIMB, State.SLIDE, State.LEDGE_HANG, State.LEDGE_CLIMB]:
 		if _airborne and grounded:
 			_land_from(_air_top - y)
+		if grounded:
+			last_ground = global_position
 		_airborne = false
 		_air_top = y
 	else:
@@ -968,17 +1074,43 @@ func _land_from(drop: float) -> void:
 	Sfx.play(&"player_fall_hurt", global_position)
 	body.flash(Color(1.0, 0.25, 0.2))
 	Events.camera_shake_requested.emit(lerpf(0.2, 0.7, minf(t, 1.0)), 0.25)
-	health.take_damage(stats.max_health * t * t if t < 1.0 else INF)
+	health.take_damage(stats.max_health * pow(t, stats.fall_damage_power) if t < 1.0 else INF)
 
 
 func restore() -> void:
 	health.heal_full()
 	stamina = stats.max_stamina
 	stamina_changed.emit(stamina, stats.max_stamina)
+	flasks = stats.flask_charges
+	flasks_changed.emit(flasks, stats.flask_charges)
 
 
 func is_dead() -> bool:
 	return state == State.DEAD
+
+
+## Копия облика для отзвука героя: фигура и оружие, с которым погиб (лук — в руке,
+## меч — в покое), без лица и без хитбоксов. Материал задаёт сам отзвук.
+func make_silhouette(weapon: StringName) -> Node3D:
+	var copy := ($Visual as Node3D).duplicate() as Node3D
+	copy.transform = Transform3D.IDENTITY
+	for node in copy.find_children("*", "Area3D", true, false):
+		node.free()
+	var face := copy.find_child("Face", true, false)
+	if face:
+		face.free()
+	var bow := copy.find_child("Bow", true, false) as Node3D
+	var sword := copy.find_child(arms.sword_pivot.name, true, false) as Node3D
+	if bow:
+		bow.visible = weapon == &"bow"
+	if sword:
+		sword.visible = weapon != &"bow"
+	return copy
+
+
+## С каким оружием в руках герой сейчас: для отзвука героя.
+func held_weapon() -> StringName:
+	return &"bow" if state == State.BOW else &"sword"
 
 
 # --- Взаимодействие ---------------------------------------------------------
