@@ -173,11 +173,13 @@ position = Vector3(-18.5, 0, 0)
 [node name="Chest" parent="Objects" groups=["normal_only"] instance=ExtResource("7_chest")]
 position = Vector3(20.5, 0, -1.6)
 reward = 50
+item = &"facet_blood"
 flag_id = &"room_001_chest"
 
 [node name="MirrorChest" parent="Objects" groups=["mirror_only"] instance=ExtResource("7_chest")]
 position = Vector3(-10.5, 8.5, 0)
 reward = 150
+item = &"facet_slot"
 flag_id = &"room_001_mirror_chest"
 
 [node name="Soldier" parent="Objects" groups=["normal_only"] instance=ExtResource("8_dummy")]
@@ -203,6 +205,7 @@ source_glass = NodePath("../../Glass/NicheGlassMurky")
 [node name="SecretChest" parent="Objects" groups=["normal_only"] instance=ExtResource("7_chest")]
 position = Vector3(20.1, 3.6, 0)
 reward = 80
+item = &"clear_glass"
 flag_id = &"room_001_secret_chest"
 
 [node name="Chandelier" type="Node3D" parent="Objects"]

@@ -30,6 +30,18 @@ static func spawn(parent: Node, at: Vector3, value: int, target: Node3D) -> Echo
 	return drop
 
 
+## Капля без валюты, просто летит из точки в точку: отзвуки текут в отражение (§8.6).
+static func stream(parent: Node, from: Vector3, to: Vector3, time: float) -> void:
+	var drop := EchoDrop.new()
+	drop._absorbed = true
+	drop.set_process(false)
+	parent.add_child(drop)
+	drop.global_position = from
+	var tween := drop.create_tween()
+	tween.tween_property(drop, "global_position", to, time).set_trans(Tween.TRANS_SINE)
+	tween.tween_callback(drop.queue_free)
+
+
 func _ready() -> void:
 	var glass := StandardMaterial3D.new()
 	glass.albedo_color = Color(COLOR, 0.75)

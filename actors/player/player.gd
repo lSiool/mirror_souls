@@ -141,10 +141,14 @@ func _ready() -> void:
 	sword_hitbox_shape.shape = _sword_shape
 	arms = PlayerArms.new(visual, sword_pivot)
 	body = PlayerBody.new(body_mesh, body_shape.shape as CapsuleShape3D)
+	stats.changed.connect(_on_stats_changed)
+	_on_stats_changed()
 
 
 func _physics_process(delta: float) -> void:
 	if frozen:
+		# Стоит у осколка или в переходе: ввода и физики нет, но вид меняется (взросление).
+		_update_visual(delta)
 		return
 	_state_time += delta
 	_tick(delta)
@@ -216,7 +220,7 @@ func _tick(delta: float) -> void:
 	if _stamina_delay > 0.0:
 		_stamina_delay -= delta
 	elif stamina < stats.max_stamina:
-		var regen := stats.stamina_regen * (stats.block_regen_mult if state == State.BLOCK else 1.0)
+		var regen := stats.mod(&"stamina_regen", stats.stamina_regen) * (stats.block_regen_mult if state == State.BLOCK else 1.0)
 		stamina = minf(stamina + regen * delta, stats.max_stamina)
 		stamina_changed.emit(stamina, stats.max_stamina)
 
@@ -329,6 +333,18 @@ func jump_is_effort() -> bool:
 	return absf(velocity.x) > stats.move_speed * EFFORT_SPEED \
 		or _since_roll < stats.roll_attack_window \
 		or stamina < stats.max_stamina * EFFORT_STAMINA
+
+
+## Уровень или перераспределение: запас здоровья и выносливости растёт, вид догоняет возраст.
+func _on_stats_changed() -> void:
+	var gained := stats.max_health - health.max_health
+	health.max_health = stats.max_health
+	if gained != 0.0:
+		health.current = clampf(health.current + maxf(gained, 0.0), 0.0, health.max_health)
+		health.changed.emit(health.current, health.max_health)
+	stamina = minf(stamina, stats.max_stamina)
+	stamina_changed.emit(stamina, stats.max_stamina)
+	body.set_hair_color(AgeLook.hair_color(stats.current_age))
 
 
 func _start_roll() -> void:
@@ -484,7 +500,7 @@ func _slide_physics(delta: float) -> Vector3:
 	facing = signf(down.x)
 	_slide_speed += stats.gravity * stats.slide_gravity_scale * -down.y * delta
 	_slide_speed += _input_x() * signf(down.x) * stats.slide_steer * delta
-	_slide_speed = clampf(_slide_speed, -stats.move_speed, stats.max_slide_speed)
+	_slide_speed = clampf(_slide_speed, -stats.move_speed, stats.mod(&"max_slide_speed", stats.max_slide_speed))
 	velocity = down * _slide_speed
 	return down
 
@@ -500,7 +516,7 @@ func _climb_state(_delta: float) -> void:
 		return
 	facing = -signf(wall.x)
 	velocity.x = -wall.x
-	velocity.y = v * stats.climb_speed if v != 0.0 else -stats.climb_slip
+	velocity.y = v * stats.mod(&"climb_speed", stats.climb_speed) if v != 0.0 else -stats.climb_slip
 	var x := _input_x()
 	if _jump_buffer > 0.0:
 		_jump_buffer = 0.0
@@ -717,7 +733,7 @@ func _drink_state(delta: float) -> void:
 	_apply_gravity(delta)
 	if not _sipped and _state_time >= stats.flask_drink_time * stats.flask_sip_at:
 		_sipped = true
-		health.heal(stats.max_health * stats.flask_heal)
+		health.heal(stats.max_health * stats.mod(&"flask_heal", stats.flask_heal))
 		body.flash(Color(0.45, 1.0, 0.6))
 		HitSpark.spawn(get_parent(), global_position + Vector3(0.0, 1.2, 0.3), Color(0.5, 1.0, 0.65), 14)
 	if _state_time >= stats.flask_drink_time:
@@ -735,14 +751,14 @@ func _start_draw() -> void:
 	arms.show_bow(true)
 	_draw_sound = Sfx.play(&"bow_draw", global_position)
 	if _draw_sound:
-		_draw_sound.pitch_scale *= clampf(BOW_DRAW_SOUND_TIME / stats.bow_draw_time, 0.8, 1.25)
+		_draw_sound.pitch_scale *= clampf(BOW_DRAW_SOUND_TIME / stats.mod(&"bow_draw_time", stats.bow_draw_time), 0.8, 1.25)
 
 
 ## Натяжение: держим кнопку — лук натягивается, герой идёт медленно. Отпустили — выстрел.
 ## Мышью лук смотрит на курсор, правым стиком — куда наклонён стик (отпустил — направление
 ## остаётся); герой разворачивается к цели и может пятиться. Кнопками — прямо, вверх или вниз.
 func _bow_state(delta: float) -> void:
-	_draw_t = minf(_draw_t + delta / stats.bow_draw_time, 1.0)
+	_draw_t = minf(_draw_t + delta / stats.mod(&"bow_draw_time", stats.bow_draw_time), 1.0)
 	var x := _input_x()
 	var stick := Input.get_vector("aim_left", "aim_right", "aim_down", "aim_up")
 	if stick != Vector2.ZERO:
@@ -766,7 +782,7 @@ func _fire() -> void:
 	var angle := _aim_angle()
 	var dir := Vector3(cos(angle) * facing, sin(angle), 0.0)
 	var speed := lerpf(stats.bow_speed_min, stats.bow_speed_max, _draw_t)
-	var damage := lerpf(stats.bow_damage_min, stats.bow_damage_max, _draw_t)
+	var damage := lerpf(stats.bow_damage_min, stats.bow_damage_max, _draw_t) * stats.bow_damage_mult
 	var poise_dmg := lerpf(stats.bow_poise_min, stats.bow_poise_max, _draw_t)
 	# Стрела вылетает из лука — по линии прицела от плеча.
 	var at := global_position + Vector3(0.0, BOW_HEIGHT, 0.0) + dir * BOW_REACH
@@ -1089,15 +1105,15 @@ func is_dead() -> bool:
 	return state == State.DEAD
 
 
-## Копия облика для отзвука героя: фигура и оружие, с которым погиб (лук — в руке,
-## меч — в покое), без лица и без хитбоксов. Материал задаёт сам отзвук.
-func make_silhouette(weapon: StringName) -> Node3D:
+## Копия облика для отзвука героя и отражения: фигура и оружие (лук — в руке, меч — в покое),
+## без хитбоксов; лицо — только у отражения. Материал задаёт тот, кто просит копию.
+func make_silhouette(weapon: StringName, keep_face := false) -> Node3D:
 	var copy := ($Visual as Node3D).duplicate() as Node3D
 	copy.transform = Transform3D.IDENTITY
 	for node in copy.find_children("*", "Area3D", true, false):
 		node.free()
 	var face := copy.find_child("Face", true, false)
-	if face:
+	if face and not keep_face:
 		face.free()
 	var bow := copy.find_child("Bow", true, false) as Node3D
 	var sword := copy.find_child(arms.sword_pivot.name, true, false) as Node3D
@@ -1142,7 +1158,7 @@ func _update_visual(delta: float) -> void:
 		visual.reset_physics_interpolation()
 	var k := 1.0 - exp(-18.0 * delta)
 	var target_scale := Vector3.ONE
-	var target_tilt := 0.0
+	var target_tilt := -AgeLook.stoop(stats.current_age)
 	match state:
 		State.ROLL:
 			target_scale = Vector3(1.1, 0.6, 1.1)
@@ -1165,7 +1181,7 @@ func _update_visual(delta: float) -> void:
 	if state == State.DEAD:
 		body.death_pose(_state_time, _death_dir)
 		return
-	body_mesh.scale = body_mesh.scale.lerp(target_scale, k)
+	body_mesh.scale = body_mesh.scale.lerp(target_scale * AgeLook.body_scale(stats.current_age), k)
 	body_mesh.position = Vector3(0.0, 0.9 * body_mesh.scale.y, 0.0)
 	if state == State.ROLL:
 		# Кувырок вперёд: полный оборот за время переката.

@@ -1,18 +1,28 @@
 class_name PlayerStats
 extends Resource
-## Все числа героя в одном месте (§1.3). Часть из них зависит от стартового возраста:
+## Все числа героя в одном месте (§1.3). Часть из них зависит от возраста:
 ## младше — быстрее и ловчее, старше — чуть медленнее, но удар сильнее.
-## Разница между краями диапазона — единицы процентов.
+## Возраст — стартовый плюс прожитое: каждый уровень старит героя (§8.6), тело меняется
+## по той же кривой до планок. Параметры растут от вложенных очков, тоже до потолка.
 
 const AGE_MIN := 14
 const AGE_MAX := 22
+## Каждый уровень старит на столько лет; после AGING_LEVELS возраст больше не растёт,
+## а уровни по-прежнему дают параметры.
+const YEARS_PER_LEVEL := 0.25
+const AGING_LEVELS := 120
+
+enum Param { HEALTH, STAMINA, STRENGTH, DEXTERITY }
+
+## Слотов для граней с самого начала; ещё — от находок в мире.
+const BASE_FACET_SLOTS := 3
 
 @export_range(AGE_MIN, AGE_MAX) var age := 17:
 	set(value):
 		age = clampi(value, AGE_MIN, AGE_MAX)
 		emit_changed()
 
-@export_group("Зависит от возраста (14 → 22)")
+@export_group("Зависит от возраста (14 → 22, дальше — до планок)")
 @export var move_speed_young := 7.4
 @export var move_speed_old := 7.0
 @export var acceleration_young := 62.0
@@ -25,6 +35,24 @@ const AGE_MAX := 22
 @export var roll_iframes_old := 0.28
 @export var sword_damage_young := 20.0
 @export var sword_damage_old := 22.0
+## Планки тела: доля от значений 14-летнего, ниже (урон — выше) возраст не уведёт.
+## Прыжок — самая строгая: уровни проектируем под самого старшего героя.
+@export var move_speed_limit := 0.88
+@export var acceleration_limit := 0.85
+@export var jump_velocity_limit := 0.93
+@export var roll_speed_limit := 0.88
+@export var roll_iframes_limit := 0.75
+@export var sword_damage_limit := 1.4
+
+@export_group("Уровень")
+## Потолок прибавки от параметра; очки подходят к нему всё медленнее (мягкая планка).
+@export var health_bonus_cap := 200.0
+@export var stamina_bonus_cap := 100.0
+## Прибавка к урону, доля: 1.5 — плюс 150 %.
+@export var strength_bonus_cap := 1.5
+@export var dexterity_bonus_cap := 1.5
+## Сколько очков даёт около 63 % потолка.
+@export var bonus_softness := 40.0
 
 @export_group("Движение")
 @export var gravity := 32.0
@@ -72,8 +100,8 @@ const AGE_MAX := 22
 @export var mantle_velocity := 7.0
 
 @export_group("Бой")
-@export var max_health := 100.0
-@export var max_stamina := 100.0
+@export var base_health := 100.0
+@export var base_stamina := 100.0
 @export var stamina_regen := 40.0
 @export var stamina_regen_delay := 0.5
 @export var roll_cost := 22.0
@@ -133,20 +161,147 @@ const AGE_MAX := 22
 ## Сколько после кувырка ещё срабатывает удар после кувырка.
 @export var roll_attack_window := 0.3
 
+var level := 0
+## Очки по параметрам (Param → сколько вложено) и свободные — после перераспределения.
+var points := {}
+var unspent := 0
+## Надетые грани.
+var facets: Array[Facet] = []
+
+var current_age: float:
+	get: return age_at(level)
+var max_health: float:
+	get: return (base_health + bonus_with(Param.HEALTH, 0)) * facet_mult(&"max_health")
+var max_stamina: float:
+	get: return (base_stamina + bonus_with(Param.STAMINA, 0)) * facet_mult(&"max_stamina")
+## Множитель урона лука от меткости.
+var bow_damage_mult: float:
+	get: return (1.0 + bonus_with(Param.DEXTERITY, 0)) * facet_mult(&"bow_damage")
+
 var move_speed: float:
-	get: return _by_age(move_speed_young, move_speed_old)
+	get: return speed_at(current_age) * facet_mult(&"move_speed")
 var acceleration: float:
-	get: return _by_age(acceleration_young, acceleration_old)
+	get: return _by_age(current_age, acceleration_young, acceleration_old, acceleration_limit)
 var jump_velocity: float:
-	get: return _by_age(jump_velocity_young, jump_velocity_old)
+	get: return jump_at(current_age)
 var roll_speed: float:
-	get: return _by_age(roll_speed_young, roll_speed_old)
+	get: return _by_age(current_age, roll_speed_young, roll_speed_old, roll_speed_limit)
 var roll_iframes: float:
-	get: return _by_age(roll_iframes_young, roll_iframes_old)
+	get: return iframes_at(current_age) * facet_mult(&"roll_iframes")
 var sword_damage: float:
-	get: return _by_age(sword_damage_young, sword_damage_old)
+	get: return damage_at(current_age) * (1.0 + bonus_with(Param.STRENGTH, 0)) * facet_mult(&"damage")
 
 
-func _by_age(young: float, old: float) -> float:
-	var t := float(age - AGE_MIN) / float(AGE_MAX - AGE_MIN)
-	return lerpf(young, old, t)
+## Возраст на таком уровне: стартовый плюс прожитое, после AGING_LEVELS не растёт.
+func age_at(at_level: int) -> float:
+	return age + mini(at_level, AGING_LEVELS) * YEARS_PER_LEVEL
+
+
+func speed_at(at_age: float) -> float:
+	return _by_age(at_age, move_speed_young, move_speed_old, move_speed_limit)
+
+
+func jump_at(at_age: float) -> float:
+	return _by_age(at_age, jump_velocity_young, jump_velocity_old, jump_velocity_limit)
+
+
+func iframes_at(at_age: float) -> float:
+	return _by_age(at_age, roll_iframes_young, roll_iframes_old, roll_iframes_limit)
+
+
+func damage_at(at_age: float) -> float:
+	return _by_age(at_age, sword_damage_young, sword_damage_old, sword_damage_limit)
+
+
+## Цена следующего уровня в отзвуках.
+func level_cost() -> int:
+	return 60 + 12 * level + int(0.4 * level * level)
+
+
+## Новый уровень: очко в параметр и прожитые годы. Отзвуки списывает тот, кто вызывает.
+func level_up(param: Param) -> void:
+	level += 1
+	add_point(param)
+
+
+func add_point(param: Param) -> void:
+	points[param] = points_in(param) + 1
+	emit_changed()
+
+
+## Свободное очко после перераспределения: без отзвуков и без новых лет.
+func spend_unspent(param: Param) -> void:
+	if unspent > 0:
+		unspent -= 1
+		add_point(param)
+
+
+func points_in(param: Param) -> int:
+	return points.get(param, 0)
+
+
+## Чистое стекло: все очки снова свободны, прожитые годы остаются (§8.6).
+func respec() -> void:
+	for value: int in points.values():
+		unspent += value
+	points.clear()
+	emit_changed()
+
+
+## Общий множитель надетых граней на параметр в нынешнем возрасте.
+func facet_mult(key: StringName) -> float:
+	var result := 1.0
+	for facet in facets:
+		result *= facet.multiplier(key, current_age)
+	return result
+
+
+## Параметр без своего геттера с учётом граней: stats.mod(&"climb_speed", stats.climb_speed).
+func mod(key: StringName, value: float) -> float:
+	return value * facet_mult(key)
+
+
+func facet_slots_used() -> int:
+	var used := 0
+	for facet in facets:
+		used += facet.cost
+	return used
+
+
+## Надеть или снять. false — не хватило слотов из total.
+func toggle_facet(facet: Facet, total: int) -> bool:
+	if facet in facets:
+		facets.erase(facet)
+	elif facet_slots_used() + facet.cost <= total:
+		facets.append(facet)
+	else:
+		return false
+	emit_changed()
+	return true
+
+
+## Вернуть героя к началу: для отладки и тестов.
+func reset_progress() -> void:
+	level = 0
+	unspent = 0
+	points.clear()
+	facets.clear()
+	emit_changed()
+
+
+## Прибавка параметра, если вложить ещё extra очков: быстро вначале, у потолка — едва заметно.
+func bonus_with(param: Param, extra: int) -> float:
+	var cap: float
+	match param:
+		Param.HEALTH: cap = health_bonus_cap
+		Param.STAMINA: cap = stamina_bonus_cap
+		Param.STRENGTH: cap = strength_bonus_cap
+		_: cap = dexterity_bonus_cap
+	return cap * (1.0 - exp(-float(points_in(param) + extra) / bonus_softness))
+
+
+## Значение по возрасту: та же прямая 14 → 22 продолжается дальше, но не за планку.
+func _by_age(at_age: float, young: float, old: float, limit: float) -> float:
+	var value := lerpf(young, old, (at_age - AGE_MIN) / float(AGE_MAX - AGE_MIN))
+	var bound := young * limit
+	return maxf(value, bound) if old < young else minf(value, bound)

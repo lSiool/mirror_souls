@@ -36,6 +36,7 @@ var reality: StringName = NORMAL
 var _reality_rules: Dictionary = {NORMAL: []}
 var _busy := false
 var music: AudioStreamPlayer
+var level_menu: LevelMenu
 
 @onready var player: Player = get_node(player_path)
 @onready var camera_rig: CameraRig = get_node(camera_rig_path)
@@ -49,6 +50,9 @@ func _ready() -> void:
 	Events.checkpoint_activated.connect(_on_checkpoint_activated)
 	Events.enemy_killed.connect(_on_enemy_killed)
 	Events.glass_broken.connect(_on_glass_broken)
+	level_menu = LevelMenu.new()
+	hud.add_child(level_menu)
+	level_menu.closed.connect(_on_level_menu_closed)
 	player.died.connect(_on_player_died)
 	_load_room(GameState.checkpoint_reality)
 	player.respawn(_checkpoint_position())
@@ -127,11 +131,27 @@ func _on_mirror_used(portal: MirrorPortal) -> void:
 
 
 func _on_checkpoint_activated(shard: MirrorShard) -> void:
+	if _busy:
+		return
 	GameState.set_checkpoint(reality, current_room.get_path_to(shard))
 	for other in get_tree().get_nodes_in_group("mirror_shard"):
 		if other != shard:
 			other.set_lit(false)
-	_rest()
+	await _rest()
+	open_level_menu()
+
+
+## Меню у осколка: отзвуки — в прожитые годы. Комната уже новая, берём новый осколок.
+func open_level_menu() -> void:
+	_busy = true
+	var shard := current_room.get_node_or_null(GameState.checkpoint_path) as Node3D
+	level_menu.open(player, shard if shard else current_room)
+
+
+func _on_level_menu_closed() -> void:
+	_busy = false
+	if hide_cursor:
+		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 
 
 ## Отдых у осколка — как у костра в Souls: каждое касание пересоздаёт комнату (враги снова

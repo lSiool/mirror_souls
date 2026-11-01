@@ -10,12 +10,31 @@ const SLUMP_SCALE := Vector3(1.12, 0.75, 1.12)
 var mesh: MeshInstance3D
 var _radius: float
 var _half_height: float
+var _hair: MeshInstance3D
 
 
 func _init(body_mesh: MeshInstance3D, shape: CapsuleShape3D) -> void:
 	mesh = body_mesh
 	_radius = shape.radius
 	_half_height = shape.height * 0.5
+	_build_hair()
+
+
+## Волосы-заглушка: по ним видна седина (AgeLook).
+func _build_hair() -> void:
+	_hair = MeshInstance3D.new()
+	_hair.name = &"Hair"
+	var cap := SphereMesh.new()
+	cap.radius = 0.37
+	cap.height = 0.42
+	cap.material = StandardMaterial3D.new()
+	_hair.mesh = cap
+	_hair.position = Vector3(-0.04, 0.72, 0.0)
+	mesh.add_child(_hair)
+
+
+func set_hair_color(color: Color) -> void:
+	((_hair.mesh as SphereMesh).material as StandardMaterial3D).albedo_color = color
 
 
 func flash(color: Color) -> void:

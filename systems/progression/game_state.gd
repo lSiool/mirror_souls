@@ -18,6 +18,9 @@ var broken_glass := {}
 var broken_forever := {}
 ## Отзвук героя на месте последней гибели: {reality, position, amount, weapon, facing}; пусто — нет.
 var hero_echo := {}
+## Редкие предметы и грани: {id: сколько}. Смерть их не отнимает. Часть граней есть с начала.
+var items := {&"facet_youth": 1, &"facet_experience": 1, &"facet_sole": 1, &"facet_grip": 1,
+	&"facet_breath": 1, &"facet_eye": 1, &"facet_sip": 1}
 
 
 func add_echoes(amount: int) -> void:
@@ -40,6 +43,23 @@ func take_hero_echo() -> void:
 	var amount: int = hero_echo.get("amount", 0)
 	hero_echo = {}
 	add_echoes(amount)
+
+
+func add_item(id: StringName) -> void:
+	items[id] = item_count(id) + 1
+	Events.item_found.emit(id)
+
+
+func item_count(id: StringName) -> int:
+	return items.get(id, 0)
+
+
+## Потратить один предмет; false — его нет.
+func take_item(id: StringName) -> bool:
+	if item_count(id) <= 0:
+		return false
+	items[id] = item_count(id) - 1
+	return true
 
 
 func set_flag(id: StringName, value := true) -> void:

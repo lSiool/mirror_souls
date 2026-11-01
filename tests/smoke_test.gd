@@ -278,13 +278,82 @@ func run() -> void:
 	player.health.take_damage(30.0)
 	await tap("interact")
 	check(String(game_state.checkpoint_path) == "Objects/MirrorShard", "чекпоинт = осколок (%s)" % game_state.checkpoint_path)
-	await seconds(1.0)
+	await seconds(1.2)
 	check(rooms.current_room != room_before and player.health.current == player.stats.max_health,
 		"отдых у осколка: комната пересоздана, здоровье полное")
+	check(rooms.level_menu.is_open and player.frozen, "после отдыха открыто меню у осколка, герой стоит")
+	rooms.level_menu.close()
+	check(not player.frozen, "отошёл от осколка — герой свободен")
 	room_before = rooms.current_room
 	await tap("interact")
-	await seconds(1.0)
+	await seconds(1.2)
 	check(rooms.current_room != room_before, "у осколка можно отдыхать снова")
+
+	print("== Уровень у осколка")
+	var stats := player.stats
+	var menu := rooms.level_menu
+	var cost := stats.level_cost()
+	var age_before := stats.current_age
+	var speed_before := stats.move_speed
+	game_state.add_echoes(cost - 1 - game_state.echoes)
+	menu._refresh()
+	await menu.choose(PlayerStats.Param.HEALTH)
+	check(stats.level == 0 and game_state.echoes == cost - 1, "не хватает отзвуков — уровня нет")
+	game_state.add_echoes(1)
+	await menu.choose(PlayerStats.Param.HEALTH)
+	check(stats.level == 1 and game_state.echoes == 0, "уровень куплен за %d отзвуков" % cost)
+	check(is_equal_approx(stats.current_age, age_before + 0.25), "герой повзрослел на четверть года (%.2f)" % stats.current_age)
+	check(stats.max_health > stats.base_health and is_equal_approx(player.health.max_health, stats.max_health),
+		"здоровье выросло (%.1f)" % stats.max_health)
+	check(stats.move_speed < speed_before, "годы забрали скорость (%.3f → %.3f)" % [speed_before, stats.move_speed])
+	game_state.add_item(&"clear_glass")
+	menu.use_clear_glass()
+	check(stats.unspent == 1 and is_equal_approx(stats.max_health, stats.base_health)
+		and is_equal_approx(stats.current_age, age_before + 0.25) and game_state.item_count(&"clear_glass") == 0,
+		"чистое стекло: очко свободно, возраст тот же")
+	await menu.choose(PlayerStats.Param.STRENGTH)
+	check(stats.unspent == 0 and stats.level == 1 and stats.points_in(PlayerStats.Param.STRENGTH) == 1,
+		"свободное очко вложено без отзвуков и без новых лет")
+	menu.close()
+	stats.reset_progress()
+	stats.level = 120
+	var full_age := stats.current_age
+	stats.level = 500
+	check(is_equal_approx(full_age, stats.age + 30.0) and is_equal_approx(stats.current_age, full_age),
+		"за 120 уровней — плюс 30 лет, дальше годы не прибавляются")
+	check(stats.move_speed >= stats.move_speed_young * stats.move_speed_limit - 0.001
+		and stats.jump_velocity >= stats.jump_velocity_young * stats.jump_velocity_limit - 0.001
+		and stats.sword_damage <= stats.sword_damage_young * stats.sword_damage_limit + 0.001,
+		"тело не выходит за планки (скорость %.2f, прыжок %.2f, урон %.1f)" % [stats.move_speed, stats.jump_velocity, stats.sword_damage])
+	stats.points[PlayerStats.Param.HEALTH] = 2000
+	check(stats.max_health <= stats.base_health + stats.health_bonus_cap, "здоровье не выше потолка (%.0f)" % stats.max_health)
+	stats.reset_progress()
+	await seconds(0.5)
+
+	print("== Грани")
+	var youth := Facet.by_id(&"facet_youth")
+	var experience := Facet.by_id(&"facet_experience")
+	var blood := Facet.by_id(&"facet_blood")
+	check(youth != null and experience != null and blood != null and Facet.catalog().size() >= 8, "грани загружены (%d)" % Facet.catalog().size())
+	var plain_speed := stats.move_speed
+	stats.toggle_facet(youth, 3)
+	check(stats.move_speed > plain_speed and stats.facet_slots_used() == 2, "Лёгкость юности: быстрее (%.2f → %.2f)" % [plain_speed, stats.move_speed])
+	var young_bonus := stats.move_speed / plain_speed
+	check(not stats.toggle_facet(experience, 3), "на вторую грань в 2 слота места нет")
+	stats.level = 92
+	check(stats.move_speed / stats.speed_at(stats.current_age) < young_bonus, "с годами юность слабеет")
+	stats.level = 0
+	stats.toggle_facet(youth, 3)
+	stats.toggle_facet(experience, 3)
+	var young_power := stats.facet_mult(&"damage")
+	stats.level = 92
+	check(stats.facet_mult(&"damage") > young_power, "с годами опыт растёт (x%.2f → x%.2f)" % [young_power, stats.facet_mult(&"damage")])
+	stats.reset_progress()
+	stats.toggle_facet(blood, 3)
+	check(stats.max_health < stats.base_health and is_equal_approx(player.health.max_health, stats.max_health), "сильная грань с минусом: здоровья меньше (%.0f)" % stats.max_health)
+	stats.reset_progress()
+	check(is_equal_approx(player.health.max_health, stats.base_health), "сняли — здоровье как было")
+	player.restore()
 	check(player.flasks == player.stats.flask_charges, "отдых пополнил зелье (%d)" % player.flasks)
 	var chest_flags: Dictionary = game_state.flags.duplicate()
 
@@ -812,6 +881,7 @@ func run() -> void:
 	await seconds(0.2)
 	check(game_state.echoes == echoes_at_chest + chest.reward,
 		"сундук открыт, отзвуки +%d" % (game_state.echoes - echoes_at_chest))
+	check(game_state.item_count(&"facet_blood") == 1, "в сундуке нашлась грань")
 
 	print("== Стекло над ямой: кувырком — успел, шагом — провалился")
 	var trap := room_node("Glass/TrapGlass") as GlassSurface
