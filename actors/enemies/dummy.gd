@@ -80,6 +80,8 @@ var last_weapon: StringName
 ## Накопленное кровотечение 0…100: полное — рывок крови и доля здоровья. Без ударов спадает.
 var bleed := 0.0
 var _bleed_delay := 0.0
+## Красная вспышка, когда кровотечение вырвалось: поверх белой вспышки удара.
+var _bleed_flash := 0.0
 
 var state := State.PATROL
 var poise := 0.0
@@ -414,6 +416,7 @@ func _add_bleed(amount: float) -> void:
 	if bleed < BLEED_FULL:
 		return
 	bleed = 0.0
+	_bleed_flash = 0.35
 	HitSpark.spawn(get_parent(), global_position + Vector3(0.0, 1.1, 0.3), BLEED_COLOR, 34)
 	Sfx.play(&"critical_pierce", global_position, -4.0)
 	health.take_damage(health.max_health * BLEED_BURST)
@@ -513,6 +516,10 @@ func _update_material(delta: float) -> void:
 	if _flash > 0.0:
 		color = Color(1.0, 1.0, 1.0, body_color.a)
 		glow = 2.0
+	if _bleed_flash > 0.0:
+		_bleed_flash = maxf(_bleed_flash - delta, 0.0)
+		color = BLEED_COLOR
+		glow = 3.0
 	_material.albedo_color = color
 	_material.emission = color
 	_material.emission_energy_multiplier = glow
