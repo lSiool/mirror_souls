@@ -12,6 +12,13 @@ enum State {
 }
 
 const WINDUP_COLOR := Color(1.0, 0.35, 0.1)
+const BLEED_COLOR := Color(0.65, 0.05, 0.05)
+const BLEED_FULL := 100.0
+## Какая доля всего здоровья уходит, когда кровотечение вырвалось.
+const BLEED_BURST := 0.2
+## Сколько секунд без ударов оно держится и как быстро потом спадает.
+const BLEED_HOLD := 2.0
+const BLEED_FADE := 20.0
 const OFF_BALANCE_COLOR := Color(1.0, 0.85, 0.2)
 const HEAD_SLIDE_SPEED := 5.0
 ## Страховка: если добивание так и не пришло, враг освобождается сам.
@@ -61,6 +68,18 @@ const CRITICAL_TIMEOUT := 2.0
 @export var death_voice: StringName = &"enemy_death_voice"
 ## Сколько отзвуков прошлого остаётся после врага (летят к герою сами).
 @export var echoes := 30
+## Опыт мастерства за этого врага; сильнее враг — больше.
+@export var mastery_xp := 1.0
+## Чем он сражается: герой, побеждая его, понемногу учится этому оружию. Пусто — когти, тело, клыки.
+@export var weapon_type: StringName
+## Кровоточит ли: у стекла и механизмов крови нет.
+@export var can_bleed := true
+
+## Чьё оружие нанесло последний удар; пусто — не герой (ловушка, падение).
+var last_weapon: StringName
+## Накопленное кровотечение 0…100: полное — рывок крови и доля здоровья. Без ударов спадает.
+var bleed := 0.0
+var _bleed_delay := 0.0
 
 var state := State.PATROL
 var poise := 0.0
@@ -357,8 +376,12 @@ func apply_critical(damage: float, throw: Vector2, from_x: float) -> void:
 func _on_hurt(hitbox: Hitbox) -> void:
 	if state == State.DEAD:
 		return
+	last_weapon = hitbox.weapon_type
 	health.take_damage(hitbox.damage)
 	_flash = 0.12
+	if health.is_dead():
+		return
+	_add_bleed(hitbox.bleed)
 	if health.is_dead():
 		return
 	Sfx.play(&"enemy_hurt", global_position)
@@ -380,6 +403,20 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	elif state in [State.PATROL, State.INVESTIGATE]:
 		# Удар не сбил, но враг заметил героя.
 		_set_state(State.CHASE)
+
+
+## Копим кровотечение; полное вырывается: доля от всего здоровья, сильным врагам больнее.
+func _add_bleed(amount: float) -> void:
+	if amount <= 0.0 or not can_bleed:
+		return
+	_bleed_delay = BLEED_HOLD
+	bleed += amount
+	if bleed < BLEED_FULL:
+		return
+	bleed = 0.0
+	HitSpark.spawn(get_parent(), global_position + Vector3(0.0, 1.1, 0.3), BLEED_COLOR, 34)
+	Sfx.play(&"critical_pierce", global_position, -4.0)
+	health.take_damage(health.max_health * BLEED_BURST)
 
 
 func _on_died() -> void:
@@ -459,7 +496,11 @@ func _update_pose(delta: float) -> void:
 
 func _update_material(delta: float) -> void:
 	_flash = maxf(_flash - delta, 0.0)
-	var color := body_color
+	_bleed_delay = maxf(_bleed_delay - delta, 0.0)
+	if _bleed_delay <= 0.0:
+		bleed = maxf(bleed - BLEED_FADE * delta, 0.0)
+	# Копится кровотечение — тело темнеет кровью.
+	var color := body_color.lerp(BLEED_COLOR, bleed / BLEED_FULL * 0.7)
 	var glow := 0.0
 	if state == State.WINDUP:
 		var t := clampf(_state_time / windup_time, 0.0, 1.0)

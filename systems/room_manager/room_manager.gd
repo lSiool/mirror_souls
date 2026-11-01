@@ -189,6 +189,11 @@ func _on_player_died() -> void:
 ## Враг погиб: мир его запоминает, а отзвук летит к герою.
 func _on_enemy_killed(enemy: Dummy) -> void:
 	GameState.mark_killed(reality, current_room.get_path_to(enemy))
+	# Мастерство: полный опыт оружию героя, треть — оружию врага: побеждая копейщика, учишься копью.
+	var xp := enemy.mastery_xp * player.stats.mastery_rate()
+	GameState.add_mastery(enemy.last_weapon, xp)
+	if enemy.weapon_type != enemy.last_weapon:
+		GameState.add_mastery(enemy.weapon_type, xp / 3.0)
 	if enemy.echoes > 0:
 		EchoDrop.spawn(current_room, enemy.global_position + Vector3(0.0, 0.8, 0.0), enemy.echoes, player)
 

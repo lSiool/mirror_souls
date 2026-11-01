@@ -61,6 +61,7 @@ func _init() -> void:
 	_hitbox.collision_layer = 0
 	_hitbox.collision_mask = 0
 	_hitbox.knockback = 3.0
+	_hitbox.weapon_type = &"bow"
 	add_child(_hitbox)
 
 

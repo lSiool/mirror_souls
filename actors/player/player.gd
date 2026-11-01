@@ -13,7 +13,7 @@ signal flasks_changed(current: int, maximum: int)
 
 enum State {
 	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
-	LEDGE_HANG, LEDGE_CLIMB, DRINK,
+	LEDGE_HANG, LEDGE_CLIMB, DRINK, CHARGE,
 }
 
 const KILL_Y := -15.0
@@ -77,6 +77,9 @@ var _death_landed := false
 var _death_dir := 1.0
 var _shoot_buffer := 0.0
 var _heal_buffer := 0.0
+## Сколько ещё можно ответить контрударом после блока.
+var _counter_t := 0.0
+var _charge_ready := false
 ## Глотки лечебного зелья; пополняются при отдыхе у осколка.
 var flasks := 0
 var _sipped := false
@@ -168,6 +171,7 @@ func _physics_process(delta: float) -> void:
 		State.LEDGE_HANG: _ledge_hang_state(delta)
 		State.LEDGE_CLIMB: _ledge_climb_state(delta)
 		State.DRINK: _drink_state(delta)
+		State.CHARGE: _charge_state(delta)
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
@@ -197,6 +201,7 @@ func _tick(delta: float) -> void:
 	_ledge_cooldown = maxf(_ledge_cooldown - delta, 0.0)
 	_shoot_buffer = maxf(_shoot_buffer - delta, 0.0)
 	_heal_buffer = maxf(_heal_buffer - delta, 0.0)
+	_counter_t = maxf(_counter_t - delta, 0.0)
 	_since_slide += delta
 	_since_roll += delta
 	hurtbox.invulnerable = _iframes > 0.0 or state == State.DEAD
@@ -208,7 +213,7 @@ func _tick(delta: float) -> void:
 			_attack_buffer = stats.attack_buffer
 		if Input.is_action_just_pressed("roll"):
 			_roll_buffer = stats.input_buffer
-		if Input.is_action_just_pressed("block"):
+		if Input.is_action_just_pressed("block") and can_parry():
 			_parry_t = stats.parry_window
 		if Input.is_action_just_pressed("shoot"):
 			_shoot_buffer = stats.input_buffer
@@ -242,7 +247,7 @@ func _set_state(new_state: State) -> void:
 		sword_hitbox.active = false
 		if new_state != State.ATTACK:
 			arms.rest()
-	if state in [State.PLUNGE, State.BLOCK, State.GUARD_BROKEN, State.CRITICAL, State.LEDGE_HANG]:
+	if state in [State.PLUNGE, State.BLOCK, State.GUARD_BROKEN, State.CRITICAL, State.LEDGE_HANG, State.CHARGE]:
 		plunge_hitbox.active = false
 		arms.rest()
 	if state == State.BOW:
@@ -384,33 +389,41 @@ func _roll_state(delta: float) -> void:
 func _start_attack() -> void:
 	if stamina <= 0.0 or weapon == null or weapon.combo.is_empty():
 		return
+	var series := _series()
 	var x := _input_x()
 	if x != 0.0 and state != State.SLIDE:
 		facing = signf(x)
 	if _try_critical():
 		return
-	if state == State.ATTACK:
-		var chaining := _combo > 0 and _combo < weapon.combo.size()
+	if _counter_t > 0.0 and weapon.counter:
+		_counter_t = 0.0
+		_begin_attack(weapon.counter, 0)
+	elif state == State.ATTACK:
+		var chaining := _combo > 0 and _combo < series.size()
 		var index := _combo + 1 if chaining else 1
-		_begin_attack(weapon.combo[index - 1], index)
+		_begin_attack(series[index - 1], index)
 	elif weapon.slide_attack and (state == State.SLIDE or _since_slide < stats.slide_attack_window):
 		_begin_attack(weapon.slide_attack, 0)
 	elif weapon.roll_attack and _since_roll < stats.roll_attack_window:
 		_begin_attack(weapon.roll_attack, 0)
+	elif weapon.air_attack and not is_on_floor() and _mastery_step() >= WeaponData.STEP_AIR:
+		_begin_attack(weapon.air_attack, 0)
 	else:
-		_begin_attack(weapon.combo[0], 1)
+		_begin_attack(series[0], 1)
 
 
 ## index — номер стадии комбо; 0 — особый удар, после него комбо начинается заново.
 func _begin_attack(step: AttackStep, index: int) -> void:
 	_attack_buffer = 0.0
-	_spend_stamina(stats.attack_cost)
+	_spend_stamina(stats.attack_cost * step.stamina_mult)
 	_combo = index
 	_step = step
 	# Импульс переходит в удар: первый удар на высокой скорости тяжелее.
 	_fast_attack = index <= 1 and absf(velocity.x) > stats.move_speed * 1.2
 	var bonus := 1.3 if _fast_attack else 1.0
-	sword_hitbox.damage = stats.sword_damage * step.damage_multiplier * bonus
+	sword_hitbox.damage = _blade_damage() * step.damage_multiplier * bonus
+	sword_hitbox.weapon_type = weapon.type
+	sword_hitbox.bleed = _bleed_of(step.damage_multiplier)
 	sword_hitbox.poise_damage = step.poise_damage * bonus
 	sword_hitbox.heavy = step.heavy or _fast_attack
 	sword_hitbox.knockback = maxf(step.knockback, 8.0 if _fast_attack else 0.0)
@@ -419,7 +432,7 @@ func _begin_attack(step: AttackStep, index: int) -> void:
 	_set_state(State.ATTACK)
 	arms.swing(step)
 	Sfx.play(step.swing_sound, global_position)
-	attack_step_started.emit(step, index, weapon.combo.size())
+	attack_step_started.emit(step, index, _series().size())
 
 
 func _attack_state(delta: float) -> void:
@@ -434,14 +447,20 @@ func _attack_state(delta: float) -> void:
 		var decel := stats.momentum_decay * 2.0 if on_floor else stats.air_acceleration * 0.5
 		velocity.x = move_toward(velocity.x, lunge, decel * delta)
 		_apply_gravity(delta)
+		if t < _step.air_hover and velocity.y < 0.0:
+			velocity.y = 0.0
 	if t >= _step.chain_from:
 		if _roll_buffer > 0.0 and on_floor:
 			_start_roll()
 			return
-		if _attack_buffer > 0.0 and _combo < weapon.combo.size():
+		if _attack_buffer > 0.0 and _combo < _series().size():
 			_start_attack()
 			return
 	if t >= _step.duration:
+		# Удар всё ещё держат — заряд. Лёгкий удар не ждёт: сначала взмах, заряд после него.
+		if on_floor and weapon.charged and _step != weapon.charged and Input.is_action_pressed("attack"):
+			_start_charge()
+			return
 		_set_state(State.SLIDE if _floor_glass_normal != Vector3.ZERO else State.MOVE)
 
 
@@ -450,7 +469,9 @@ func _start_plunge() -> void:
 		return
 	_attack_buffer = 0.0
 	_spend_stamina(stats.attack_cost)
-	plunge_hitbox.damage = stats.sword_damage * 1.5
+	plunge_hitbox.damage = _blade_damage() * 1.5
+	plunge_hitbox.weapon_type = weapon.type if weapon else &""
+	plunge_hitbox.bleed = _bleed_of(1.5)
 	plunge_hitbox.poise_damage = 45.0
 	plunge_hitbox.heavy = true
 	_plunge_landed_at = -1.0
@@ -696,7 +717,8 @@ func _critical_state(delta: float) -> void:
 			_critical_spark(1.0)
 			Sfx.play(&"critical_release", global_position)
 		if is_instance_valid(_critical_target):
-			_critical_target.apply_critical(stats.sword_damage * _step.damage_multiplier,
+			_critical_target.last_weapon = weapon.type
+			_critical_target.apply_critical(_blade_damage() * _step.damage_multiplier,
 				_step.victim_throw, global_position.x)
 	if _state_time >= _step.duration:
 		_set_state(State.MOVE)
@@ -708,6 +730,61 @@ func _critical_spark(strength: float) -> void:
 	if is_instance_valid(_critical_target):
 		var at := _critical_target.global_position + Vector3(0.0, 1.1 + _step.victim_lift, 0.3)
 		HitSpark.spawn(get_parent(), at, Color(1.0, 0.45, 0.3), int(32 * strength))
+
+
+# --- Оружие: мастерство и заряд ---------------------------------------------
+
+func _mastery_step() -> int:
+	return GameState.mastery_step(weapon.type) if weapon else 0
+
+
+## Без щита парирует только оружие, которым герой овладел до второй ступени; до этого — блок.
+func can_parry() -> bool:
+	return _mastery_step() >= WeaponData.STEP_PARRY
+
+
+func _series() -> Array[AttackStep]:
+	return weapon.combo_at(_mastery_step())
+
+
+## Урон клинка: возраст, сила и грани (PlayerStats) и закалённое стекло в этом оружии.
+func _blade_damage() -> float:
+	return stats.sword_damage * (GameState.glass_damage_mult(weapon.id) if weapon else 1.0)
+
+
+## Кровотечение удара: только у мастера, сильнее удар — больше.
+func _bleed_of(power: float) -> float:
+	if weapon == null or _mastery_step() < WeaponData.STEP_SPECIAL:
+		return 0.0
+	return weapon.bleed_buildup * power
+
+
+func _start_charge() -> void:
+	_charge_ready = false
+	_set_state(State.CHARGE)
+	arms.charge_pose()
+
+
+## Заряд: герой идёт шагом, клинок отведён. Полный — вспышка; отпустил полный — заряженный удар,
+## раньше — просто опустил клинок.
+func _charge_state(delta: float) -> void:
+	var x := _input_x()
+	if x != 0.0:
+		facing = signf(x)
+	var accel := stats.acceleration if is_on_floor() else stats.air_acceleration
+	velocity.x = move_toward(velocity.x, x * stats.move_speed * stats.charge_move_mult, accel * delta)
+	_apply_gravity(delta)
+	if not _charge_ready and _state_time >= stats.charge_time:
+		_charge_ready = true
+		body.flash(Color(1.0, 0.85, 0.5))
+		Sfx.play(&"glass_glint", global_position, -8.0)
+	if _roll_buffer > 0.0 and is_on_floor():
+		_start_roll()
+	elif not Input.is_action_pressed("attack"):
+		if _charge_ready and stamina > 0.0:
+			_begin_attack(weapon.charged, 0)
+		else:
+			_set_state(State.MOVE)
 
 
 # --- Зелье ------------------------------------------------------------------
@@ -1016,6 +1093,8 @@ func _on_block(hitbox: Hitbox) -> void:
 	Sfx.play(&"sword_block", at, 0.0 if stamina >= cost else 4.0)
 	if stamina >= cost:
 		_spend_stamina(cost)
+		if _mastery_step() >= WeaponData.STEP_COUNTER:
+			_counter_t = stats.counter_window
 		velocity.x = -facing * 3.0
 		HitStop.stop(0.05)
 		body.flash(Color(0.6, 0.8, 1.0))

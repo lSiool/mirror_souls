@@ -8,7 +8,7 @@ extends Control
 const DEATH_LABEL_DELAY := 0.95
 ## Тон под надписью звучит без места в мире — убавлен до уровня звуков комнаты.
 const DEATH_STING_DB := -9.0
-const ITEM_NAMES := {&"clear_glass": "чистое стекло", &"facet_slot": "слот для граней"}
+const ITEM_NAMES := {&"clear_glass": "чистое стекло", &"facet_slot": "слот для граней", &"tempered_glass": "закалённое стекло"}
 
 @export var player_path: NodePath
 
@@ -37,6 +37,7 @@ func _ready() -> void:
 	Events.interact_prompt_changed.connect(_on_prompt_changed)
 	Events.player_died.connect(_on_player_died)
 	Events.item_found.connect(_on_item_found)
+	Events.mastery_step_reached.connect(_on_mastery_step)
 	death_label.visible = false
 	prompt_label.text = ""
 	fade.color.a = 1.0
@@ -84,11 +85,22 @@ func _on_echoes_changed(total: int) -> void:
 		tween.tween_property(currency_label, "scale", Vector2.ONE, 0.2)
 
 
+## Новая ступень мастерства оружия в руке.
+func _on_mastery_step(type: StringName, step: int) -> void:
+	var weapon := _player.weapon
+	if weapon and weapon.type == type and step <= weapon.step_names.size():
+		_toast("Мастерство: %s" % weapon.step_names[step - 1])
+
+
 ## Найден редкий предмет: название появляется над подсказкой и гаснет.
 func _on_item_found(id: StringName) -> void:
-	var label := Label.new()
 	var facet := Facet.by_id(id)
-	label.text = "Найдено: %s" % (facet.display_name if facet else ITEM_NAMES.get(id, String(id)))
+	_toast("Найдено: %s" % (facet.display_name if facet else ITEM_NAMES.get(id, String(id))))
+
+
+func _toast(text: String) -> void:
+	var label := Label.new()
+	label.text = text
 	label.modulate = Color(0.72, 0.86, 1.0)
 	label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 170)
 	label.grow_horizontal = Control.GROW_DIRECTION_BOTH

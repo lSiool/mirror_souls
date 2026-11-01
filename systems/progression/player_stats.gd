@@ -154,6 +154,11 @@ const BASE_FACET_SLOTS := 3
 @export var aim_down_angle := 30.0
 
 @export_group("Особые удары")
+## Сколько секунд держать удар после взмаха, чтобы зарядить.
+@export var charge_time := 0.55
+@export var charge_move_mult := 0.3
+## Сколько после принятого на блок удара можно ответить контрударом.
+@export var counter_window := 0.45
 @export var riposte_range := 1.8
 @export var backstab_range := 1.6
 ## Сколько после выхода из скольжения ещё срабатывает удар из скольжения.
@@ -278,6 +283,11 @@ func toggle_facet(facet: Facet, total: int) -> bool:
 		return false
 	emit_changed()
 	return true
+
+
+## Опыт мастерства за убийство растёт с уровнем героя: взрослому отдача больше (§8.6).
+func mastery_rate() -> float:
+	return 1.0 + level / 60.0
 
 
 ## Вернуть героя к началу: для отладки и тестов.

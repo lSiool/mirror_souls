@@ -4,8 +4,8 @@ extends Interactable
 ## мир постоянен (§8.5).
 
 @export var reward := 50
-## Редкий предмет в сундуке (GameState.add_item); пусто — только отзвуки.
-@export var item: StringName
+## Редкие предметы в сундуке (GameState.add_item); пусто — только отзвуки.
+@export var items: Array[StringName] = []
 ## Уникальный флаг мира. Пусто — сундук закрывается снова при перезагрузке комнаты.
 @export var flag_id: StringName
 
@@ -28,7 +28,7 @@ func interact(_by: Player) -> void:
 	Sfx.play(&"chest_open", global_position)
 	Sfx.play(&"chest_loot", global_position, -4.0)
 	GameState.add_echoes(reward)
-	if item != &"":
+	for item in items:
 		GameState.add_item(item)
 	if flag_id != &"":
 		GameState.set_flag(flag_id)

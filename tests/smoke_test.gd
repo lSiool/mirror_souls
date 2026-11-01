@@ -354,6 +354,124 @@ func run() -> void:
 	stats.reset_progress()
 	check(is_equal_approx(player.health.max_health, stats.base_health), "сняли — здоровье как было")
 	player.restore()
+
+	print("== Мастерство оружия")
+	game_state.mastery.clear()
+	check(not player.can_parry() and player.weapon.combo_at(game_state.mastery_step(&"sword")).size() == 3,
+		"новичок: блок без парирования, серия из трёх")
+	await tap("block")
+	check(player._parry_t == 0.0, "блок нажат — окна парирования нет")
+	var kills := 0
+	while game_state.mastery_step(&"sword") < 1 and kills < 200:
+		game_state.add_mastery(&"sword", 1.0)
+		kills += 1
+	check(kills == 50 and player.weapon.combo_at(1).size() == 4, "первая ступень за 50 врагов: четвёртый удар")
+	game_state.mastery.clear()
+	kills = 0
+	while game_state.mastery_step(&"sword") < 1 and kills < 200:
+		game_state.add_mastery(&"sword", 1000.0)
+		kills += 1
+	check(kills == 15, "даже сильные враги: не меньше 15 убийств на ступень (%d)" % kills)
+	game_state.mastery.clear()
+	stats.level = 60
+	check(is_equal_approx(stats.mastery_rate(), 2.0), "взрослому опыт идёт вдвое быстрее")
+	stats.level = 0
+	var spearman := room_node("Objects/Soldier") as Dummy
+	spearman.weapon_type = &"spear"
+	spearman.last_weapon = &"bow"
+	spearman.health.take_damage(INF)
+	await frames(2)
+	check(is_equal_approx(game_state.mastery_xp(&"bow"), 1.0) and is_equal_approx(game_state.mastery_xp(&"spear"), 1.0 / 3.0),
+		"убит копейщик стрелой: лук +1, копьё +⅓ (%.2f, %.2f)" % [game_state.mastery_xp(&"bow"), game_state.mastery_xp(&"spear")])
+	await seconds(1.8)
+	rooms._rest()
+	await seconds(1.0)
+	game_state.mastery.clear()
+	game_state.mastery[&"sword"] = 1000.0
+	check(player.can_parry() and player.weapon.combo_at(5).size() == 4, "мастер: парирование, серия из четырёх")
+
+	print("== Четвёртый удар и кровотечение")
+	var bleeder := room_node("Objects/Soldier") as Dummy
+	bleeder.health.max_health = 300.0
+	bleeder.health.heal_full()
+	bleeder.detect_range = 0.0
+	bleeder.patrol_speed = 0.0
+	player.restore()
+	await face_enemy(bleeder, 1.2)
+	steps_seen.clear()
+	for i in 4:
+		await tap("attack")
+		# Следующий удар — как только открылось окно продолжения серии.
+		while player.state == Player.State.ATTACK and player._state_time < player._step.chain_from:
+			await frames(1)
+	await seconds(0.5)
+	check(steps_seen == [1, 2, 3, 4], "серия мастера: четыре удара подряд (%s)" % str(steps_seen))
+	check(bleeder.bleed > 0.0 or bleeder.health.current < 300.0 * 0.8, "удары мастера копят кровотечение (%.0f)" % bleeder.bleed)
+	await seconds(0.6)
+	var hit := Hitbox.new()
+	add_child(hit)
+	hit.damage = 0.0
+	hit.bleed = 100.0
+	var hp_bleed := bleeder.health.current
+	bleeder._on_hurt(hit)
+	check(is_equal_approx(hp_bleed - bleeder.health.current, 60.0) and bleeder.bleed == 0.0, "кровотечение вырвалось: минус 20 %% здоровья (%.0f)" % (hp_bleed - bleeder.health.current))
+	bleeder._add_bleed(50.0)
+	bleeder._bleed_delay = 0.0
+	await seconds(0.5)
+	check(bleeder.bleed < 50.0, "без ударов кровотечение спадает (%.0f)" % bleeder.bleed)
+	game_state.mastery[&"sword"] = 170.0
+	await tap("attack")
+	check(player.sword_hitbox.bleed == 0.0, "до последней ступени кровотечения нет")
+	game_state.mastery[&"sword"] = 1000.0
+	hit.free()
+	await seconds(0.6)
+	rooms._rest()
+	await seconds(1.0)
+	print("== Заряженный удар")
+	await put(Vector3(-16.0, 0.1, 0))
+	await seconds(0.2)
+	var stamina_full := player.stamina
+	press("attack")
+	await seconds(0.55)
+	check(player.state == Player.State.CHARGE, "держит удар — заряд после взмаха")
+	await seconds(0.65)
+	check(player._charge_ready, "заряд полон")
+	release("attack")
+	await frames(3)
+	check(player._step == player.weapon.charged and player.state == Player.State.ATTACK, "отпустил — заряженный удар")
+	check(player.stamina < stamina_full, "заряженный стоит выносливости")
+	await seconds(0.9)
+	press("attack")
+	await seconds(0.45)
+	release("attack")
+	await frames(3)
+	check(player.state != Player.State.ATTACK or player._step != player.weapon.charged, "отпустил раньше — заряженного нет")
+	await seconds(0.5)
+	print("== Удар в прыжке и контрудар")
+	press("jump")
+	await seconds(0.2)
+	release("jump")
+	await tap("attack")
+	check(player._step == player.weapon.air_attack, "в прыжке — рез в прыжке")
+	await seconds(1.0)
+	player._counter_t = 0.3
+	await tap("attack")
+	check(player._step == player.weapon.counter, "после блока — контрудар")
+	await seconds(0.6)
+	print("== Закалённое стекло")
+	game_state.add_echoes(100 - game_state.echoes)
+	game_state.items.erase(&"tempered_glass")
+	check(not game_state.temper(&"sword"), "без материала не закалить")
+	game_state.add_item(&"tempered_glass")
+	check(game_state.temper(&"sword") and game_state.glass_level(&"sword") == 1 and game_state.echoes == 0,
+		"закалка +1 за стекло и отзвуки")
+	check(is_equal_approx(player._blade_damage(), stats.sword_damage * 1.12), "урон клинка +12 %")
+	game_state.weapon_glass.clear()
+	game_state.items.erase(&"tempered_glass")
+	# Дальше проверяем старые механики: парирование открыто, серия как у новичка не важна.
+	game_state.mastery.clear()
+	game_state.mastery[&"sword"] = 160.0
+	player.restore()
 	check(player.flasks == player.stats.flask_charges, "отдых пополнил зелье (%d)" % player.flasks)
 	var chest_flags: Dictionary = game_state.flags.duplicate()
 

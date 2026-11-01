@@ -173,22 +173,24 @@ position = Vector3(-18.5, 0, 0)
 [node name="Chest" parent="Objects" groups=["normal_only"] instance=ExtResource("7_chest")]
 position = Vector3(20.5, 0, -1.6)
 reward = 50
-item = &"facet_blood"
+items = Array[StringName]([&"facet_blood"])
 flag_id = &"room_001_chest"
 
 [node name="MirrorChest" parent="Objects" groups=["mirror_only"] instance=ExtResource("7_chest")]
 position = Vector3(-10.5, 8.5, 0)
 reward = 150
-item = &"facet_slot"
+items = Array[StringName]([&"facet_slot", &"tempered_glass"])
 flag_id = &"room_001_mirror_chest"
 
 [node name="Soldier" parent="Objects" groups=["normal_only"] instance=ExtResource("8_dummy")]
+weapon_type = &"sword"
 position = Vector3(0, 0, 0)
 patrol_distance = 3.0
 max_poise = 50.0
 turn_time = 0.4
 
 [node name="MirrorSoldier" parent="Objects" groups=["mirror_only"] instance=ExtResource("8_dummy")]
+weapon_type = &"sword"
 position = Vector3(6, 0, 0)
 patrol_distance = 1.5
 windup_time = 0.8
@@ -205,7 +207,7 @@ source_glass = NodePath("../../Glass/NicheGlassMurky")
 [node name="SecretChest" parent="Objects" groups=["normal_only"] instance=ExtResource("7_chest")]
 position = Vector3(20.1, 3.6, 0)
 reward = 80
-item = &"clear_glass"
+items = Array[StringName]([&"clear_glass", &"tempered_glass"])
 flag_id = &"room_001_secret_chest"
 
 [node name="Chandelier" type="Node3D" parent="Objects"]

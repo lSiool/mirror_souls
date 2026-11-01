@@ -4,11 +4,15 @@ extends Control
 ## рядом всегда видно, что возраст заберёт у тела: цена силы — лёгкость молодости.
 ## Чистое стекло освобождает очки: возраст при этом не меняется.
 ## Вторая страница — грани: надеть, снять, сколько слотов занято.
+## Третья — оружие: закалка стеклом качает урон, мастерство типа растёт в бою и открывает приёмы.
 
 signal closed
 
 const CLEAR_GLASS: StringName = &"clear_glass"
 const FACET_SLOT: StringName = &"facet_slot"
+const TYPE_NAMES := {&"sword": "Меч", &"bow": "Лук", &"spear": "Копьё", &"axe": "Топор", &"hammer": "Молот"}
+
+enum Page { LEVEL, FACETS, WEAPON }
 const PARAMS := {
 	PlayerStats.Param.HEALTH: "Здоровье",
 	PlayerStats.Param.STAMINA: "Выносливость",
@@ -34,7 +38,12 @@ var _facet_page: VBoxContainer
 var _slots_label: Label
 var _facet_list: VBoxContainer
 var _facet_text: Label
-var _on_facets := false
+var _page := Page.LEVEL
+var _weapon_tab: Button
+var _weapon_page: VBoxContainer
+var _temper: Button
+var _glass_label: Label
+var _mastery_label: Label
 
 
 func _ready() -> void:
@@ -63,8 +72,9 @@ func _ready() -> void:
 	column.add_child(title)
 	var tabs := HBoxContainer.new()
 	column.add_child(tabs)
-	_level_tab = _tab(tabs, "Уровень", false)
-	_facet_tab = _tab(tabs, "Грани", true)
+	_level_tab = _tab(tabs, "Уровень", Page.LEVEL)
+	_facet_tab = _tab(tabs, "Грани", Page.FACETS)
+	_weapon_tab = _tab(tabs, "Оружие", Page.WEAPON)
 	_level_page = VBoxContainer.new()
 	_level_page.add_theme_constant_override("separation", 10)
 	column.add_child(_level_page)
@@ -98,6 +108,16 @@ func _ready() -> void:
 	_facet_text.modulate = Color(1.0, 1.0, 1.0, 0.7)
 	_facet_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_facet_text.custom_minimum_size.y = 48
+	_weapon_page = VBoxContainer.new()
+	_weapon_page.add_theme_constant_override("separation", 10)
+	column.add_child(_weapon_page)
+	_glass_label = _line(_weapon_page)
+	_temper = Button.new()
+	_temper.custom_minimum_size.y = 40
+	_temper.pressed.connect(temper)
+	_weapon_page.add_child(_temper)
+	_weapon_page.add_child(HSeparator.new())
+	_mastery_label = _line(_weapon_page)
 	_leave = Button.new()
 	_leave.text = "Отойти"
 	_leave.custom_minimum_size.y = 36
@@ -114,7 +134,7 @@ func open(player: Player, parent: Node3D) -> void:
 	player.hurtbox.invulnerable = true
 	reflection = ShardReflection.spawn(parent, player)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_on_facets = false
+	_page = Page.LEVEL
 	(get_parent() as Hud).prompt_label.visible = false
 	_refresh()
 	_focus_first()
@@ -180,11 +200,48 @@ func use_clear_glass() -> void:
 	_focus_first()
 
 
-## Страница граней или уровня.
-func show_page(facets: bool) -> void:
-	_on_facets = facets
+func show_page(page: Page) -> void:
+	_page = page
 	_refresh()
 	_focus_first()
+
+
+## Закалить оружие в руке.
+func temper() -> void:
+	if GameState.temper(_player.weapon.id):
+		Sfx.play(&"glass_glint", _player.global_position, -6.0)
+	_refresh()
+	_focus_first()
+
+
+func _refresh_weapon() -> void:
+	var weapon := _player.weapon
+	var level := GameState.glass_level(weapon.id)
+	var damage := _player.stats.sword_damage * GameState.glass_damage_mult(weapon.id)
+	_glass_label.text = "%s · закалка +%d · урон %.1f\nЗакалённое стекло: %d · отзвуки: %d" % [weapon.display_name, level, damage, GameState.item_count(GameState.GLASS_ITEM), GameState.echoes]
+	if level >= GameState.GLASS_MATERIAL.size():
+		_temper.text = "Закалка завершена"
+		_temper.disabled = true
+	else:
+		_temper.text = "Закалить: +%d, стекла %d, отзвуков %d" % [level + 1, GameState.GLASS_MATERIAL[level], GameState.GLASS_ECHOES[level]]
+		_temper.disabled = GameState.item_count(GameState.GLASS_ITEM) < GameState.GLASS_MATERIAL[level] or GameState.echoes < GameState.GLASS_ECHOES[level]
+	var step := GameState.mastery_step(weapon.type)
+	var lines: Array[String] = ["Заряженный удар и блок — сразу. Мастерство растёт в бою:"]
+	for i in weapon.step_names.size():
+		lines.append("%s %d. %s" % ["◆" if i < step else "◇", i + 1, weapon.step_names[i]])
+	lines.append("")
+	for type: StringName in TYPE_NAMES:
+		if GameState.mastery_xp(type) > 0.0 or type == weapon.type:
+			lines.append(_mastery_line(type))
+	_mastery_label.text = "\n".join(lines)
+
+
+func _mastery_line(type: StringName) -> String:
+	var progress := GameState.mastery_progress(type)
+	var step := GameState.mastery_step(type)
+	if progress == Vector2.ZERO:
+		return "%s: ступень %d — мастер" % [TYPE_NAMES[type], step]
+	return "%s: ступень %d, до следующей %.0f из %.0f" % [TYPE_NAMES[type], step, progress.x, progress.y]
 
 
 ## Слотов всего: стартовые и найденные.
@@ -241,13 +298,18 @@ func _focus_facet(facet: Facet) -> void:
 
 
 func _refresh() -> void:
-	_level_page.visible = not _on_facets
-	_facet_page.visible = _on_facets
-	_level_tab.disabled = not _on_facets or _animating
-	_facet_tab.disabled = _on_facets or _animating
-	if _on_facets:
+	_level_page.visible = _page == Page.LEVEL
+	_facet_page.visible = _page == Page.FACETS
+	_weapon_page.visible = _page == Page.WEAPON
+	_level_tab.disabled = _page == Page.LEVEL or _animating
+	_facet_tab.disabled = _page == Page.FACETS or _animating
+	_weapon_tab.disabled = _page == Page.WEAPON or _animating
+	_leave.disabled = _animating
+	if _page == Page.FACETS:
 		_refresh_facets()
-		_leave.disabled = _animating
+		return
+	if _page == Page.WEAPON:
+		_refresh_weapon()
 		return
 	var stats := _player.stats
 	var free := stats.unspent > 0
@@ -314,7 +376,13 @@ func _age_text(age: float) -> String:
 
 
 func _focus_first() -> void:
-	if _on_facets:
+	if _page == Page.WEAPON:
+		if _temper.disabled:
+			_leave.grab_focus()
+		else:
+			_temper.grab_focus()
+		return
+	if _page == Page.FACETS:
 		var first := _facet_list.get_child(0) as Button if _facet_list.get_child_count() > 0 else null
 		if first and not first.disabled:
 			first.grab_focus()
@@ -330,12 +398,12 @@ func _focus_first() -> void:
 	_leave.grab_focus()
 
 
-func _tab(parent: Control, text: String, facets: bool) -> Button:
+func _tab(parent: Control, text: String, page: Page) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.custom_minimum_size.y = 34
-	button.pressed.connect(show_page.bind(facets))
+	button.pressed.connect(show_page.bind(page))
 	parent.add_child(button)
 	return button
 

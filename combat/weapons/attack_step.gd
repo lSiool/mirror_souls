@@ -25,6 +25,10 @@ extends Resource
 @export var hit_sound: StringName = &"sword_hit"
 ## Свист взмаха этой стадии: режущие — sword_swing, колющий выпад — свой.
 @export var swing_sound: StringName = &"sword_swing"
+## Во сколько раз дороже обычного удара по выносливости; 0 — бесплатно.
+@export var stamina_mult := 1.0
+## Удар в воздухе: столько секунд герой не падает, зависая на взмахе.
+@export var air_hover := 0.0
 
 @export_group("Поза клинка")
 @export var blade_from := 0.9

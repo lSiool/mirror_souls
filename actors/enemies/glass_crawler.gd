@@ -59,6 +59,9 @@ func _ready() -> void:
 	death_voice = &""
 	# Мелкий враг — и отзвук мельче.
 	echoes = 15
+	mastery_xp = 0.6
+	# Желе из стекла: крови нет.
+	can_bleed = false
 	super()
 	side_left.material_override = _material
 	side_right.material_override = _material
@@ -201,6 +204,7 @@ func _drop(shot: bool) -> void:
 
 func _on_hurt(hitbox: Hitbox) -> void:
 	if _hanging:
+		last_weapon = hitbox.weapon_type
 		health.take_damage(hitbox.damage)
 		_drop(true)
 		return

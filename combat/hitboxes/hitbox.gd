@@ -10,6 +10,10 @@ signal hit_landed(hurtbox: Hurtbox)
 @export var knockback := 6.0
 @export var heavy := false
 @export var non_lethal := false
+## Чьё это оружие: убийство этим ударом идёт в его мастерство. Пусто — не оружие героя (ловушка).
+var weapon_type: StringName
+## Сколько кровотечения копит удар в цели (Dummy.bleed); 0 — не копит.
+var bleed := 0.0
 @export var active := false:
 	set(value):
 		if value and not active:

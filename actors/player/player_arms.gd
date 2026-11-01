@@ -38,6 +38,13 @@ func swing(step: AttackStep) -> void:
 			.set_delay(step.active_from).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
+## Заряд: клинок отведён назад, вдоль плеча.
+func charge_pose() -> void:
+	kill()
+	sword_pivot.rotation = Vector3(0.0, 0.0, 1.9)
+	sword_pivot.position = _grip(Vector2(-0.35, 0.05))
+
+
 ## Плавно перевести клинок в позу (фазы добивания).
 func tween_blade(blade: float, grip: Vector2, time: float, trans: Tween.TransitionType) -> void:
 	kill()
