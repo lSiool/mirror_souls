@@ -110,6 +110,12 @@ func _setup_picture() -> void:
 ## Начать игру: новую — со стартовой комнаты, или с места из сохранения.
 func _begin(resume: bool) -> void:
 	var extra := GameState.load_game() if resume else {}
+	# Сохранение из старой версии, где комнаты уже нет, — начать заново, а не упасть.
+	if not extra.is_empty() and not ResourceLoader.exists(ROOM_PATH % extra["room"]):
+		extra = {}
+	if not ResourceLoader.exists(ROOM_PATH % GameState.checkpoint_room):
+		GameState.checkpoint_room = start_room
+		GameState.checkpoint_path = ^"Spawns/PlayerStart"
 	if extra.is_empty():
 		GameState.checkpoint_room = start_room
 		player.equip(GameState.weapon_id)
