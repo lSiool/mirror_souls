@@ -17,8 +17,32 @@ MATS = {
 GLOW = {"window": ((1.0, 0.6, 0.25), 2.6), "fire": ((1.0, 0.45, 0.12), 4.0), "moonpane": ((0.45, 0.6, 0.85), 1.1),
         "candle": ((1.0, 0.7, 0.35), 3.0), "lantern": ((1.0, 0.68, 0.3), 5.0), "gas": ((0.45, 0.6, 0.25), 1.2),
         "ember": ((0.9, 0.35, 0.1), 1.6)}
-## Полупрозрачные слои тумана: цвет и непрозрачность.
-VEILS = {"fog_veil": ((0.6, 0.62, 0.68), 0.22), "fog_thick": ((0.55, 0.58, 0.62), 0.4)}
+## Полупрозрачные слои тумана: цвет и непрозрачность. Рисуются шейдером дымки: мягкие края, медленный шум.
+VEILS = {"fog_veil": ((0.42, 0.45, 0.5), 0.2), "fog_thick": ((0.4, 0.43, 0.48), 0.32)}
+MIST_SHADER = """shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.42, 0.45, 0.5, 0.2);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
+	return v;
+}
+void fragment() {
+	vec2 uv = UV;
+	float drift = fbm(vec2(uv.x * 6.0 + TIME * 0.03, uv.y * 2.5 - TIME * 0.01));
+	float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x) * smoothstep(0.0, 0.45, uv.y) * smoothstep(1.0, 0.55, uv.y);
+	ALBEDO = tint.rgb;
+	ALPHA = tint.a * edge * clamp(drift * 1.6 - 0.15, 0.0, 1.0);
+}
+"""
 
 EXT = {
     "room": ("Script", "res://world/rooms/room.gd"), "door": ("Script", "res://world/common/room_door.gd"),
@@ -247,8 +271,11 @@ class Scene:
                             f'emission = Color({c[0]}, {c[1]}, {c[2]}, 1)\nemission_energy_multiplier = {e}')
             else:
                 c, a = VEILS[name]
-                subs.append(f'[sub_resource type="StandardMaterial3D" id="Mat_{name}"]\ntransparency = 1\nshading_mode = 0\ncull_mode = 2\n'
-                            f'albedo_color = Color({c[0]}, {c[1]}, {c[2]}, {a})')
+                if "Shader_mist" not in "".join(subs):
+                    code = MIST_SHADER.replace("\\", "\\\\").replace('"', '\\"')
+                    subs.insert(0, f'[sub_resource type="Shader" id="Shader_mist"]\ncode = "{code}"')
+                subs.append(f'[sub_resource type="ShaderMaterial" id="Mat_{name}"]\nrender_priority = 0\nshader = SubResource("Shader_mist")\n'
+                            f'shader_parameter/tint = Color({c[0]}, {c[1]}, {c[2]}, {a})')
         subs.append(self.env_text("Env_room", self.env))
         subs += self.subs
         head = [f"[gd_scene load_steps={len(ext) + len(subs) + 1} format=3]"] + ext + subs

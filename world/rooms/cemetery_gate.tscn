@@ -1,4 +1,4 @@
-[gd_scene load_steps=42 format=3]
+[gd_scene load_steps=43 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -40,6 +40,32 @@
 
 [ext_resource type="PackedScene" path="res://actors/enemies/blacksmith.tscn" id="smith"]
 
+[sub_resource type="Shader" id="Shader_mist"]
+code = "shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.42, 0.45, 0.5, 0.2);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
+	return v;
+}
+void fragment() {
+	vec2 uv = UV;
+	float drift = fbm(vec2(uv.x * 6.0 + TIME * 0.03, uv.y * 2.5 - TIME * 0.01));
+	float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x) * smoothstep(0.0, 0.45, uv.y) * smoothstep(1.0, 0.55, uv.y);
+	ALBEDO = tint.rgb;
+	ALPHA = tint.a * edge * clamp(drift * 1.6 - 0.15, 0.0, 1.0);
+}
+"
+
 [sub_resource type="StandardMaterial3D" id="Mat_earth_dark"]
 albedo_color = Color(0.05, 0.045, 0.05, 1)
 roughness = 0.95
@@ -48,17 +74,15 @@ roughness = 0.95
 albedo_color = Color(0.07, 0.09, 0.11, 1)
 roughness = 0.95
 
-[sub_resource type="StandardMaterial3D" id="Mat_fog_thick"]
-transparency = 1
-shading_mode = 0
-cull_mode = 2
-albedo_color = Color(0.55, 0.58, 0.62, 0.4)
+[sub_resource type="ShaderMaterial" id="Mat_fog_thick"]
+render_priority = 0
+shader = SubResource("Shader_mist")
+shader_parameter/tint = Color(0.4, 0.43, 0.48, 0.32)
 
-[sub_resource type="StandardMaterial3D" id="Mat_fog_veil"]
-transparency = 1
-shading_mode = 0
-cull_mode = 2
-albedo_color = Color(0.6, 0.62, 0.68, 0.22)
+[sub_resource type="ShaderMaterial" id="Mat_fog_veil"]
+render_priority = 0
+shader = SubResource("Shader_mist")
+shader_parameter/tint = Color(0.42, 0.45, 0.5, 0.2)
 
 [sub_resource type="StandardMaterial3D" id="Mat_iron"]
 albedo_color = Color(0.09, 0.09, 0.1, 1)

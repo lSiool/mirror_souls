@@ -1,4 +1,4 @@
-[gd_scene load_steps=37 format=3]
+[gd_scene load_steps=38 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -40,6 +40,32 @@
 
 [ext_resource type="PackedScene" path="res://actors/enemies/blacksmith.tscn" id="smith"]
 
+[sub_resource type="Shader" id="Shader_mist"]
+code = "shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.42, 0.45, 0.5, 0.2);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
+	return v;
+}
+void fragment() {
+	vec2 uv = UV;
+	float drift = fbm(vec2(uv.x * 6.0 + TIME * 0.03, uv.y * 2.5 - TIME * 0.01));
+	float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x) * smoothstep(0.0, 0.45, uv.y) * smoothstep(1.0, 0.55, uv.y);
+	ALBEDO = tint.rgb;
+	ALPHA = tint.a * edge * clamp(drift * 1.6 - 0.15, 0.0, 1.0);
+}
+"
+
 [sub_resource type="StandardMaterial3D" id="Mat_bone"]
 albedo_color = Color(0.62, 0.58, 0.5, 1)
 roughness = 0.95
@@ -54,17 +80,15 @@ emission_energy_multiplier = 3.0
 albedo_color = Color(0.035, 0.03, 0.03, 1)
 roughness = 0.95
 
-[sub_resource type="StandardMaterial3D" id="Mat_fog_thick"]
-transparency = 1
-shading_mode = 0
-cull_mode = 2
-albedo_color = Color(0.55, 0.58, 0.62, 0.4)
+[sub_resource type="ShaderMaterial" id="Mat_fog_thick"]
+render_priority = 0
+shader = SubResource("Shader_mist")
+shader_parameter/tint = Color(0.4, 0.43, 0.48, 0.32)
 
-[sub_resource type="StandardMaterial3D" id="Mat_fog_veil"]
-transparency = 1
-shading_mode = 0
-cull_mode = 2
-albedo_color = Color(0.6, 0.62, 0.68, 0.22)
+[sub_resource type="ShaderMaterial" id="Mat_fog_veil"]
+render_priority = 0
+shader = SubResource("Shader_mist")
+shader_parameter/tint = Color(0.42, 0.45, 0.5, 0.2)
 
 [sub_resource type="StandardMaterial3D" id="Mat_lantern"]
 albedo_color = Color(1.0, 0.68, 0.3, 1)
@@ -176,20 +200,20 @@ size = Vector3(4.0, 0.8, 2.6)
 material = SubResource("Mat_root")
 
 [node name="RootBridgeA2" type="CSGBox3D" parent="Geometry"]
-position = Vector3(-7.0, 7.6, 0)
+position = Vector3(-6.7, 7.6, 0)
 use_collision = true
-size = Vector3(10.0, 0.8, 2.6)
+size = Vector3(10.6, 0.8, 2.6)
 material = SubResource("Mat_root")
 
 [node name="SawnRoot0" parent="Objects" instance=ExtResource("glass")]
-position = Vector3(-1.0, 7.75, 0)
-size = Vector3(2, 0.5, 2.6)
+position = Vector3(-0.7, 7.75, 0)
+size = Vector3(1.4, 0.5, 2.6)
 crumble_time = 0.45
 look = SubResource("Mat_rotten")
 
 [node name="SawnRoot1" parent="Objects" instance=ExtResource("glass")]
-position = Vector3(1.0, 7.75, 0)
-size = Vector3(2, 0.5, 2.6)
+position = Vector3(0.7, 7.75, 0)
+size = Vector3(1.4, 0.5, 2.6)
 crumble_time = 0.45
 look = SubResource("Mat_rotten")
 
@@ -199,15 +223,21 @@ size = Vector3(0.15, 0.5, 0.05)
 material = SubResource("Mat_char")
 
 [node name="RootBridgeB" type="CSGBox3D" parent="Geometry"]
-position = Vector3(10.0, 7.6, 0)
+position = Vector3(9.7, 7.6, 0)
 use_collision = true
-size = Vector3(16.0, 0.8, 2.6)
+size = Vector3(16.6, 0.8, 2.6)
 material = SubResource("Mat_root")
 
-[node name="RootLow" type="CSGBox3D" parent="Geometry"]
-position = Vector3(-2.0, 2.6, 0)
+[node name="RootLowA" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-9.95, 2.6, 0)
 use_collision = true
-size = Vector3(32.0, 0.8, 2.6)
+size = Vector3(16.1, 0.8, 2.6)
+material = SubResource("Mat_root")
+
+[node name="RootLowB" type="CSGBox3D" parent="Geometry"]
+position = Vector3(7.95, 2.6, 0)
+use_collision = true
+size = Vector3(12.1, 0.8, 2.6)
 material = SubResource("Mat_root")
 
 [node name="LowLadderA" type="Area3D" parent="Objects"]

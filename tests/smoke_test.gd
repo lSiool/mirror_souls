@@ -1801,7 +1801,7 @@ func run() -> void:
 	var hp_ravine := player.health.current
 	await put(Vector3(4.8, 6.0, 0), 1.0)
 	await seconds(2.4)
-	check(player.global_position.y < -15.0 and not player.is_dead() and player.health.current < hp_ravine * 0.6,
+	check(player.global_position.y < -11.0 and not player.is_dead() and player.health.current < hp_ravine * 0.8,
 		"сорвался в пропасть: огромный урон, но жив (%.0f → %.0f)" % [hp_ravine, player.health.current])
 	check(room_node("Objects/RavineLadder") != null, "со дна пропасти — лестница наверх")
 	await rooms.travel(&"root_maze", ^"Spawns/FromGiant")

@@ -196,10 +196,10 @@ def fallen_giant():
     s = Scene("FallenGiant", "fallen_giant", 60.0, FOREST, sun_energy=0.18)
     s.box(G, "GroundLeft", (-23.0, -9.0, 0), (14.0, 18.0, 4.4), "mud", True)
     s.box(G, "Cliff", (24.0, -7.0, 0), (12.0, 22.0, 4.4), "stone_dark", True)
-    s.box(G, "RavineFloor", (1.0, -20.0, 0), (34.0, 4.0, 4.4), "mud", True)
+    s.box(G, "RavineFloor", (1.0, -16.0, 0), (34.0, 4.0, 4.4), "mud", True)
     s.box(G, "WallLeft", (-30.5, 0.0, 0), (1.0, 44.0, 4.4), "stone_dark", True)
     s.box(G, "WallRight", (30.5, 0.0, 0), (1.0, 44.0, 4.4), "stone_dark", True)
-    s.box(D, "FarGround", (0.0, -20.0, -20.0), (100.0, 4.0, 35.6), "mud")
+    s.box(D, "FarGround", (0.0, -16.0, -20.0), (100.0, 4.0, 35.6), "mud")
     firs(s, -32, 32, -28.0)
     # Ствол: наклонный от края обрыва и ровный над пропастью.
     s.box(G, "TrunkSlope", (-7.0, 1.55, 0), (18.6, 1.2, 2.6), "bark", True, rot=(0, 0, 0.2))
@@ -238,16 +238,16 @@ def fallen_giant():
     s.hanging_cage(D, "Cage", -14.0, 7.5, -0.8)
     s.box(D, "CageBranch", (-14.0, 10.2, -0.8), (6.0, 0.3, 0.3), "bark", rot=(0, 0, 0.1))
     # Дно пропасти: туман, крысиное гнездо, колья и лестница наверх.
-    for i, y in enumerate((-4.0, -11.0)):
+    for i, y in enumerate((-3.0, -9.0)):
         s.veil(D, f"RavineFog{i}", (1.0, y, 0.8 if i else -1.2), (34.0, 5.0), "fog_veil")
-    s.ladder("RavineLadder", 17.4, -18.0, 22.0, -1.0)
-    s.ladder_look("Ravine", 17.4, -18.0, 22.0, "rope")
-    s.enemy("RatA", "rat", (-6.0, -18.0, 0))
-    s.enemy("RatB", "rat", (0.0, -18.0, 0))
-    s.enemy("RatC", "rat", (6.0, -18.0, 0))
-    s.instance("RavineSpikes", "Objects", "spikes", ["position = Vector3(10.0, -18.0, 0)", "width = 3.0", "trap_damage = 25.0", "non_lethal = true"])
+    s.ladder("RavineLadder", 17.4, -14.0, 18.0, -1.0)
+    s.ladder_look("Ravine", 17.4, -14.0, 18.0, "rope")
+    s.enemy("RatA", "rat", (-12.0, -14.0, 0))
+    s.enemy("RatB", "rat", (-8.0, -14.0, 0))
+    s.enemy("RatC", "rat", (-4.0, -14.0, 0))
+    s.instance("RavineSpikes", "Objects", "spikes", ["position = Vector3(12.0, -14.0, 0)", "width = 3.0", "trap_damage = 25.0", "non_lethal = true"])
     for i, x in enumerate((-10.0, -3.0, 3.0)):
-        s.box(D, f"Bones{i}", (x, -17.8, -1.0), (0.8, 0.2, 0.4), "bone")
+        s.box(D, f"Bones{i}", (x, -13.8, -1.0), (0.8, 0.2, 0.4), "bone")
     s.marker("FromWall", (-28.0, 0.1, 0))
     s.marker("FromMaze", (28.0, 4.1, 0))
     s.door("DoorToWall", -29.3, 0, "forest_wall", "Spawns/FromGiant", "Назад к стене леса")
@@ -265,15 +265,17 @@ def root_maze():
     s.box(G, "ExitRoots", (23.0, -1.0, 0), (10.0, 18.0, 4.4), "root", True)
     # Верх: мосты из корней с дырой для спуска и подрубленным участком.
     s.box(G, "RootBridgeA1", (-16.0, 7.6, 0), (4.0, 0.8, 2.6), "root", True)
-    s.box(G, "RootBridgeA2", (-7.0, 7.6, 0), (10.0, 0.8, 2.6), "root", True)
+    s.box(G, "RootBridgeA2", (-6.7, 7.6, 0), (10.6, 0.8, 2.6), "root", True)
     s.used.add("rotten")
-    for i, x in enumerate((-1.0, 1.0)):
-        s.instance(f"SawnRoot{i}", "Objects", "glass", [f"position = Vector3({x}, 7.75, 0)", "size = Vector3(2, 0.5, 2.6)",
+    for i, x in enumerate((-0.7, 0.7)):
+        s.instance(f"SawnRoot{i}", "Objects", "glass", [f"position = Vector3({x}, 7.75, 0)", "size = Vector3(1.4, 0.5, 2.6)",
                    "crumble_time = 0.45", 'look = SubResource("Mat_rotten")'])
     s.box(D, "SawMark", (0.0, 7.9, 1.32), (0.15, 0.5, 0.05), "char")
-    s.box(G, "RootBridgeB", (10.0, 7.6, 0), (16.0, 0.8, 2.6), "root", True)
-    # Низ: безопасная тропа по корням, тайник внутри расколотого корня.
-    s.box(G, "RootLow", (-2.0, 2.6, 0), (32.0, 0.8, 2.6), "root", True)
+    s.box(G, "RootBridgeB", (9.7, 7.6, 0), (16.6, 0.8, 2.6), "root", True)
+    # Низ: безопасная тропа по корням с разрывом под подрубленным местом (его перепрыгивают),
+    # тайник внутри расколотого корня.
+    s.box(G, "RootLowA", (-9.95, 2.6, 0), (16.1, 0.8, 2.6), "root", True)
+    s.box(G, "RootLowB", (7.95, 2.6, 0), (12.1, 0.8, 2.6), "root", True)
     s.ladder("LowLadderA", -13.0, 3.0, 5.0, 1.0)
     s.ladder_look("LowA", -13.0, 3.0, 5.0)
     s.ladder("LowLadderB", 15.0, 3.0, 5.0, 1.0)
