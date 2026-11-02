@@ -14,6 +14,8 @@ var _bow: Node3D
 var _nocked: Node3D
 ## Выпавшее при смерти оружие — копия в мире.
 var _dropped: Node3D
+## Есть ли что-то в руке: безоружный герой клинка не показывает.
+var armed := true
 
 
 func _init(visual: Node3D, sword: Node3D) -> void:
@@ -78,10 +80,29 @@ func guard_broken() -> void:
 	sword_pivot.rotation = Vector3(0.0, 0.0, 1.5)
 
 
+## Взять оружие в руку: заглушка клинка принимает его вид. null — руки пусты.
+func set_weapon(weapon: WeaponData) -> void:
+	armed = weapon != null
+	sword_pivot.visible = armed
+	if weapon == null:
+		return
+	var blade := sword_pivot.get_child(0) as MeshInstance3D
+	if blade == null:
+		return
+	blade.scale = weapon.look_scale
+	blade.position.y = 0.6 * weapon.look_scale.y
+	if weapon.look_color.a > 0.0:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = weapon.look_color
+		blade.material_override = mat
+	else:
+		blade.material_override = null
+
+
 ## На время стрельбы меч убран, в руке лук.
 func show_bow(on: bool) -> void:
 	_bow.visible = on
-	sword_pivot.visible = not on
+	sword_pivot.visible = armed and not on
 
 
 ## Натяжение 0…1 и угол прицела.
@@ -136,7 +157,7 @@ func restore_weapon() -> void:
 	if is_instance_valid(_dropped):
 		_dropped.queue_free()
 	_dropped = null
-	sword_pivot.visible = true
+	sword_pivot.visible = armed
 	rest()
 
 

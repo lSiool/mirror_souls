@@ -208,7 +208,7 @@ func show_page(page: Page) -> void:
 
 ## Закалить оружие в руке.
 func temper() -> void:
-	if GameState.temper(_player.weapon.id):
+	if _player.weapon and GameState.temper(_player.weapon.id):
 		Sfx.play(&"glass_glint", _player.global_position, -6.0)
 	_refresh()
 	_focus_first()
@@ -216,8 +216,13 @@ func temper() -> void:
 
 func _refresh_weapon() -> void:
 	var weapon := _player.weapon
+	_temper.visible = weapon != null
+	if weapon == null:
+		_glass_label.text = "В руках ничего нет."
+		_mastery_label.text = ""
+		return
 	var level := GameState.glass_level(weapon.id)
-	var damage := _player.stats.sword_damage * GameState.glass_damage_mult(weapon.id)
+	var damage := _player._blade_damage()
 	_glass_label.text = "%s · закалка +%d · урон %.1f\nЗакалённое стекло: %d · отзвуки: %d" % [weapon.display_name, level, damage, GameState.item_count(GameState.GLASS_ITEM), GameState.echoes]
 	if level >= GameState.GLASS_MATERIAL.size():
 		_temper.text = "Закалка завершена"

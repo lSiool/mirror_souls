@@ -154,6 +154,12 @@ func start_slide_from_ledge(dir: String, at: Vector3) -> void:
 
 func run() -> void:
 	main = load("res://main.tscn").instantiate()
+	# Тест идёт в комнате-прототипе, с мечом и луком и без записи на диск.
+	GameState.saves_enabled = false
+	GameState.weapon_id = &"sword"
+	GameState.set_flag(&"got_sword")
+	GameState.set_flag(&"has_bow")
+	main.get_node("RoomManager").start_room = &"room_001"
 	get_tree().root.add_child.call_deferred(main)
 	await get_tree().process_frame
 	player = main.get_node("Player")
@@ -1352,6 +1358,425 @@ func run() -> void:
 		await tap("interact")
 		await seconds(0.8)
 	check(game_state.echoes == 20 and game_state.hero_echo.is_empty(), "коснулся отзвука — отзвуки вернулись (%d)" % game_state.echoes)
+
+	print("== Сохранение")
+	var save_file := "user://smoke_test_save.sav"
+	game_state.save_path = save_file
+	game_state.saves_enabled = true
+	game_state.add_echoes(777 - game_state.echoes)
+	game_state.set_flag(&"save_probe")
+	player.stats.level = 8
+	player.stats.toggle_facet(Facet.by_id(&"facet_grip"), 3)
+	rooms.save_now()
+	game_state.add_echoes(-777)
+	game_state.flags.erase(&"save_probe")
+	player.stats.reset_progress()
+	var extra: Dictionary = game_state.load_game()
+	check(game_state.echoes == 777 and game_state.has_flag(&"save_probe"), "сохранение вернуло отзвуки и флаги мира")
+	player.stats.from_dict(extra.get("stats", {}))
+	check(player.stats.level == 8 and player.stats.facets.size() == 1, "сохранение вернуло уровень и грани")
+	check(extra.get("room") == rooms.current_room_id and extra.get("position") is Vector3, "сохранение помнит комнату и место")
+	player.stats.reset_progress()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_file))
+	check(not game_state.has_save(), "тестовое сохранение удалено")
+	game_state.saves_enabled = false
+
+	print("== Деревня: хижина")
+	player.restore()
+	game_state.flags.erase(&"intro_done")
+	game_state.set_flag(&"dream_seen")
+	player.equip(&"")
+	game_state.flags.erase(&"has_bow")
+	await rooms.travel(&"village_hut", ^"Spawns/PlayerStart")
+	await frames(3)
+	check(rooms.current_room_id == &"village_hut" and player.lying and player.frozen, "герой лежит на кровати")
+	await seconds(2.5)
+	check(not player.lying and not player.frozen, "проснулся и встал")
+	await tap("attack")
+	await tap("shoot")
+	check(player.state == Player.State.MOVE, "без оружия ни удара, ни лука")
+	await seconds(1.5)
+	await put(room_node("Spawns/FromStreet").global_position)
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"village_street", "дверь вывела на улицу")
+
+	print("== Деревня: смерть до первого осколка")
+	var saved_checkpoint := [game_state.checkpoint_room, game_state.checkpoint_reality, game_state.checkpoint_path]
+	game_state.checkpoint_room = &"village_hut"
+	game_state.checkpoint_reality = &"normal"
+	game_state.checkpoint_path = ^"Spawns/PlayerStart"
+	player.health.take_damage(INF)
+	for i in 600:
+		await frames(1)
+		if rooms.current_room_id == &"village_hut" and not player.is_dead() and not rooms._busy:
+			break
+	check(rooms.current_room_id == &"village_hut", "до осколка смерть возвращает в хижину")
+	check(absf(player.global_position.x - room_node("Spawns/PlayerStart").global_position.x) < 0.5, "герой снова у кровати")
+	check(not player.lying and not player.frozen, "заставка не повторяется")
+	game_state.checkpoint_room = saved_checkpoint[0]
+	game_state.checkpoint_reality = saved_checkpoint[1]
+	game_state.checkpoint_path = saved_checkpoint[2]
+	await rooms.travel(&"village_street", ^"Spawns/FromHut")
+	await seconds(0.3)
+
+	print("== Деревня: улица")
+	check(player.is_on_floor() or player.velocity.y <= 0.0, "герой стоит на тропе")
+	await put(Vector3(26.5, 0.1, 0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(0.7)
+	check(rooms.current_room_id == &"village_street", "без палки в дом не войти")
+	await put(room_node("Objects/Stick").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.3)
+	await tap("interact")
+	await frames(3)
+	check(player.weapon != null and player.weapon.id == &"stick" and game_state.has_flag(&"got_stick"), "подобрал палку")
+	check(player.weapon.combo.size() == 3 and player.weapon.type == &"sword", "палка бьёт как меч")
+	check(player._blade_damage() < player.stats.sword_damage, "палка слабее меча")
+	await put(Vector3(-13.0, 1.4, 0))
+	press("move_right")
+	await seconds(1.2)
+	release("move_right")
+	check(player.global_position.x > -9.0 and player.global_position.y < 1.0, "тропа спускается к площади (%.1f, %.1f)" % [player.global_position.x, player.global_position.y])
+	await put(Vector3(26.5, 0.1, 0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"village_house", "вошёл в дом")
+
+	print("== Деревня: дом")
+	await seconds(0.1)
+	await put(room_node("Spawns/FromExit").global_position)
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(0.7)
+	check(rooms.current_room_id == &"village_house", "пока в доме кто-то есть, выход закрыт")
+	var rat_a := room_node("Objects/RatA") as Dummy
+	check(rat_a != null and room_node("Objects/RatB") != null and room_node("Objects/Bat") != null, "две крысы и летучая мышь")
+	var mastery_before: float = game_state.mastery_xp(&"sword")
+	player.restore()
+	await put(rat_a.global_position + Vector3(-1.1, 0.1, 0), 1.0)
+	rat_a.detect_range = 0.0
+	rat_a.patrol_speed = 0.0
+	var swings := 0
+	while is_instance_valid(rat_a) and rat_a.state != Dummy.State.DEAD and swings < 12:
+		await tap("attack")
+		await seconds(0.45)
+		player.global_position.x = rat_a.global_position.x - 1.1 if is_instance_valid(rat_a) else player.global_position.x
+		swings += 1
+	check(swings < 12, "палка убила крысу за %d ударов" % swings)
+	check(game_state.mastery_xp(&"sword") > mastery_before, "убийство пошло в мастерство меча")
+	await seconds(1.4)
+	var rat_b := room_node("Objects/RatB") as Dummy
+	rat_b.health.take_damage(INF)
+	await seconds(0.2)
+	await put(room_node("Objects/Ladder").global_position + Vector3(0.0, 0.1, 0))
+	await seconds(0.1)
+	press("move_up")
+	await seconds(0.2)
+	check(player.state == Player.State.LADDER, "лезет по лестнице")
+	await seconds(1.6)
+	release("move_up")
+	await seconds(0.6)
+	check(player.global_position.y > 3.8 and player.is_on_floor(), "поднялся на чердак (y=%.2f)" % player.global_position.y)
+	var bat := room_node("Objects/Bat") as Bat
+	player.restore()
+	await put(Vector3(2.0, 4.1, 0), -1.0)
+	await seconds(0.2)
+	check(bat._awake, "летучая мышь проснулась")
+	var hp_bat := player.health.current
+	var dove := false
+	for i in 300:
+		await frames(1)
+		dove = dove or bat.state == Dummy.State.ATTACK
+		if player.health.current < hp_bat:
+			break
+	check(dove and player.health.current < hp_bat, "пикирует и кусает (hp %.0f → %.0f)" % [hp_bat, player.health.current])
+	bat.health.take_damage(INF)
+	await frames(2)
+	check(bat.state == Dummy.State.DEAD, "летучая мышь сбита")
+	await seconds(1.5)
+	await put(room_node("Spawns/FromExit").global_position)
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"village_square", "дом пуст — дверь вывела на площадь")
+	check(game_state.killed_in(&"village_house/normal").size() == 3, "мир помнит убитых в этой комнате")
+
+	print("== Площадь: оборотень")
+	check(room_node("Burning") != null and room_node("AfterFire") == null, "деревня горит, осколка на площади пока нет")
+	check((room_node("Objects/DoorToChapel") as RoomDoor).is_locked(), "дальше не пройти, пока горит")
+	var wolf := room_node("Objects/Werewolf") as Werewolf
+	check(wolf != null and wolf.state == Dummy.State.DORMANT and wolf.non_lethal, "зверь склонился над жертвой, удары не смертельны")
+	player.restore()
+	await put(Vector3(wolf.global_position.x - 7.0, 0.1, 0), 1.0)
+	await seconds(1.2)
+	check(wolf.engaged and wolf.state != Dummy.State.DORMANT, "зверь услышал героя и бросается")
+	check(rooms.hud.boss_bar != null, "у оборотня полоса здоровья")
+	check(wolf.body_mesh.global_position.z + 0.4 < -0.38, "модель оборотня за героем")
+	var wolf_moves := {}
+	var wolf_hit := false
+	for i in 2400:
+		await frames(1)
+		if player.health.current < 60.0:
+			wolf_hit = true
+			player.health.current = 100.0
+		if wolf.state == Dummy.State.ATTACK:
+			wolf_moves[wolf.move] = true
+		if wolf.state == Dummy.State.CHASE:
+			var far_left := wolf_moves.size() < 2 or not wolf_moves.has(Werewolf.Move.LEAP) or not wolf_moves.has(Werewolf.Move.RUSH)
+			var wolf_gap := (8.0 if wolf.global_position.x < 0.0 else -8.0) if far_left else 1.6 * wolf.facing
+			player.global_position.x = wolf.global_position.x + wolf_gap
+		if wolf_moves.size() == 3 and wolf_hit:
+			break
+	check(wolf_moves.has(Werewolf.Move.CLAW), "оборотень бьёт когтями")
+	check(wolf_moves.has(Werewolf.Move.RUSH), "оборотень бросается рывком")
+	check(wolf_moves.has(Werewolf.Move.LEAP), "оборотень прыгает")
+	check(wolf_hit, "удары оборотня достают героя")
+	# Поражение: героя не убить, зов уводит зверя, герой приходит в себя, когда огонь стих.
+	player.restore()
+	for i in 3600:
+		await frames(1)
+		if not wolf.is_inside_tree() or wolf._called:
+			break
+		player.global_position.x = wolf.global_position.x + 1.5 * wolf.facing
+	check(not player.is_dead() and player.lying and player.frozen, "мальчишка повержен, но жив")
+	for i in 900:
+		await frames(1)
+		if game_state.has_flag(&"fire_out") and not player.lying:
+			break
+	check(game_state.has_flag(&"fire_out"), "огонь стих")
+	check(not player.lying and not player.frozen, "герой очнулся и встал")
+	check(not game_state.has_flag(&"wolf_scarred"), "без раны — отметины нет")
+	check(player.health.current == player.health.max_health, "очнулся с полным здоровьем")
+	check(rooms.current_room_id == &"village_square" and room_node("Burning") == null, "пожара больше нет")
+	check(room_node("Objects/Werewolf") == null or room_node("Objects/Werewolf").is_queued_for_deletion(), "зверь ушёл")
+	check(game_state.checkpoint_room == &"village_square", "возрождение теперь на площади")
+	check(rooms.current_room.is_burning() == false, "у площади обычное освещение")
+	# Другой исход: мальчишка сумел ранить зверя.
+	game_state.flags.erase(&"fire_out")
+	await rooms.travel(&"village_square", ^"Spawns/FromHouse")
+	await seconds(0.8)
+	wolf = room_node("Objects/Werewolf") as Werewolf
+	check(wolf != null and room_node("Burning") != null, "снова пожар и зверь (для второго исхода)")
+	await put(Vector3(wolf.global_position.x - 6.0, 0.1, 0), 1.0)
+	await seconds(1.1)
+	wolf.health.take_damage(wolf.health.max_health * 0.55)
+	await frames(2)
+	check(game_state.has_flag(&"wolf_scarred"), "рана оставляет отметину")
+	for i in 900:
+		await frames(1)
+		if game_state.has_flag(&"fire_out") and not player.lying:
+			break
+	check(game_state.has_flag(&"fire_out") and not player.lying, "после раны зверь тоже уходит")
+	await seconds(0.3)
+	await rooms.travel(&"village_street", ^"Spawns/FromHouse")
+	await seconds(0.3)
+	check(room_node("Burning") == null and room_node("AfterFire") != null, "улица после пожара")
+	await rooms.travel(&"village_square", ^"Spawns/FromChapel")
+	await seconds(0.3)
+	await put(room_node("AfterFire/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.2)
+	rooms.level_menu.close()
+	check(game_state.has_flag(&"shard_village_square"), "осколок на площади активирован")
+
+	print("== Двор часовни")
+	await put(room_node("Objects/DoorToChapel").global_position + Vector3(-0.5, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"chapel_yard", "с площади — к часовне")
+	game_state.flags.erase(&"got_sword")
+	player.equip(&"stick")
+	await seconds(0.1)
+	await put(room_node("Objects/Smith").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(player.weapon.id == &"sword" and game_state.has_flag(&"got_sword"), "кузнец отдал меч")
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check((room_node("Objects/Smith") as Npc)._next == 1, "дальше кузнец рассказывает")
+	check(room_node("Objects/Herbalist") != null and room_node("Objects/Glassblower") != null, "травница и стекольщик на месте")
+	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.2)
+	rooms.level_menu.close()
+	check(game_state.has_flag(&"shard_chapel_yard"), "осколок у часовни активирован")
+	await seconds(0.2)
+	await put(room_node("Objects/DoorToChapel").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"chapel", "вошёл в часовню")
+
+	print("== Часовня и Главное Зеркало")
+	var mirror := room_node("Objects/MainMirror") as MainMirror
+	check(mirror.is_locked(), "Главное Зеркало закрыто")
+	check(mirror.lit_panes() == 2 and mirror.get_node_or_null("Pane2") != null, "открыты два куска из трёх")
+	await put(mirror.global_position + Vector3(0.5, 0.1, 0.0))
+	await seconds(0.6)
+	check(mirror._reflection != null, "в зеркале отражение героя")
+	await tap("interact")
+	await seconds(0.7)
+	check(rooms.current_room_id == &"chapel", "зеркало молчит")
+	# Гнилой пол балкона проламывается ударом вниз, под ним тайник.
+	var stash := room_node("Objects/StashFloor") as GlassSurface
+	await put(Vector3(10.5, 6.5, 0.0), 1.0)
+	press("move_down")
+	await tap("attack")
+	await seconds(0.9)
+	release_all()
+	check(stash._broken, "удар вниз проломил пол")
+	check(player.global_position.y < 1.0, "герой упал в тайник")
+	await put(room_node("Objects/StashChest").global_position + Vector3(0.0, 0.1, 1.2))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(game_state.has_flag(&"chapel_stash"), "сундук в тайнике открыт")
+	await put(room_node("Objects/StashLadder").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.1)
+	press("move_up")
+	await seconds(2.0)
+	release("move_up")
+	await seconds(0.5)
+	check(player.global_position.y > 4.0, "из тайника вылез по лестнице (y=%.2f)" % player.global_position.y)
+	await rooms.travel(&"chapel_yard", ^"Spawns/FromChapel")
+	await seconds(0.3)
+	await put(room_node("Objects/DoorToForest").global_position + Vector3(-0.5, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"forest_trail", "из деревни в лес")
+
+	print("== Тропа в лесу")
+	check(room_node("Objects/RatA") != null and room_node("Objects/Bat") != null, "в лесу есть враги")
+	await put(Vector3(-5.0, 0.3, 0.0), 1.0)
+	press("move_right")
+	await seconds(1.1)
+	release("move_right")
+	check(player.global_position.y > 1.0, "тропа поднимается на холм (y=%.2f)" % player.global_position.y)
+	await put(room_node("Objects/DoorToForge").global_position + Vector3(-0.5, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"forge_yard", "тропа привела к старой кузне")
+
+	print("== Двор кузницы")
+	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.2)
+	rooms.level_menu.close()
+	check(game_state.has_flag(&"shard_forge_yard"), "осколок двора активирован")
+	var smith := room_node("Objects/Blacksmith") as Blacksmith
+	check(smith != null and smith.health.max_health == 300.0, "кузнец на месте")
+	player.restore()
+	await put(Vector3(smith.global_position.x - 2.2, 0.1, 0), 1.0)
+	smith.facing = -1.0
+	var hp_smith := player.health.current
+	var saw_slam := false
+	var hammer_head := smith.hammer.get_node("Head") as Node3D
+	var hammer_top := 0.0
+	var smith_hit := false
+	var hp_frame := player.health.current
+	for i in 900:
+		await frames(1)
+		smith_hit = smith_hit or player.health.current < hp_frame
+		player.health.current = maxf(player.health.current, 40.0)
+		hp_frame = player.health.current
+		saw_slam = saw_slam or (smith.state == Dummy.State.WINDUP and smith._blow == Blacksmith.Blow.SLAM)
+		if smith.state == Dummy.State.WINDUP and smith._blow == Blacksmith.Blow.SLAM:
+			hammer_top = maxf(hammer_top, hammer_head.global_position.y - smith.global_position.y)
+		if saw_slam and smith.state == Dummy.State.RECOVER:
+			break
+	check(saw_slam, "кузнец заносит молот сверху (удар №3)")
+	check(smith_hit, "удар Кузнеца достаёт героя, хотя модель стоит глубже")
+	check(hammer_top > 3.2, "молот поднят над головой (%.1f м)" % hammer_top)
+	await seconds(0.25)
+	check(hammer_head.global_position.y - smith.global_position.y < 0.8, "молот упал до земли (%.1f м)" % (hammer_head.global_position.y - smith.global_position.y))
+	check(smith.recover_time >= smith.slam_stuck * 0.7, "после удара сверху молот застревает в камне (%.1f с)" % smith.recover_time)
+	check(smith.hurt_voice == &"" and smith.death_voice == &"", "Кузнец безмолвен")
+	check(not smith.backstab_allowed, "у Кузнеца нет добивания в спину: перекат за спину его не даёт")
+	check(rooms.hud.boss_bar != null, "у босса полоса здоровья")
+	check(hp_smith > 0.0, "герой жив")
+	await seconds(0.2)
+	# Герой всегда перед Кузнецом: модель и молот не перекрывают его, куда бы тот ни смотрел.
+	for side in 2:
+		check(smith.body_mesh.global_position.z + 0.55 < -0.38 and hammer_head.global_position.z + 0.35 < 0.0, "модель и молот за героем (facing %.0f)" % smith.facing)
+		smith.facing = -smith.facing
+		await frames(2)
+	# Перекат сквозь босса: без переката он твёрдый, из переката выходим за спиной.
+	var smith_home := smith.global_position
+	var smith_reach: float = smith.body_half_width() + 0.3
+	smith.set_physics_process(false)
+	await put(Vector3(smith_home.x - 1.5, 0.1, 0), 1.0)
+	press("move_right")
+	await seconds(0.6)
+	release_all()
+	check(player.global_position.x < smith_home.x - smith_reach, "шагом сквозь Кузнеца не пройти")
+	player.stamina = player.stats.max_stamina
+	await tap("roll")
+	await seconds(0.6)
+	check(player.global_position.x > smith_home.x + smith_reach, "перекат выводит за спину Кузнеца")
+	check(player._rolled_through.is_empty(), "после переката босс снова твёрдый")
+	# Издали перекат кончился бы внутри босса: докатывается до выхода.
+	await put(Vector3(smith_home.x - 3.4, 0.1, 0), 1.0)
+	player.stamina = player.stats.max_stamina
+	await tap("roll")
+	await seconds(0.9)
+	check(player.global_position.x > smith_home.x + smith_reach, "перекат не заканчивается внутри босса")
+	check(player.state == Player.State.MOVE, "перекат закончился (%s)" % player.state)
+	# Босс у стены: упёрлись — выходим обратно, а не застреваем.
+	var smith_wall := Vector3(-22.3, smith_home.y, 0.0)
+	smith.global_position = smith_wall
+	await put(Vector3(smith_wall.x + 1.3, 0.1, 0), -1.0)
+	player.stamina = player.stats.max_stamina
+	await tap("roll")
+	await seconds(1.0)
+	check(absf(player.global_position.x - smith_wall.x) >= smith_reach, "у стены из босса выходим обратно")
+	check(player.state == Player.State.MOVE and player._rolled_through.is_empty(), "у стены перекат закончился")
+	smith.global_position = smith_home
+	smith.set_physics_process(true)
+	await put(Vector3(smith_home.x - 2.2, 0.1, 0), 1.0)
+	check(not room_node("Objects/BossEcho").enabled, "отзвук кузнеца пока недоступен")
+	smith.health.take_damage(smith.health.max_health * 0.6)
+	check(smith._enraged(), "на половине здоровья кузнец злее")
+	var hammer_before: float = game_state.mastery_xp(&"hammer")
+	smith.last_weapon = &"sword"
+	smith.health.take_damage(INF)
+	await frames(2)
+	check(game_state.mastery_xp(&"hammer") > hammer_before, "победа над кузнецом учит молоту")
+	await seconds(0.5)
+	check(game_state.has_flag(&"boss_smith"), "кузнец побеждён")
+	var echo_find := room_node("Objects/BossEcho") as ItemPickup
+	check(echo_find.enabled and echo_find.visible, "отзвук кузнеца появился")
+	var echoes_smith: int = game_state.echoes
+	await put(echo_find.global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(game_state.echoes == echoes_smith + 500, "отзвук босса берётся касанием")
+	await seconds(1.0)
+	await rooms._rest()
+	await seconds(0.8)
+	check(room_node("Objects/Blacksmith") == null or room_node("Objects/Blacksmith").is_queued_for_deletion(), "отдых не воскрешает босса")
+	await rooms.travel(&"chapel", ^"Spawns/FromMirror")
+	await seconds(0.3)
+	mirror = room_node("Objects/MainMirror") as MainMirror
+	check(not mirror.is_locked() and mirror.lit_panes() == 3, "вернулся: Главное Зеркало открылось")
+	await put(mirror.global_position + Vector3(0.5, 0.1, 0.0))
+	await seconds(0.4)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"room_001", "Главное Зеркало ведёт в замок")
+	game_state.set_flag(&"has_bow")
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures else 0)

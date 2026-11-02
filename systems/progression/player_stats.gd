@@ -285,6 +285,27 @@ func toggle_facet(facet: Facet, total: int) -> bool:
 	return true
 
 
+## Для сохранения: грани — по id.
+func to_dict() -> Dictionary:
+	var worn: Array[StringName] = []
+	for facet in facets:
+		worn.append(facet.id)
+	return {"age": age, "level": level, "points": points, "unspent": unspent, "facets": worn}
+
+
+func from_dict(data: Dictionary) -> void:
+	age = data.get("age", age)
+	level = data.get("level", 0)
+	points = data.get("points", {})
+	unspent = data.get("unspent", 0)
+	facets.clear()
+	for id: StringName in data.get("facets", []):
+		var facet := Facet.by_id(id)
+		if facet:
+			facets.append(facet)
+	emit_changed()
+
+
 ## Опыт мастерства за убийство растёт с уровнем героя: взрослому отдача больше (§8.6).
 func mastery_rate() -> float:
 	return 1.0 + level / 60.0

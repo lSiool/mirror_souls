@@ -49,6 +49,8 @@ const CRITICAL_TIMEOUT := 2.0
 ## Рывок вперёд в момент удара.
 @export var attack_lunge := 5.0
 @export var body_color := Color(0.42, 0.4, 0.44)
+## Насколько тело разгорается в замахе; у кого замах виден по оружию, тому меньше.
+@export_range(0.0, 1.0) var windup_tint := 1.0
 
 @export_group("Свойства типа врага")
 ## Запас стойкости: удары его снижают, при нуле — стаггер.
@@ -59,6 +61,8 @@ const CRITICAL_TIMEOUT := 2.0
 @export var turn_time := 0.4
 @export var backstab_allowed := true
 @export var parry_allowed := true
+## Перекат героя проходит сквозь него и выводит на другую сторону; в остальное время тело твёрдое.
+@export var roll_through := false
 @export var off_balance_time := 1.5
 @export var knockdown_time := 0.8
 ## Особое добивание этого врага. Пусто — герой бьёт добиванием своего оружия.
@@ -118,6 +122,16 @@ func _ready() -> void:
 	attack_hitbox.non_lethal = non_lethal
 	Events.noise_made.connect(_on_noise)
 	state = State.DORMANT if dormant else State.PATROL
+
+
+## Половина ширины тела: докуда герой ещё внутри него.
+func body_half_width() -> float:
+	var shape := ($Collision as CollisionShape3D).shape
+	if shape is BoxShape3D:
+		return (shape as BoxShape3D).size.x * 0.5
+	if shape is CapsuleShape3D:
+		return (shape as CapsuleShape3D).radius
+	return 0.5
 
 
 ## Вызывается FlipX: враг в отражении смотрит в другую сторону.
@@ -507,8 +521,8 @@ func _update_material(delta: float) -> void:
 	var glow := 0.0
 	if state == State.WINDUP:
 		var t := clampf(_state_time / windup_time, 0.0, 1.0)
-		color = body_color.lerp(WINDUP_COLOR, t)
-		glow = t * 1.5
+		color = body_color.lerp(WINDUP_COLOR, t * windup_tint)
+		glow = t * 1.5 * windup_tint
 	elif state == State.OFF_BALANCE:
 		var pulse := 0.5 + 0.5 * sin(_state_time * 18.0)
 		color = body_color.lerp(OFF_BALANCE_COLOR, 0.6 + 0.4 * pulse)

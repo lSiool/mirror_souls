@@ -33,6 +33,8 @@ const ROLL_CRUMBLE_RATE := 0.5
 @export var crumble_time := 0.0
 ## Через столько секунд разбитое стекло восстанавливается. 0 — остаётся разбитым.
 @export var restore_time := 0.0
+## Вид вместо стекла: например, гнилой пол над тайником. Пусто — стекло.
+@export var look: Material
 
 var _material: ShaderMaterial
 var _player: Node3D
@@ -61,7 +63,7 @@ func _ready() -> void:
 	_material = ShaderMaterial.new()
 	_material.shader = GLASS_SHADER
 	_configure_material()
-	mesh_instance.material_override = _material
+	mesh_instance.material_override = look if look else _material
 
 	_join_role_group()
 	if role == Role.SLIDE and breakable:

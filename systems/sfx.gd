@@ -46,6 +46,9 @@ const EVENTS := {
 	&"chest_open": "world",
 	&"chest_loot": "world",
 	&"death_sting": "ui",
+	&"heartbeat": "player",
+	&"distant_howl": "enemy",
+	&"villager_call": "enemy",
 }
 
 ## Слои, которые звучат не каждый раз: [вероятность, пауза после звучания (с), сколько раз подряд

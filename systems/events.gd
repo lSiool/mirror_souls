@@ -3,6 +3,12 @@ extends Node
 
 signal camera_shake_requested(strength: float, duration: float)
 signal mirror_used(portal: MirrorPortal)
+## Герой открыл дверь в другую комнату.
+signal door_used(door: RoomDoor)
+## Босс заметил героя: HUD показывает его здоровье.
+signal boss_engaged(boss: Dummy)
+## Короткая надпись игроку над подсказкой.
+signal message(text: String)
 signal checkpoint_activated(shard: MirrorShard)
 signal player_died
 signal echoes_changed(total: int)

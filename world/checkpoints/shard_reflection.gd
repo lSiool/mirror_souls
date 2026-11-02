@@ -28,7 +28,7 @@ static func spawn(parent: Node3D, player: Player) -> ShardReflection:
 
 
 func _build(player: Player) -> void:
-	var copy := player.make_silhouette(&"sword", true)
+	var copy := player.make_silhouette(player.held_weapon(), true)
 	add_child(copy)
 	copy.rotation.y = 0.0 if player.facing < 0.0 else PI
 	_body = copy.find_child("Body", true, false) as MeshInstance3D

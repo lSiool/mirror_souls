@@ -11,6 +11,8 @@
 [ext_resource type="PackedScene" path="res://world/hazards/spikes.tscn" id="9_spikes"]
 [ext_resource type="PackedScene" path="res://actors/enemies/glass_crawler.tscn" id="10_crawler"]
 [ext_resource type="Script" path="res://world/props/hanging_prop.gd" id="11_hanging"]
+[ext_resource type="Script" path="res://world/common/room_door.gd" id="12_door"]
+[ext_resource type="Script" path="res://world/common/item_pickup.gd" id="13_pickup"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_stone"]
 albedo_color = Color(0.36, 0.35, 0.34, 1)
@@ -166,6 +168,30 @@ size = Vector3(2.2, 3.2, 0.2)
 [node name="MirrorPortal" parent="Objects" instance=ExtResource("3_portal")]
 position = Vector3(15.5, 0, 0)
 transformations = Array[ExtResource("4_transform")]([SubResource("FlipX_main")])
+
+[node name="DoorBack" type="Area3D" parent="Objects" groups=["normal_only"]]
+position = Vector3(-23.2, 0, 0)
+script = ExtResource("12_door")
+target_room = &"chapel"
+target_spawn = NodePath("Spawns/FromMirror")
+open_prompt = "Вернуться через зеркало"
+
+[node name="SwordFind" type="Area3D" parent="Objects" groups=["normal_only"]]
+position = Vector3(-20.2, 0, 0)
+script = ExtResource("13_pickup")
+weapon_id = &"sword"
+flag = &"got_sword"
+pickup_prompt = "Подобрать меч"
+look_size = Vector3(1.1, 0.08, 0.14)
+look_color = Color(0.7, 0.72, 0.76, 1)
+
+[node name="BowFind" type="Area3D" parent="Objects" groups=["normal_only"]]
+position = Vector3(-15.6, 0, 0)
+script = ExtResource("13_pickup")
+flag = &"has_bow"
+pickup_prompt = "Подобрать лук"
+look_size = Vector3(1.2, 0.08, 0.08)
+look_color = Color(0.45, 0.3, 0.18, 1)
 
 [node name="MirrorShard" parent="Objects" instance=ExtResource("6_shard")]
 position = Vector3(-18.5, 0, 0)

@@ -8,12 +8,18 @@ extends Control
 const DEATH_LABEL_DELAY := 0.95
 ## Тон под надписью звучит без места в мире — убавлен до уровня звуков комнаты.
 const DEATH_STING_DB := -9.0
-const ITEM_NAMES := {&"clear_glass": "чистое стекло", &"facet_slot": "слот для граней", &"tempered_glass": "закалённое стекло"}
+const CARD_TIME := 1.9
+const ITEM_NAMES := {&"clear_glass": "чистое стекло", &"facet_slot": "слот для граней", &"tempered_glass": "закалённое стекло",
+	&"stick": "палка", &"sword": "меч", &"bow": "лук", &"boss_smith_echo": "отзвук Безмолвного Кузнеца"}
 
 @export var player_path: NodePath
 
 var _player: Player
 var _echoes_shown := 0
+var boss_bar: ProgressBar
+var _boss_box: Control
+var _cards_running := false
+var _cards_skipped := false
 
 @onready var health_bar: ProgressBar = %HealthBar
 @onready var stamina_bar: ProgressBar = %StaminaBar
@@ -37,6 +43,8 @@ func _ready() -> void:
 	Events.interact_prompt_changed.connect(_on_prompt_changed)
 	Events.player_died.connect(_on_player_died)
 	Events.item_found.connect(_on_item_found)
+	Events.message.connect(toast)
+	Events.boss_engaged.connect(_on_boss_engaged)
 	Events.mastery_step_reached.connect(_on_mastery_step)
 	death_label.visible = false
 	prompt_label.text = ""
@@ -48,6 +56,9 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _cards_running and event.is_pressed() and not event.is_echo():
+		_cards_skipped = true
+		return
 	if event.is_action_pressed("debug_age_down"):
 		_player.stats.age -= 1
 	elif event.is_action_pressed("debug_age_up"):
@@ -89,16 +100,84 @@ func _on_echoes_changed(total: int) -> void:
 func _on_mastery_step(type: StringName, step: int) -> void:
 	var weapon := _player.weapon
 	if weapon and weapon.type == type and step <= weapon.step_names.size():
-		_toast("Мастерство: %s" % weapon.step_names[step - 1])
+		toast("Мастерство: %s" % weapon.step_names[step - 1])
 
 
 ## Найден редкий предмет: название появляется над подсказкой и гаснет.
 func _on_item_found(id: StringName) -> void:
 	var facet := Facet.by_id(id)
-	_toast("Найдено: %s" % (facet.display_name if facet else ITEM_NAMES.get(id, String(id))))
+	toast("Найдено: %s" % (facet.display_name if facet else ITEM_NAMES.get(id, String(id))))
 
 
-func _toast(text: String) -> void:
+## Здоровье босса внизу экрана, пока он жив и комната та же.
+func _on_boss_engaged(boss: Dummy) -> void:
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 90)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	box.custom_minimum_size = Vector2(760, 0)
+	var title := Label.new()
+	title.text = boss.boss_name
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size.y = 14
+	bar.show_percentage = false
+	bar.max_value = boss.health.max_health
+	bar.value = boss.health.current
+	bar.modulate = Color(0.85, 0.3, 0.2)
+	box.add_child(bar)
+	add_child(box)
+	boss_bar = bar
+	_boss_box = box
+	boss.health.changed.connect(_on_boss_health)
+	boss.health.died.connect(_close_boss_bar)
+	boss.tree_exiting.connect(_close_boss_bar)
+
+
+func _on_boss_health(current: float, _maximum: float) -> void:
+	if is_instance_valid(boss_bar):
+		boss_bar.value = current
+
+
+func _close_boss_bar() -> void:
+	if is_instance_valid(_boss_box):
+		_boss_box.queue_free()
+	_boss_box = null
+
+
+## Заставка: чёрный экран, строки по очереди. Любая кнопка её пропускает.
+func play_cards(lines: PackedStringArray, each := CARD_TIME) -> void:
+	var veil := ColorRect.new()
+	veil.color = Color.BLACK
+	veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(veil)
+	var label := Label.new()
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 30)
+	veil.add_child(label)
+	_cards_skipped = false
+	_cards_running = true
+	for line in lines:
+		label.text = line
+		label.modulate.a = 0.0
+		create_tween().tween_property(label, "modulate:a", 1.0, 0.35)
+		var left := each
+		while left > 0.0 and not _cards_skipped:
+			left -= get_process_delta_time()
+			await get_tree().process_frame
+		if _cards_skipped:
+			break
+	_cards_running = false
+	var tween := create_tween()
+	tween.tween_property(veil, "modulate:a", 0.0, 0.8)
+	tween.tween_callback(veil.queue_free)
+	await tween.finished
+
+
+func toast(text: String) -> void:
 	var label := Label.new()
 	label.text = text
 	label.modulate = Color(0.72, 0.86, 1.0)

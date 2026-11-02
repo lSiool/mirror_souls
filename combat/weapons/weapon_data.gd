@@ -20,6 +20,13 @@ const STEP_SPECIAL := 5
 @export var type: StringName = &"sword"
 ## Что открывают ступени 1–5: для меню и сообщений.
 @export var step_names: Array[String] = []
+## Множитель урона предмета: палка слабее меча при том же наборе ударов.
+@export var damage_mult := 1.0
+## Набор ударов взять у другого оружия: палка бьёт как меч.
+@export var moves_from: WeaponData
+## Вид заглушки: цвет (прозрачный — как у меша) и масштаб клинка.
+@export var look_color := Color(0.0, 0.0, 0.0, 0.0)
+@export var look_scale := Vector3.ONE
 @export var combo: Array[AttackStep] = []
 ## Удар во время скольжения или сразу на выходе из него.
 @export var slide_attack: AttackStep
@@ -38,6 +45,26 @@ const STEP_SPECIAL := 5
 @export var counter: AttackStep
 ## Спецэффект последней ступени: сколько кровотечения копит обычный удар; сильнее удар — больше.
 @export var bleed_buildup := 0.0
+
+
+## Оружие по id: файл data/weapons/<id>.tres, с ударами родителя, если свои не заданы.
+static func by_id(wanted: StringName) -> WeaponData:
+	var weapon := load("res://data/weapons/%s.tres" % wanted) as WeaponData
+	if weapon and weapon.moves_from and weapon.combo.is_empty():
+		var base := weapon.moves_from
+		weapon.combo = base.combo
+		weapon.slide_attack = base.slide_attack
+		weapon.roll_attack = base.roll_attack
+		weapon.riposte = base.riposte
+		weapon.backstab = base.backstab
+		weapon.charged = base.charged
+		weapon.extra_hit = base.extra_hit
+		weapon.air_attack = base.air_attack
+		weapon.counter = base.counter
+		weapon.bleed_buildup = base.bleed_buildup
+		if weapon.step_names.is_empty():
+			weapon.step_names = base.step_names
+	return weapon
 
 
 ## Серия на этой ступени мастерства.

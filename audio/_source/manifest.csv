@@ -158,3 +158,12 @@ sfx/combat/critical_release_02.wav,"freesound.org/s/547035 (Hit Impact Sword)","
 sfx/combat/critical_release_03.wav,"freesound.org/s/547035 (Hit Impact Sword)","CogFireStudios (Freesound)","CC0",yes,"Hit Impact Sword (CogFireStudios); make_candidates.py critical_release=E"
 sfx/combat/critical_release_04.wav,"freesound.org/s/547035 (Hit Impact Sword)","CogFireStudios (Freesound)","CC0",yes,"Hit Impact Sword (CogFireStudios); make_candidates.py critical_release=E"
 sfx/combat/critical_release_05.wav,"freesound.org/s/547035 (Hit Impact Sword)","CogFireStudios (Freesound)","CC0",yes,"Hit Impact Sword (CogFireStudios); make_candidates.py critical_release=E"
+sfx/enemy/villager_call_01.wav,"freesound.org/s/391361 (Cry for help - Female.wav)","guamorims (Freesound)","CC0",yes,"зовёт на помощь издали; заглушка, глушится ffmpeg"
+sfx/enemy/villager_call_02.wav,"freesound.org/s/316648 (yell kid male help help.aiff)","bevibeldesign (Freesound)","CC0",yes,"зовёт на помощь издали; заглушка, глушится ffmpeg"
+sfx/enemy/villager_call_03.wav,"freesound.org/s/776313 (HELP scream raw (no effects))","WoodoMusic (Freesound)","CC-BY 4.0",yes,"зовёт на помощь издали; заглушка, глушится ffmpeg"
+sfx/enemy/distant_howl_01.wav,"freesound.org/s/398430 (Wolf howl)","NaturesTemper (Freesound)","CC0",yes,"вой из леса; заглушка, глушится ffmpeg"
+sfx/enemy/distant_howl_02.wav,"freesound.org/s/753896 (Adult and young wolves howling far away)","Sacha.Julien (Freesound)","CC0",yes,"вой из леса; заглушка, глушится ffmpeg"
+sfx/player/heartbeat_01.wav,synth (tools/sound/synth_placeholders.py),project,own,yes,заглушка сердца
+sfx/player/heartbeat_02.wav,synth (tools/sound/synth_placeholders.py),project,own,yes,заглушка сердца
+sfx/player/heartbeat_03.wav,synth (tools/sound/synth_placeholders.py),project,own,yes,заглушка сердца
+loops/fire_crackle.ogg,synth (tools/sound/synth_placeholders.py),project,own,yes,заглушка треска огня

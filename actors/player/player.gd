@@ -13,9 +13,11 @@ signal flasks_changed(current: int, maximum: int)
 
 enum State {
 	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
-	LEDGE_HANG, LEDGE_CLIMB, DRINK, CHARGE,
+	LEDGE_HANG, LEDGE_CLIMB, DRINK, CHARGE, LADDER,
 }
 
+## С какой скоростью выдавливает из босса, если перекат сорвали внутри него.
+const THROUGH_PUSH := 4.0
 const KILL_Y := -15.0
 const PLUNGE_LAND_TIME := 0.15
 const HURT_TIME := 0.3
@@ -69,6 +71,8 @@ var _parry_t := 0.0
 var _since_slide := 99.0
 var _since_roll := 99.0
 var _roll_attack_queued := false
+## Боссы, сквозь которых сейчас катимся (Dummy.roll_through). Твёрдыми становятся, когда вышли из них.
+var _rolled_through := []
 var _critical_target: Dummy
 var _critical_done := false
 var _critical_pierced := false
@@ -80,6 +84,10 @@ var _heal_buffer := 0.0
 ## Сколько ещё можно ответить контрударом после блока.
 var _counter_t := 0.0
 var _charge_ready := false
+## Лестница, у которой стоит герой (её выставляет сама Ladder).
+var ladder: Ladder
+## Лежит и спит: вступление в хижине.
+var lying := false
 ## Глотки лечебного зелья; пополняются при отдыхе у осколка.
 var flasks := 0
 var _sipped := false
@@ -172,12 +180,14 @@ func _physics_process(delta: float) -> void:
 		State.LEDGE_CLIMB: _ledge_climb_state(delta)
 		State.DRINK: _drink_state(delta)
 		State.CHARGE: _charge_state(delta)
+		State.LADDER: _ladder_state(delta)
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
 	move_and_slide()
 	global_position.z = 0.0
 	_limit_blocked_slide()
+	_update_rolled_through(delta)
 	_after_move()
 	_check_enemy_head()
 	_foley.update(is_on_floor(), velocity, global_position, delta, state == State.MOVE)
@@ -308,7 +318,7 @@ func _move_state(delta: float) -> void:
 	elif _roll_buffer > 0.0 and (on_floor or _coyote > 0.0):
 		_start_roll()
 	elif _attack_buffer > 0.0:
-		if not on_floor and Input.is_action_pressed("move_down"):
+		if not on_floor and weapon and Input.is_action_pressed("move_down"):
 			_start_plunge()
 		else:
 			_start_attack()
@@ -316,8 +326,10 @@ func _move_state(delta: float) -> void:
 		_start_draw()
 	elif _heal_buffer > 0.0 and on_floor:
 		_start_drink()
-	elif on_floor and Input.is_action_pressed("block"):
+	elif on_floor and weapon and Input.is_action_pressed("block"):
 		_set_state(State.BLOCK)
+	elif ladder and (Input.is_action_pressed("move_up") or (not on_floor and Input.is_action_pressed("move_down"))):
+		_set_state(State.LADDER)
 	elif _wants_climb(x, on_floor):
 		_set_state(State.CLIMB)
 	elif not on_floor and x != 0.0:
@@ -365,12 +377,13 @@ func _start_roll() -> void:
 	_roll_speed = maxf(stats.roll_speed, carried)
 	_iframes = maxf(_iframes, stats.roll_iframes)
 	_roll_attack_queued = false
+	_pass_through_bosses()
 	_set_state(State.ROLL)
 	Sfx.play(&"player_roll", global_position)
 
 
 func _roll_state(delta: float) -> void:
-	var t := _state_time / stats.roll_duration
+	var t := minf(_state_time / stats.roll_duration, 1.0)
 	velocity.x = _roll_dir * _roll_speed * (1.0 - 0.4 * t)
 	_apply_gravity(delta)
 	# Удар, нажатый в кувырке, выходит сразу после него — «по инерции».
@@ -378,10 +391,52 @@ func _roll_state(delta: float) -> void:
 		_attack_buffer = 0.0
 		_roll_attack_queued = true
 	if _state_time >= stats.roll_duration:
+		# Внутри босса перекат не заканчивается; упёрлись в стену — выходим обратно.
+		if _boss_around():
+			_iframes = maxf(_iframes, delta * 2.0)
+			if is_on_wall() and get_wall_normal().x * _roll_dir < 0.0:
+				_roll_dir = -_roll_dir
+				facing = _roll_dir
+			return
 		var queued := _roll_attack_queued
 		_set_state(State.MOVE)
 		if queued:
 			_start_attack()
+
+
+func _pass_through_bosses() -> void:
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Dummy
+		if enemy and enemy.roll_through and enemy not in _rolled_through:
+			add_collision_exception_with(enemy)
+			enemy.add_collision_exception_with(self)
+			_rolled_through.append(enemy)
+
+
+## Босс, внутри которого стоит герой, или null.
+func _boss_around() -> Dummy:
+	var radius := (body_shape.shape as CapsuleShape3D).radius
+	for enemy in _rolled_through:
+		if is_instance_valid(enemy) and enemy.is_inside_tree() \
+				and absf(global_position.x - enemy.global_position.x) < enemy.body_half_width() + radius:
+			return enemy
+	return null
+
+
+## После переката босс снова твёрдый. Если перекат сорвали внутри него — выдавливает наружу.
+func _update_rolled_through(delta: float) -> void:
+	if state == State.ROLL or _rolled_through.is_empty():
+		return
+	var inside := _boss_around()
+	if inside:
+		var side := signf(global_position.x - inside.global_position.x)
+		move_and_collide(Vector3((side if side != 0.0 else facing) * THROUGH_PUSH * delta, 0.0, 0.0))
+		return
+	for enemy in _rolled_through:
+		if is_instance_valid(enemy):
+			remove_collision_exception_with(enemy)
+			enemy.remove_collision_exception_with(self)
+	_rolled_through.clear()
 
 
 ## Выбор удара: добивание или удар в спину → продолжение комбо → удар из скольжения
@@ -618,7 +673,7 @@ func _dead_state(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, 0.0, 20.0 * delta)
 	_apply_gravity(delta)
 	# Рука разжимается, когда тело начинает падать.
-	if arms.dropped_weapon() == null and _state_time >= PlayerBody.SLUMP_TIME:
+	if weapon and arms.dropped_weapon() == null and _state_time >= PlayerBody.SLUMP_TIME:
 		arms.drop_weapon(get_parent(), facing)
 	if not _death_landed and body.landed(_state_time):
 		_death_landed = true
@@ -734,6 +789,33 @@ func _critical_spark(strength: float) -> void:
 
 # --- Оружие: мастерство и заряд ---------------------------------------------
 
+## Взять оружие по id; пусто — руки пусты.
+func equip(id: StringName) -> void:
+	weapon = WeaponData.by_id(id) if id != &"" else null
+	GameState.weapon_id = id
+	arms.set_weapon(weapon)
+
+
+## Лестница: вверх-вниз без гравитации. Наверху — подтягивается на этаж; прыжок — соскочил.
+func _ladder_state(_delta: float) -> void:
+	if ladder == null:
+		_set_state(State.MOVE)
+		return
+	var v := Input.get_axis("move_down", "move_up")
+	velocity = Vector3(0.0, v * stats.mod(&"climb_speed", stats.climb_speed), 0.0)
+	global_position.x = move_toward(global_position.x, ladder.global_position.x, 6.0 * _delta)
+	if global_position.y >= ladder.top_y():
+		velocity = Vector3(ladder.exit_dir * 4.5, 5.0, 0.0)
+		facing = ladder.exit_dir
+		_set_state(State.MOVE)
+	elif _jump_buffer > 0.0:
+		_jump_buffer = 0.0
+		velocity = Vector3(_input_x() * stats.move_speed, stats.jump_velocity * 0.7, 0.0)
+		_set_state(State.MOVE)
+	elif v < 0.0 and is_on_floor():
+		_set_state(State.MOVE)
+
+
 func _mastery_step() -> int:
 	return GameState.mastery_step(weapon.type) if weapon else 0
 
@@ -749,7 +831,9 @@ func _series() -> Array[AttackStep]:
 
 ## Урон клинка: возраст, сила и грани (PlayerStats) и закалённое стекло в этом оружии.
 func _blade_damage() -> float:
-	return stats.sword_damage * (GameState.glass_damage_mult(weapon.id) if weapon else 1.0)
+	if weapon == null:
+		return stats.sword_damage
+	return stats.sword_damage * weapon.damage_mult * GameState.glass_damage_mult(weapon.id)
 
 
 ## Кровотечение удара: только у мастера, сильнее удар — больше.
@@ -820,9 +904,9 @@ func _drink_state(delta: float) -> void:
 # --- Лук --------------------------------------------------------------------
 
 func _start_draw() -> void:
-	if stamina <= 0.0:
-		return
 	_shoot_buffer = 0.0
+	if stamina <= 0.0 or not GameState.has_flag(&"has_bow"):
+		return
 	_draw_t = 0.0
 	_set_state(State.BOW)
 	arms.show_bow(true)
@@ -1118,6 +1202,20 @@ func _on_died() -> void:
 
 
 ## Возрождение у осколка: полное здоровье и выносливость, короткая неуязвимость.
+## Сбит с ног и лежит: сцена ведёт героя сама, ввода нет.
+func knock_down() -> void:
+	_set_state(State.MOVE)
+	velocity = Vector3.ZERO
+	global_position.y = last_ground.y if not is_on_floor() else global_position.y
+	frozen = true
+	lying = true
+
+
+func stand_up() -> void:
+	lying = false
+	frozen = false
+
+
 func respawn(at: Vector3) -> void:
 	teleport(at)
 	restore()
@@ -1149,7 +1247,7 @@ func _track_fall() -> void:
 		return
 	var y := global_position.y
 	var grounded := is_on_floor()
-	if grounded or state in [State.CLIMB, State.SLIDE, State.LEDGE_HANG, State.LEDGE_CLIMB]:
+	if grounded or state in [State.CLIMB, State.SLIDE, State.LEDGE_HANG, State.LEDGE_CLIMB, State.LADDER]:
 		if _airborne and grounded:
 			_land_from(_air_top - y)
 		if grounded:
@@ -1199,13 +1297,15 @@ func make_silhouette(weapon: StringName, keep_face := false) -> Node3D:
 	if bow:
 		bow.visible = weapon == &"bow"
 	if sword:
-		sword.visible = weapon != &"bow"
+		sword.visible = weapon == &"sword"
 	return copy
 
 
-## С каким оружием в руках герой сейчас: для отзвука героя.
+## С каким оружием в руках герой сейчас: для отзвука героя и отражения.
 func held_weapon() -> StringName:
-	return &"bow" if state == State.BOW else &"sword"
+	if state == State.BOW:
+		return &"bow"
+	return &"sword" if weapon else &""
 
 
 # --- Взаимодействие ---------------------------------------------------------
@@ -1235,6 +1335,10 @@ func _update_visual(delta: float) -> void:
 	if visual.rotation.y != yaw:
 		visual.rotation.y = yaw
 		visual.reset_physics_interpolation()
+	if lying:
+		body_mesh.rotation = Vector3(0.0, 0.0, PI * 0.5)
+		body_mesh.position = Vector3(0.0, 0.72, 0.0)
+		return
 	var k := 1.0 - exp(-18.0 * delta)
 	var target_scale := Vector3.ONE
 	var target_tilt := -AgeLook.stoop(stats.current_age)
@@ -1264,7 +1368,7 @@ func _update_visual(delta: float) -> void:
 	body_mesh.position = Vector3(0.0, 0.9 * body_mesh.scale.y, 0.0)
 	if state == State.ROLL:
 		# Кувырок вперёд: полный оборот за время переката.
-		body_mesh.rotation.z = -TAU * clampf(_state_time / stats.roll_duration, 0.0, 1.0)
+		body_mesh.rotation.z = -TAU * _state_time / stats.roll_duration
 	else:
 		body_mesh.rotation.z = lerpf(wrapf(body_mesh.rotation.z, -PI, PI), target_tilt, k)
 	# Мигание в неуязвимости после удара (перекат и особые удары не мигают).

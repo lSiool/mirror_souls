@@ -12,6 +12,30 @@ extends Node3D
 ## Ось, относительно которой FlipX зеркалит раскладку.
 @export var center_x := 0.0
 @export var width := 40.0
+## Своё освещение комнаты; пусто — общее из менеджера.
+@export var mood: Environment
+@export var sun_color := Color(1.0, 0.88, 0.72)
+@export var sun_energy := 1.1
+@export_group("Пожар")
+## Пока этот флаг не поставлен, комната горит: есть узлы контейнера Burning и своё освещение.
+## Когда поставлен — вместо них контейнер AfterFire и обычное освещение. Пусто — комната не горит.
+@export var burning_until: StringName
+@export var burning_mood: Environment
+@export var burning_sun_color := Color(1.0, 0.5, 0.25)
+@export var burning_sun_energy := 0.3
+
+
+func is_burning() -> bool:
+	return burning_until != &"" and not GameState.has_flag(burning_until)
+
+
+## Оставляет облик комнаты, соответствующий пожару. Вызывается до добавления в дерево.
+func apply_fire_state() -> void:
+	if burning_until == &"":
+		return
+	var doomed := get_node_or_null(^"AfterFire" if is_burning() else ^"Burning")
+	if doomed:
+		doomed.free()
 
 
 ## Удаляет узлы, принадлежащие другим реальностям. Вызывается до добавления в дерево.

@@ -1,7 +1,6 @@
 [gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://systems/room_manager/room_manager.gd" id="1_rooms"]
-[ext_resource type="PackedScene" path="res://world/rooms/room_001.tscn" id="2_room"]
 [ext_resource type="PackedScene" path="res://actors/player/player.tscn" id="3_player"]
 [ext_resource type="Script" path="res://actors/player/camera_rig.gd" id="4_camera"]
 [ext_resource type="PackedScene" path="res://ui/hud.tscn" id="5_hud"]
@@ -62,7 +61,7 @@ player_path = NodePath("../../Player")
 
 [node name="RoomManager" type="Node" parent="."]
 script = ExtResource("1_rooms")
-room_scene = ExtResource("2_room")
+start_room = &"village_hut"
 player_path = NodePath("../Player")
 camera_rig_path = NodePath("../CameraRig")
 hud_path = NodePath("../UI/HUD")

@@ -1,6 +1,7 @@
 extends Node
 ## Состояние, которое переживает смерть и перезагрузку комнаты (§8.5):
 ## отзвуки, флаги мира, убитые враги, разбитое стекло, отзвук героя и активный осколок-чекпоинт.
+## Всё это пишется на диск (save_game): игру можно закрыть и продолжить.
 
 ## Опыта на каждую ступень мастерства: обычный враг даёт около 1 (Dummy.mastery_xp).
 const MASTERY_NEEDS: Array[float] = [50.0, 100.0, 175.0, 275.0, 400.0]
@@ -11,11 +12,21 @@ const GLASS_ITEM: StringName = &"tempered_glass"
 const GLASS_MATERIAL: Array[int] = [1, 1, 2, 2, 3]
 const GLASS_ECHOES: Array[int] = [100, 250, 500, 900, 1500]
 const GLASS_DAMAGE_STEP := 0.12
+const SAVE_VERSION := 1
+
+const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
+	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
 var echoes := 0
 var flags := {}
+## Оружие в руке; пусто — герой пока безоружен.
+var weapon_id: StringName
+## Сохранять ли на диск (тесты отключают) и куда.
+var saves_enabled := true
+var save_path := "user://save.sav"
+var checkpoint_room: StringName
 var checkpoint_reality: StringName = &"normal"
 ## Путь к узлу точки возрождения относительно корня комнаты.
 var checkpoint_path: NodePath = ^"Spawns/PlayerStart"
@@ -34,6 +45,41 @@ var weapon_glass := {}
 ## Редкие предметы и грани: {id: сколько}. Смерть их не отнимает. Часть граней есть с начала.
 var items := {&"facet_youth": 1, &"facet_experience": 1, &"facet_sole": 1, &"facet_grip": 1,
 	&"facet_breath": 1, &"facet_eye": 1, &"facet_sip": 1}
+
+
+func has_save() -> bool:
+	return FileAccess.file_exists(save_path)
+
+
+## Записать мир; extra — то, что знает менеджер: где стоит герой и его параметры.
+func save_game(extra: Dictionary) -> void:
+	if not saves_enabled:
+		return
+	var file := FileAccess.open(save_path, FileAccess.WRITE)
+	if file == null:
+		push_warning("Не удалось сохранить игру: %s" % save_path)
+		return
+	var data := {}
+	for key: String in SAVED_FIELDS:
+		data[key] = get(key)
+	data["version"] = SAVE_VERSION
+	data["extra"] = extra
+	file.store_string(var_to_str(data))
+
+
+## Прочитать мир. Возвращает extra из сохранения; пусто — читать нечего.
+func load_game() -> Dictionary:
+	if not has_save():
+		return {}
+	var data: Variant = str_to_var(FileAccess.get_file_as_string(save_path))
+	if not data is Dictionary or data.get("version", 0) != SAVE_VERSION:
+		push_warning("Сохранение не прочитано: %s" % save_path)
+		return {}
+	for key: String in SAVED_FIELDS:
+		if data.has(key):
+			set(key, data[key])
+	Events.echoes_changed.emit(echoes)
+	return data.get("extra", {})
 
 
 func add_echoes(amount: int) -> void:
@@ -141,7 +187,8 @@ func has_flag(id: StringName) -> bool:
 	return flags.get(id, false)
 
 
-func set_checkpoint(reality: StringName, path: NodePath) -> void:
+func set_checkpoint(room: StringName, reality: StringName, path: NodePath) -> void:
+	checkpoint_room = room
 	checkpoint_reality = reality
 	checkpoint_path = path
 
