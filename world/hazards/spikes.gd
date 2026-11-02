@@ -1,17 +1,19 @@
 class_name Spikes
 extends Hitbox
 ## Шипы: ловушка, которая убивает. Ширина задаётся в инспекторе, меши и форма строятся сами.
+## Неглубокая яма с кольями (non_lethal) только ранит и бьёт снова, если в неё вернуться.
 
 @export var width := 4.0
 @export var spike_height := 0.6
+@export var trap_damage := 999.0
 
 
 func _ready() -> void:
 	super()
 	collision_layer = 0
 	collision_mask = 1 << 1
-	damage = 999.0
-	knockback = 0.0
+	damage = trap_damage
+	knockback = 3.0 if non_lethal else 0.0
 	active = true
 
 	var shape := BoxShape3D.new()
@@ -38,3 +40,10 @@ func _ready() -> void:
 			spike.mesh = spike_mesh
 			spike.position = Vector3(-width * 0.5 + (i + 0.5) * width / count, spike_height * 0.5, row)
 			add_child(spike)
+
+
+func _physics_process(delta: float) -> void:
+	super(delta)
+	# Ушёл с кольев — в следующий раз ранят снова.
+	if not _already_hit.is_empty() and get_overlapping_areas().is_empty():
+		_already_hit.clear()

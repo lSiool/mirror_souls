@@ -14,6 +14,10 @@ const AGING_LEVELS := 120
 
 enum Param { HEALTH, STAMINA, STRENGTH, DEXTERITY }
 
+## Здоровье за очки — ступенями, как Vigor в Dark Souls: щедро вначале, потом всё меньше.
+## [сколько очков, по сколько здоровья]. После последней ступени очки здоровья не дают.
+const HEALTH_STEPS := [[15, 6.0], [15, 4.0], [20, 2.0], [49, 0.5]]
+
 ## Слотов для граней с самого начала; ещё — от находок в мире.
 const BASE_FACET_SLOTS := 3
 
@@ -46,7 +50,7 @@ const BASE_FACET_SLOTS := 3
 
 @export_group("Уровень")
 ## Потолок прибавки от параметра; очки подходят к нему всё медленнее (мягкая планка).
-@export var health_bonus_cap := 200.0
+## Здоровье считается ступенями (HEALTH_STEPS), его потолок — сумма ступеней.
 @export var stamina_bonus_cap := 100.0
 ## Прибавка к урону, доля: 1.5 — плюс 150 %.
 @export var strength_bonus_cap := 1.5
@@ -100,7 +104,7 @@ const BASE_FACET_SLOTS := 3
 @export var mantle_velocity := 7.0
 
 @export_group("Бой")
-@export var base_health := 100.0
+@export var base_health := 70.0
 @export var base_stamina := 100.0
 @export var stamina_regen := 40.0
 @export var stamina_regen_delay := 0.5
@@ -119,7 +123,7 @@ const BASE_FACET_SLOTS := 3
 
 @export_group("Зелье")
 ## Глотков лечебного зелья; пополняются при отдыхе у осколка.
-@export var flask_charges := 2
+@export var flask_charges := 1
 ## Доля здоровья за глоток.
 @export var flask_heal := 0.6
 ## Сколько секунд пьёт; лечит в момент глотка — на этой доле времени. Ударили раньше — пролил.
@@ -173,6 +177,8 @@ var unspent := 0
 ## Надетые грани.
 var facets: Array[Facet] = []
 
+var health_bonus_cap: float:
+	get: return health_bonus(1 << 20)
 var current_age: float:
 	get: return age_at(level)
 var max_health: float:
@@ -220,7 +226,32 @@ func damage_at(at_age: float) -> float:
 
 ## Цена следующего уровня в отзвуках.
 func level_cost() -> int:
-	return 60 + 12 * level + int(0.4 * level * level)
+	return cost_at(level)
+
+
+func cost_at(at_level: int) -> int:
+	return 60 + 12 * at_level + int(0.4 * at_level * at_level)
+
+
+## Сколько стоят count уровней подряд от нынешнего.
+func cost_of_levels(count: int) -> int:
+	var total := 0
+	for i in count:
+		total += cost_at(level + i)
+	return total
+
+
+## Прибавка здоровья за столько очков.
+func health_bonus(count: int) -> float:
+	var left := count
+	var total := 0.0
+	for step: Array in HEALTH_STEPS:
+		var used := mini(left, step[0])
+		total += used * float(step[1])
+		left -= used
+		if left <= 0:
+			break
+	return total
 
 
 ## Новый уровень: очко в параметр и прожитые годы. Отзвуки списывает тот, кто вызывает.
@@ -322,9 +353,10 @@ func reset_progress() -> void:
 
 ## Прибавка параметра, если вложить ещё extra очков: быстро вначале, у потолка — едва заметно.
 func bonus_with(param: Param, extra: int) -> float:
+	if param == Param.HEALTH:
+		return health_bonus(points_in(param) + extra)
 	var cap: float
 	match param:
-		Param.HEALTH: cap = health_bonus_cap
 		Param.STAMINA: cap = stamina_bonus_cap
 		Param.STRENGTH: cap = strength_bonus_cap
 		_: cap = dexterity_bonus_cap

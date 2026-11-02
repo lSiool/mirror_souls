@@ -1,7 +1,8 @@
 class_name LevelMenu
 extends Control
-## Меню у осколка (§8.6): отзвуки превращаются в прожитые годы. Выбор — один параметр на уровень;
-## рядом всегда видно, что возраст заберёт у тела: цена силы — лёгкость молодости.
+## Меню у осколка (§8.6): отзвуки превращаются в прожитые годы. Как в Dark Souls: сначала набрать
+## очки по параметрам (один параметр — одно очко на уровень), потом «Подтвердить» и «Повысить
+## уровень?». Рядом всегда видно, что возраст заберёт у тела: цена силы — лёгкость молодости.
 ## Чистое стекло освобождает очки: возраст при этом не меняется.
 ## Вторая страница — грани: надеть, снять, сколько слотов занято.
 ## Третья — оружие: закалка стеклом качает урон, мастерство типа растёт в бою и открывает приёмы.
@@ -44,6 +45,13 @@ var _weapon_page: VBoxContainer
 var _temper: Button
 var _glass_label: Label
 var _mastery_label: Label
+## Набранные, но ещё не подтверждённые очки: параметр → сколько.
+var _pending := {}
+var _minus := {}
+var _confirm: Button
+var _dialog: PanelContainer
+var _dialog_label: Label
+var _yes: Button
 
 
 func _ready() -> void:
@@ -83,12 +91,25 @@ func _ready() -> void:
 	_age_label = _line(_level_page)
 	_level_page.add_child(HSeparator.new())
 	for param: PlayerStats.Param in PARAMS:
+		var row := HBoxContainer.new()
+		_level_page.add_child(row)
 		var button := Button.new()
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.custom_minimum_size.y = 40
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.pressed.connect(func() -> void: choose(param))
-		_level_page.add_child(button)
+		row.add_child(button)
 		_buttons[param] = button
+		var minus := Button.new()
+		minus.text = "−"
+		minus.custom_minimum_size = Vector2(40, 40)
+		minus.pressed.connect(func() -> void: unchoose(param))
+		row.add_child(minus)
+		_minus[param] = minus
+	_confirm = Button.new()
+	_confirm.custom_minimum_size.y = 40
+	_confirm.pressed.connect(confirm)
+	_level_page.add_child(_confirm)
 	_level_page.add_child(HSeparator.new())
 	_body_label = _line(_level_page)
 	_body_label.modulate = Color(1.0, 1.0, 1.0, 0.7)
@@ -123,6 +144,44 @@ func _ready() -> void:
 	_leave.custom_minimum_size.y = 36
 	_leave.pressed.connect(close)
 	column.add_child(_leave)
+	_build_dialog()
+
+
+## Окно «Повысить уровень?» поверх меню.
+func _build_dialog() -> void:
+	_dialog = PanelContainer.new()
+	_dialog.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	_dialog.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_dialog.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.03, 0.04, 0.06, 0.97)
+	style.border_color = Color(0.72, 0.86, 1.0, 0.8)
+	style.set_border_width_all(2)
+	style.set_content_margin_all(26)
+	_dialog.add_theme_stylebox_override("panel", style)
+	_dialog.visible = false
+	add_child(_dialog)
+	var column := VBoxContainer.new()
+	column.custom_minimum_size = Vector2(380, 0)
+	column.add_theme_constant_override("separation", 14)
+	_dialog.add_child(column)
+	_dialog_label = Label.new()
+	_dialog_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_dialog_label)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 16)
+	column.add_child(buttons)
+	_yes = Button.new()
+	_yes.text = "Да"
+	_yes.custom_minimum_size = Vector2(120, 40)
+	_yes.pressed.connect(func() -> void: answer(true))
+	buttons.add_child(_yes)
+	var no := Button.new()
+	no.text = "Нет"
+	no.custom_minimum_size = Vector2(120, 40)
+	no.pressed.connect(func() -> void: answer(false))
+	buttons.add_child(no)
 
 
 func open(player: Player, parent: Node3D) -> void:
@@ -143,6 +202,9 @@ func open(player: Player, parent: Node3D) -> void:
 func close() -> void:
 	if not is_open or _animating:
 		return
+	# Неподтверждённые очки пропадают: ничего не потрачено.
+	_pending.clear()
+	_dialog.visible = false
 	is_open = false
 	visible = false
 	if is_instance_valid(reflection):
@@ -156,36 +218,109 @@ func close() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if is_open and event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
-		close()
+		if _dialog.visible:
+			answer(false)
+		else:
+			close()
 
 
-## Вложить очко. Свободное (после чистого стекла) — сразу; иначе новый уровень: отзвуки текут
-## в отражение, оно на миг взрослеет, потом прожитое переходит на героя.
+func pending_total() -> int:
+	var total := 0
+	for count: int in _pending.values():
+		total += count
+	return total
+
+
+## Сколько новых уровней в наборе: свободные очки (после чистого стекла) идут первыми и даром.
+func pending_levels() -> int:
+	return maxi(pending_total() - _player.stats.unspent, 0)
+
+
+func pending_cost() -> int:
+	return _player.stats.cost_of_levels(pending_levels())
+
+
+## Набрать очко в параметр — пока без траты: применится после подтверждения.
 func choose(param: PlayerStats.Param) -> void:
-	var stats := _player.stats
-	if _animating:
+	if _animating or not _can_add():
 		return
-	if stats.unspent > 0:
-		stats.spend_unspent(param)
-		_refresh()
-		return
-	var cost := stats.level_cost()
-	if GameState.echoes < cost:
-		return
-	_animating = true
-	GameState.add_echoes(-cost)
+	_pending[param] = _pending.get(param, 0) + 1
 	_refresh()
-	var from := _player.global_position + Vector3(0.0, 1.1, 0.0)
-	var to := reflection.global_position + Vector3(0.0, 1.1, 0.0)
-	for i in 5:
-		EchoDrop.stream(reflection.get_parent(), from + Vector3(0.0, randf_range(-0.3, 0.3), 0.0), to, 0.4 + i * 0.05)
-	await get_tree().create_timer(0.3).timeout
-	Sfx.play(&"glass_glint", to, -6.0)
-	await reflection.play_level_up(stats.age_at(stats.level + 1))
-	stats.level_up(param)
-	Sfx.play(&"glass_glint", from, -6.0)
-	HitSpark.spawn(reflection.get_parent(), from, EchoDrop.COLOR, 16)
-	_player.body.flash(EchoDrop.COLOR)
+
+
+func unchoose(param: PlayerStats.Param) -> void:
+	if _animating or _pending.get(param, 0) <= 0:
+		return
+	_pending[param] -= 1
+	if _pending[param] == 0:
+		_pending.erase(param)
+	_refresh()
+	_focus_first()
+
+
+## Хватит ли отзвуков, чтобы набрать ещё одно очко.
+func _can_add() -> bool:
+	var stats := _player.stats
+	if pending_total() < stats.unspent:
+		return true
+	return GameState.echoes >= stats.cost_of_levels(pending_levels() + 1)
+
+
+## «Подтвердить»: открыть окно «Повысить уровень?».
+func confirm() -> void:
+	if _animating or pending_total() == 0 or GameState.echoes < pending_cost():
+		return
+	var levels := pending_levels()
+	var lines: Array[String] = []
+	if levels > 0:
+		lines.append("Повысить уровень?")
+		lines.append("Уровень %d → %d" % [_player.stats.level, _player.stats.level + levels])
+		lines.append("Отзвуки: %d → %d" % [GameState.echoes, GameState.echoes - pending_cost()])
+	else:
+		lines.append("Распределить свободные очки?")
+	_dialog_label.text = "\n".join(lines)
+	_dialog.visible = true
+	_yes.grab_focus()
+
+
+## Ответ в окне: «Да» применяет набранное, «Нет» возвращает к выбору, очки остаются набранными.
+func answer(yes: bool) -> void:
+	_dialog.visible = false
+	if yes:
+		await _apply()
+	else:
+		_focus_first()
+
+
+## Свободные очки — сразу; новые уровни: отзвуки текут в отражение, оно на миг взрослеет
+## на все прожитые годы, потом они переходят на героя.
+func _apply() -> void:
+	var stats := _player.stats
+	var levels := pending_levels()
+	var order: Array[PlayerStats.Param] = []
+	for param: PlayerStats.Param in PARAMS:
+		for i in _pending.get(param, 0):
+			order.append(param)
+	_pending.clear()
+	_animating = true
+	if levels > 0:
+		GameState.add_echoes(-stats.cost_of_levels(levels))
+		_refresh()
+		var from := _player.global_position + Vector3(0.0, 1.1, 0.0)
+		var to := reflection.global_position + Vector3(0.0, 1.1, 0.0)
+		for i in 5:
+			EchoDrop.stream(reflection.get_parent(), from + Vector3(0.0, randf_range(-0.3, 0.3), 0.0), to, 0.4 + i * 0.05)
+		await get_tree().create_timer(0.3).timeout
+		Sfx.play(&"glass_glint", to, -6.0)
+		await reflection.play_level_up(stats.age_at(stats.level + levels))
+		Sfx.play(&"glass_glint", from, -6.0)
+		HitSpark.spawn(reflection.get_parent(), from, EchoDrop.COLOR, 16)
+		_player.body.flash(EchoDrop.COLOR)
+	for param in order:
+		if stats.unspent > 0:
+			stats.spend_unspent(param)
+		else:
+			stats.level_up(param)
 	_animating = false
 	_refresh()
 	_focus_first()
@@ -317,52 +452,67 @@ func _refresh() -> void:
 		_refresh_weapon()
 		return
 	var stats := _player.stats
-	var free := stats.unspent > 0
-	var cost := stats.level_cost()
+	var free := stats.unspent > pending_total()
+	var levels := pending_levels()
+	var shown := maxi(levels, 0 if free else 1)
 	_echoes_label.text = "Отзвуки: %d" % GameState.echoes
-	if free:
-		_level_label.text = "Свободных очков: %d — без отзвуков и без новых лет" % stats.unspent
-		_age_label.text = "Возраст: %s" % _age_text(stats.current_age)
+	if stats.unspent > 0:
+		_level_label.text = "Свободных очков: %d — без отзвуков и без новых лет" % (stats.unspent - mini(pending_total(), stats.unspent))
 	else:
-		_level_label.text = "Уровень %d → %d · цена %d" % [stats.level, stats.level + 1, cost]
-		var next_age := stats.age_at(stats.level + 1)
-		if next_age > stats.current_age:
-			_age_label.text = "Возраст: %s → %s" % [_age_text(stats.current_age), _age_text(next_age)]
-		else:
-			_age_label.text = "Возраст: %s — годы больше не прибавляются" % _age_text(stats.current_age)
-	var can_pay := free or GameState.echoes >= cost
+		_level_label.text = "Уровень %d → %d · цена %d" % [stats.level, stats.level + shown, stats.cost_of_levels(shown)]
+	var next_age := stats.age_at(stats.level + shown)
+	if next_age > stats.current_age:
+		_age_label.text = "Возраст: %s → %s" % [_age_text(stats.current_age), _age_text(next_age)]
+	elif shown > 0:
+		_age_label.text = "Возраст: %s — годы больше не прибавляются" % _age_text(stats.current_age)
+	else:
+		_age_label.text = "Возраст: %s" % _age_text(stats.current_age)
+	var can_add := _can_add()
 	for param: PlayerStats.Param in PARAMS:
 		var button: Button = _buttons[param]
-		button.text = "%s:  %s" % [PARAMS[param], _param_change(param)]
-		button.disabled = _animating or not can_pay
-	_body_label.text = "" if free else _body_change()
-	_body_label.visible = not free
+		var picked: int = _pending.get(param, 0)
+		button.text = "%s:  %s%s" % [PARAMS[param], _param_change(param), "   +%d" % picked if picked > 0 else ""]
+		button.disabled = _animating or not can_add
+		var minus: Button = _minus[param]
+		minus.disabled = _animating or picked == 0
+	var total := pending_total()
+	_confirm.disabled = _animating or total == 0 or GameState.echoes < pending_cost()
+	if total == 0:
+		_confirm.text = "Подтвердить — сначала выберите, что улучшить"
+	elif levels > 0:
+		_confirm.text = "Подтвердить: уровней %d, отзвуков %d" % [levels, pending_cost()]
+	else:
+		_confirm.text = "Подтвердить: очков %d" % total
+	_body_label.text = _body_change(shown) if shown > 0 else ""
+	_body_label.visible = shown > 0
 	_respec.visible = GameState.item_count(CLEAR_GLASS) > 0
 	_respec.text = "Чистое стекло (%d): перераспределить очки" % GameState.item_count(CLEAR_GLASS)
 	_respec.disabled = _animating
 	_leave.disabled = _animating
 
 
+## Сейчас → с набранными очками (ничего не набрано — с одним очком).
 func _param_change(param: PlayerStats.Param) -> String:
 	var stats := _player.stats
-	var next_age := stats.current_age if stats.unspent > 0 else stats.age_at(stats.level + 1)
+	var extra: int = maxi(_pending.get(param, 0), 1)
+	var next_age := stats.age_at(stats.level + maxi(pending_levels(), 0 if stats.unspent > pending_total() else 1))
 	match param:
 		PlayerStats.Param.HEALTH:
-			return "%.0f → %.0f" % [stats.max_health, stats.base_health + stats.bonus_with(param, 1)]
+			return "%.0f → %.0f" % [stats.max_health, stats.base_health + stats.bonus_with(param, extra)]
 		PlayerStats.Param.STAMINA:
-			return "%.0f → %.0f" % [stats.max_stamina, stats.base_stamina + stats.bonus_with(param, 1)]
+			return "%.0f → %.0f" % [stats.max_stamina, stats.base_stamina + stats.bonus_with(param, extra)]
 		PlayerStats.Param.STRENGTH:
-			return "урон %.1f → %.1f" % [stats.sword_damage, stats.damage_at(next_age) * (1.0 + stats.bonus_with(param, 1))]
+			return "урон %.1f → %.1f" % [stats.sword_damage, stats.damage_at(next_age) * (1.0 + stats.bonus_with(param, extra))]
 		_:
 			return "урон %.1f → %.1f" % [stats.bow_damage_max * stats.bow_damage_mult,
-				stats.bow_damage_max * (1.0 + stats.bonus_with(param, 1))]
+				stats.bow_damage_max * (1.0 + stats.bonus_with(param, extra))]
 
 
-## Что годы заберут при любом выборе.
-func _body_change() -> String:
+## Что годы заберут за столько уровней.
+func _body_change(levels: int) -> String:
 	var stats := _player.stats
 	var now := stats.current_age
-	var next := stats.age_at(stats.level + 1)
+	var next := stats.age_at(stats.level + levels)
 	if next <= now:
 		return "Тело больше не меняется."
 	return "Годы заберут: скорость %.2f → %.2f · прыжок %.2f → %.2f м · неуязвимость переката %.3f → %.3f с" % [
@@ -394,6 +544,9 @@ func _focus_first() -> void:
 			first.focus_entered.emit()
 		else:
 			_leave.grab_focus()
+		return
+	if not _confirm.disabled:
+		_confirm.grab_focus()
 		return
 	for param: PlayerStats.Param in PARAMS:
 		var button: Button = _buttons[param]

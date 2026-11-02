@@ -10,6 +10,8 @@ signal stamina_changed(current: float, maximum: float)
 signal attack_step_started(step: AttackStep, index: int, total: int)
 signal arrow_fired(arrow: Arrow)
 signal flasks_changed(current: int, maximum: int)
+## Кувырку не хватило выносливости.
+signal stamina_short
 
 enum State {
 	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
@@ -19,6 +21,18 @@ enum State {
 ## С какой скоростью выдавливает из босса, если перекат сорвали внутри него.
 const THROUGH_PUSH := 4.0
 const KILL_Y := -15.0
+## Бой: враг ближе этого (по X) в боевом состоянии, или героя били / он бил недавно.
+const COMBAT_RANGE := 16.0
+const COMBAT_LINGER := 3.0
+const COMBAT_STATES: Array[Dummy.State] = [Dummy.State.CHASE, Dummy.State.WINDUP, Dummy.State.ATTACK,
+	Dummy.State.RECOVER, Dummy.State.STAGGER, Dummy.State.OFF_BALANCE, Dummy.State.KNOCKDOWN]
+## Грязь (MudZone): медленнее ходит, ниже прыгает, кувырок короче и в бою дороже.
+const MUD_SPEED := 0.55
+const MUD_JUMP := 0.8
+const MUD_ROLL_SPEED := 0.6
+const MUD_ROLL_COST := 1.8
+## Сколько добавляет к лечению одно улучшение зелья (Травница).
+const FLASK_POTENCY_STEP := 0.15
 const PLUNGE_LAND_TIME := 0.15
 const HURT_TIME := 0.3
 const SLIDE_LEAN := 0.35
@@ -88,6 +102,9 @@ var _charge_ready := false
 var ladder: Ladder
 ## Лежит и спит: вступление в хижине.
 var lying := false
+## Сколько зон грязи сейчас под героем.
+var mud_zones := 0
+var _combat_t := 99.0
 ## Глотки лечебного зелья; пополняются при отдыхе у осколка.
 var flasks := 0
 var _sipped := false
@@ -139,7 +156,7 @@ var _ledge_cooldown := 0.0
 func _ready() -> void:
 	add_to_group("player")
 	health.max_health = stats.max_health
-	flasks = stats.flask_charges
+	flasks = max_flasks()
 	health.heal_full()
 	stamina = stats.max_stamina
 	health.changed.connect(health_changed.emit)
@@ -214,6 +231,7 @@ func _tick(delta: float) -> void:
 	_counter_t = maxf(_counter_t - delta, 0.0)
 	_since_slide += delta
 	_since_roll += delta
+	_combat_t += delta
 	hurtbox.invulnerable = _iframes > 0.0 or state == State.DEAD
 
 	if state != State.DEAD:
@@ -301,7 +319,7 @@ func _move_state(delta: float) -> void:
 	if x != 0.0:
 		facing = signf(x)
 
-	var target := x * stats.move_speed
+	var target := x * stats.move_speed * (MUD_SPEED if in_mud() else 1.0)
 	var accel := stats.acceleration if on_floor else stats.air_acceleration
 	if x == 0.0:
 		accel = stats.friction if on_floor else stats.air_drag
@@ -337,7 +355,7 @@ func _move_state(delta: float) -> void:
 
 
 func _jump() -> void:
-	velocity.y = stats.jump_velocity
+	velocity.y = stats.jump_velocity * (MUD_JUMP if in_mud() else 1.0)
 	Sfx.play(&"player_jump", global_position)
 	if jump_is_effort():
 		Sfx.play(&"player_jump_voice", global_position)
@@ -365,16 +383,21 @@ func _on_stats_changed() -> void:
 
 
 func _start_roll() -> void:
-	if stamina <= 0.0:
+	# Вне боя кувырок бесплатный; в бою — по цене, и без выносливости его нет.
+	var cost := roll_cost_now()
+	if cost > 0.0 and stamina < cost:
+		_roll_buffer = 0.0
+		stamina_short.emit()
 		return
 	_roll_buffer = 0.0
-	_spend_stamina(stats.roll_cost)
+	if cost > 0.0:
+		_spend_stamina(cost)
 	var x := _input_x()
 	_roll_dir = signf(x) if x != 0.0 else facing
 	facing = _roll_dir
 	# Подкат сохраняет скорость, если она больше обычной скорости переката.
 	var carried := absf(velocity.x) if signf(velocity.x) == _roll_dir else 0.0
-	_roll_speed = maxf(stats.roll_speed, carried)
+	_roll_speed = maxf(stats.roll_speed, carried) * (MUD_ROLL_SPEED if in_mud() else 1.0)
 	_iframes = maxf(_iframes, stats.roll_iframes)
 	_roll_attack_queued = false
 	_pass_through_bosses()
@@ -437,6 +460,34 @@ func _update_rolled_through(delta: float) -> void:
 			remove_collision_exception_with(enemy)
 			enemy.remove_collision_exception_with(self)
 	_rolled_through.clear()
+
+
+## Идёт ли бой: враг рядом бьётся с героем, или удары были только что.
+func in_combat() -> bool:
+	if _combat_t < COMBAT_LINGER:
+		return true
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Dummy
+		if enemy and enemy.state in COMBAT_STATES \
+				and absf(enemy.global_position.x - global_position.x) < COMBAT_RANGE \
+				and absf(enemy.global_position.y - global_position.y) < 6.0:
+			return true
+	return false
+
+
+func in_mud() -> bool:
+	return mud_zones > 0
+
+
+func roll_cost_now() -> float:
+	if not in_combat():
+		return 0.0
+	return stats.roll_cost * (MUD_ROLL_COST if in_mud() else 1.0)
+
+
+## Глотков зелья: стартовые и найденные сосуды.
+func max_flasks() -> int:
+	return stats.flask_charges + GameState.item_count(&"flask_vessel")
 
 
 ## Выбор удара: добивание или удар в спину → продолжение комбо → удар из скольжения
@@ -880,7 +931,7 @@ func _start_drink() -> void:
 	if flasks <= 0:
 		return
 	flasks -= 1
-	flasks_changed.emit(flasks, stats.flask_charges)
+	flasks_changed.emit(flasks, max_flasks())
 	_sipped = false
 	_set_state(State.DRINK)
 
@@ -894,7 +945,8 @@ func _drink_state(delta: float) -> void:
 	_apply_gravity(delta)
 	if not _sipped and _state_time >= stats.flask_drink_time * stats.flask_sip_at:
 		_sipped = true
-		health.heal(stats.max_health * stats.mod(&"flask_heal", stats.flask_heal))
+		var potency := stats.flask_heal + FLASK_POTENCY_STEP * GameState.item_count(&"flask_potency")
+		health.heal(stats.max_health * stats.mod(&"flask_heal", potency))
 		body.flash(Color(0.45, 1.0, 0.6))
 		HitSpark.spawn(get_parent(), global_position + Vector3(0.0, 1.2, 0.3), Color(0.5, 1.0, 0.65), 14)
 	if _state_time >= stats.flask_drink_time:
@@ -1122,6 +1174,7 @@ func _probe_glass_wall(dir: float) -> Vector3:
 # --- Бой --------------------------------------------------------------------
 
 func _on_hit_landed(hurtbox_hit: Hurtbox) -> void:
+	_combat_t = 0.0
 	var hitbox := sword_hitbox if state == State.ATTACK else plunge_hitbox
 	var stop := _step.hitstop if state == State.ATTACK and _step else 0.1
 	HitStop.stop(maxf(stop, 0.1) if hitbox.heavy else stop)
@@ -1148,6 +1201,7 @@ func _on_hurt(hitbox: Hitbox) -> void:
 			_on_block(hitbox)
 			return
 	health.take_damage(hitbox.damage, hitbox.non_lethal)
+	_combat_t = 0.0
 	body.flash(Color(1.0, 0.25, 0.2))
 	Sfx.play(&"player_hurt", global_position)
 	Events.camera_shake_requested.emit(0.3, 0.2)
@@ -1274,8 +1328,8 @@ func restore() -> void:
 	health.heal_full()
 	stamina = stats.max_stamina
 	stamina_changed.emit(stamina, stats.max_stamina)
-	flasks = stats.flask_charges
-	flasks_changed.emit(flasks, stats.flask_charges)
+	flasks = max_flasks()
+	flasks_changed.emit(flasks, max_flasks())
 
 
 func is_dead() -> bool:

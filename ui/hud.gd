@@ -10,6 +10,7 @@ const DEATH_LABEL_DELAY := 0.95
 const DEATH_STING_DB := -9.0
 const CARD_TIME := 1.9
 const ITEM_NAMES := {&"clear_glass": "чистое стекло", &"facet_slot": "слот для граней", &"tempered_glass": "закалённое стекло",
+	&"flask_vessel": "второй глоток зелья", &"flask_potency": "крепкое зелье Травницы",
 	&"stick": "палка", &"sword": "меч", &"bow": "лук", &"boss_smith_echo": "отзвук Безмолвного Кузнеца"}
 
 @export var player_path: NodePath
@@ -50,7 +51,8 @@ func _ready() -> void:
 	prompt_label.text = ""
 	fade.color.a = 1.0
 	_on_echoes_changed(GameState.echoes)
-	_on_flasks_changed(_player.flasks, _player.stats.flask_charges)
+	_on_flasks_changed(_player.flasks, _player.max_flasks())
+	_player.stamina_short.connect(_flash_stamina)
 	currency_label.pivot_offset = Vector2(0.0, 12.0)
 	_refresh_age()
 
@@ -189,6 +191,13 @@ func toast(text: String) -> void:
 	tween.tween_interval(2.5)
 	tween.tween_property(label, "modulate:a", 0.0, 0.6)
 	tween.tween_callback(label.queue_free)
+
+
+## Не хватило выносливости: полоса коротко вспыхивает красным.
+func _flash_stamina() -> void:
+	var tween := create_tween()
+	tween.tween_property(stamina_bar, "modulate", Color(1.0, 0.3, 0.25), 0.06)
+	tween.tween_property(stamina_bar, "modulate", Color.WHITE, 0.35)
 
 
 func _on_flasks_changed(current: int, maximum: int) -> void:

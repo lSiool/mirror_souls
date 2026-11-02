@@ -266,16 +266,26 @@ func run() -> void:
 
 	print("== Лечебное зелье")
 	player.restore()
-	player.health.take_damage(70.0)
+	var hp_max := player.stats.max_health
+	check(player.flasks == 1 and player.max_flasks() == 1, "в начале игры один глоток")
+	player.health.take_damage(50.0)
 	await tap("heal")
-	check(player.state == Player.State.DRINK and player.flasks == 1, "пьёт зелье, глотков осталось 1")
+	check(player.state == Player.State.DRINK and player.flasks == 0, "пьёт зелье, глотков 0")
 	await seconds(1.0)
-	check(absf(player.health.current - 90.0) < 0.5, "глоток лечит 60 %% (здоровье %.0f)" % player.health.current)
-	await tap("heal")
-	await seconds(1.0)
-	check(player.health.current == player.stats.max_health and player.flasks == 0, "второй глоток — до полного, глотков 0")
+	check(absf(player.health.current - (hp_max - 50.0 + hp_max * 0.6)) < 0.5, "глоток лечит 60 %% (здоровье %.0f)" % player.health.current)
 	await tap("heal")
 	check(player.state != Player.State.DRINK, "зелье кончилось — пить нечего")
+	game_state.add_item(&"flask_vessel")
+	game_state.add_item(&"flask_potency")
+	player.restore()
+	check(player.flasks == 2, "сосуд из тайника: глотков два")
+	player.health.take_damage(60.0)
+	await tap("heal")
+	await seconds(1.0)
+	check(absf(player.health.current - minf(hp_max - 60.0 + hp_max * 0.75, hp_max)) < 0.5, "Травница улучшила зелье: 75 %% (здоровье %.0f)" % player.health.current)
+	game_state.take_item(&"flask_vessel")
+	game_state.take_item(&"flask_potency")
+	player.restore()
 
 	print("== Осколок-чекпоинт")
 	await put(Vector3(-18.5, 0.1, 0))
@@ -303,11 +313,21 @@ func run() -> void:
 	var speed_before := stats.move_speed
 	game_state.add_echoes(cost - 1 - game_state.echoes)
 	menu._refresh()
-	await menu.choose(PlayerStats.Param.HEALTH)
-	check(stats.level == 0 and game_state.echoes == cost - 1, "не хватает отзвуков — уровня нет")
+	menu.choose(PlayerStats.Param.HEALTH)
+	check(menu.pending_total() == 0 and menu._confirm.disabled, "не хватает отзвуков — выбрать нельзя")
 	game_state.add_echoes(1)
-	await menu.choose(PlayerStats.Param.HEALTH)
-	check(stats.level == 1 and game_state.echoes == 0, "уровень куплен за %d отзвуков" % cost)
+	menu._refresh()
+	check(menu._confirm.disabled, "ничего не выбрано — «Подтвердить» не горит")
+	menu.choose(PlayerStats.Param.HEALTH)
+	check(not menu._confirm.disabled and stats.level == 0 and game_state.echoes == cost, "выбрано — «Подтвердить» горит, уровень ещё не куплен")
+	menu.confirm()
+	check(menu._dialog.visible, "окно «Повысить уровень?»")
+	await menu.answer(false)
+	check(stats.level == 0 and game_state.echoes == cost and menu.pending_total() == 1, "«Нет» ничего не меняет, выбор остался")
+	menu.confirm()
+	await menu.answer(true)
+	check(stats.level == 1 and game_state.echoes == 0 and menu.pending_total() == 0, "«Да»: уровень куплен за %d отзвуков" % cost)
+	check(is_equal_approx(stats.max_health, stats.base_health + 6.0), "первое очко здоровья: +6 (%.0f)" % stats.max_health)
 	check(is_equal_approx(stats.current_age, age_before + 0.25), "герой повзрослел на четверть года (%.2f)" % stats.current_age)
 	check(stats.max_health > stats.base_health and is_equal_approx(player.health.max_health, stats.max_health),
 		"здоровье выросло (%.1f)" % stats.max_health)
@@ -317,7 +337,9 @@ func run() -> void:
 	check(stats.unspent == 1 and is_equal_approx(stats.max_health, stats.base_health)
 		and is_equal_approx(stats.current_age, age_before + 0.25) and game_state.item_count(&"clear_glass") == 0,
 		"чистое стекло: очко свободно, возраст тот же")
-	await menu.choose(PlayerStats.Param.STRENGTH)
+	menu.choose(PlayerStats.Param.STRENGTH)
+	menu.confirm()
+	await menu.answer(true)
 	check(stats.unspent == 0 and stats.level == 1 and stats.points_in(PlayerStats.Param.STRENGTH) == 1,
 		"свободное очко вложено без отзвуков и без новых лет")
 	menu.close()
@@ -331,10 +353,37 @@ func run() -> void:
 		and stats.jump_velocity >= stats.jump_velocity_young * stats.jump_velocity_limit - 0.001
 		and stats.sword_damage <= stats.sword_damage_young * stats.sword_damage_limit + 0.001,
 		"тело не выходит за планки (скорость %.2f, прыжок %.2f, урон %.1f)" % [stats.move_speed, stats.jump_velocity, stats.sword_damage])
+	stats.points[PlayerStats.Param.HEALTH] = 15
+	check(is_equal_approx(stats.health_bonus(15), 90.0) and is_equal_approx(stats.health_bonus(30), 150.0) \
+		and is_equal_approx(stats.health_bonus(50), 190.0), "здоровье ступенями: +90 к 15 очкам, +150 к 30, +190 к 50")
+	check(stats.health_bonus(51) - stats.health_bonus(50) < stats.health_bonus(1) * 0.2, "на высоких уровнях прибавка мала")
 	stats.points[PlayerStats.Param.HEALTH] = 2000
 	check(stats.max_health <= stats.base_health + stats.health_bonus_cap, "здоровье не выше потолка (%.0f)" % stats.max_health)
 	stats.reset_progress()
 	await seconds(0.5)
+
+	print("== Кувырок и выносливость")
+	await put(Vector3(-20.0, 0.1, 0))
+	player._combat_t = 99.0
+	player.stamina = player.stats.max_stamina
+	check(not player.in_combat(), "рядом никто не дерётся — вне боя")
+	await tap("roll")
+	await seconds(0.6)
+	check(is_equal_approx(player.stamina, player.stats.max_stamina), "вне боя кувырок не тратит выносливость")
+	player._combat_t = 0.0
+	player.stamina = player.stats.max_stamina
+	await tap("roll")
+	await frames(3)
+	check(player.in_combat() and player.stamina <= player.stats.max_stamina - player.stats.roll_cost + 0.5, "в бою кувырок тратит выносливость")
+	await seconds(0.6)
+	player._combat_t = 0.0
+	player.stamina = player.stats.roll_cost * 0.5
+	await tap("roll")
+	await frames(2)
+	check(player.state != Player.State.ROLL, "в бою без выносливости кувырка нет")
+	player._combat_t = 99.0
+	player.stamina = player.stats.max_stamina
+	await seconds(0.3)
 
 	print("== Грани")
 	var youth := Facet.by_id(&"facet_youth")
@@ -1602,7 +1651,9 @@ func run() -> void:
 	await tap("interact")
 	await frames(3)
 	check((room_node("Objects/Smith") as Npc)._next == 1, "дальше кузнец рассказывает")
-	check(room_node("Objects/Herbalist") != null and room_node("Objects/Glassblower") != null, "травница и стекольщик на месте")
+	var herbalist_here := room_node("Objects/Herbalist")
+	check((herbalist_here == null or herbalist_here.is_queued_for_deletion()) and room_node("Objects/Glassblower") != null,
+		"Травница пропала (её похитили), стекольщик на месте")
 	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
 	await seconds(0.2)
 	await tap("interact")
@@ -1619,7 +1670,7 @@ func run() -> void:
 	print("== Часовня и Главное Зеркало")
 	var mirror := room_node("Objects/MainMirror") as MainMirror
 	check(mirror.is_locked(), "Главное Зеркало закрыто")
-	check(mirror.lit_panes() == 2 and mirror.get_node_or_null("Pane2") != null, "открыты два куска из трёх")
+	check(mirror.lit_panes() == 2 and mirror.get_node_or_null("Pane4") != null, "открыты два куска из пяти")
 	await put(mirror.global_position + Vector3(0.5, 0.1, 0.0))
 	await seconds(0.6)
 	check(mirror._reflection != null, "в зеркале отражение героя")
@@ -1653,67 +1704,245 @@ func run() -> void:
 	await seconds(0.2)
 	await tap("interact")
 	await seconds(1.0)
-	check(rooms.current_room_id == &"forest_trail", "из деревни в лес")
+	check(rooms.current_room_id == &"cemetery_gate", "от часовни — к кладбищу")
 
-	print("== Тропа в лесу")
-	check(room_node("Objects/RatA") != null and room_node("Objects/Bat") != null, "в лесу есть враги")
-	await put(Vector3(-5.0, 0.3, 0.0), 1.0)
-	press("move_right")
-	await seconds(1.1)
-	release("move_right")
-	check(player.global_position.y > 1.0, "тропа поднимается на холм (y=%.2f)" % player.global_position.y)
-	await put(room_node("Objects/DoorToForge").global_position + Vector3(-0.5, 0.1, 0.0))
+	print("== Лес: ворота кладбища")
+	check(room_node("Decor/LanternLight") != null, "фонарь на колонне — последний человеческий огонь")
+	player.restore()
+	await put(room_node("Objects/RootClimb").global_position + Vector3(0.0, 0.1, 0.0), 1.0)
+	press("move_up")
+	await seconds(2.2)
+	release("move_up")
+	await seconds(0.5)
+	check(player.global_position.y > 4.0, "по корню — на пост могильщика (y=%.2f)" % player.global_position.y)
+	var hp_trap := player.health.current
+	var plank := room_node("Objects/RottenPlank") as GlassSurface
+	await put(Vector3(1.0, 4.5, 0.0), 1.0)
+	await seconds(1.3)
+	check(plank._broken and player.global_position.y < 4.0, "гнилая доска провалилась")
+	check(player.health.current < hp_trap and not player.is_dead(), "колья ранят, но не убивают (%.0f → %.0f)" % [hp_trap, player.health.current])
+	await put(room_node("Objects/PostChest").global_position + Vector3(0.0, 0.1, 0.8))
 	await seconds(0.2)
 	await tap("interact")
-	await seconds(1.0)
-	check(rooms.current_room_id == &"forge_yard", "тропа привела к старой кузне")
+	await frames(3)
+	check(game_state.has_flag(&"cem_gate_chest"), "сундук на посту открыт")
+	await rooms.travel(&"cemetery", ^"Spawns/FromGate")
+	await seconds(0.3)
 
-	print("== Двор кузницы")
+	print("== Лес: кладбище и мародёры")
+	var heavy := room_node("Objects/RobberHeavy") as Bandit
+	var knife := room_node("Objects/RobberKnife") as Bandit
+	check(heavy != null and knife != null and not heavy.visible and heavy.state == Dummy.State.DORMANT, "мародёры в склепе")
+	check((room_node("Objects/SealedCryptDoor") as RoomDoor).is_locked(), "нижний склеп запечатан")
+	player.restore()
+	await put(Vector3(3.2, 2.2, 0), 1.0)
+	await seconds(2.2)
+	check(heavy.visible and heavy.state != Dummy.State.DORMANT and knife.state != Dummy.State.DORMANT, "дверь склепа распахнулась — мародёры напали")
+	check(absf(heavy.global_position.z) < 0.3 and absf(knife.global_position.z) < 0.3, "выбежали в плоскость боя")
+	var robbers_hit := false
+	var hp_rob := player.health.current
+	for i in 360:
+		await frames(1)
+		if player.health.current < hp_rob:
+			robbers_hit = true
+			player.health.current = player.health.max_health
+		hp_rob = player.health.current
+		if robbers_hit:
+			break
+	check(robbers_hit, "мародёры бьют героя")
+	heavy.health.take_damage(INF)
+	knife.health.take_damage(INF)
+	await seconds(1.0)
 	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
 	await seconds(0.2)
 	await tap("interact")
 	await seconds(1.2)
 	rooms.level_menu.close()
-	check(game_state.has_flag(&"shard_forge_yard"), "осколок двора активирован")
+	check(game_state.has_flag(&"shard_cemetery"), "осколок на кладбище")
+	await rooms.travel(&"forest_wall", ^"Spawns/FromCemetery")
+	await seconds(0.3)
+
+	print("== Лес: стена леса")
+	player.restore()
+	await put(room_node("Objects/Vines").global_position + Vector3(0.0, 0.1, 0.0), 1.0)
+	press("move_up")
+	await seconds(3.0)
+	release("move_up")
+	await seconds(0.5)
+	check(player.global_position.y > 5.5, "по лианам — на верхний маршрут (y=%.2f)" % player.global_position.y)
+	check(room_node("Objects/ScoutLetter") is Note, "письмо разведчика")
+	await put(room_node("Objects/ScoutSupplies").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(game_state.has_flag(&"scout_supplies"), "припасы разведчика взяты")
+	await rooms.travel(&"fallen_giant", ^"Spawns/FromWall")
+	await seconds(0.3)
+
+	print("== Лес: поваленный гигант")
+	await put(Vector3(-15.0, 0.6, 0), 1.0)
+	press("move_right")
+	await seconds(2.2)
+	release("move_right")
+	check(player.global_position.y > 2.5, "по стволу вверх (y=%.2f)" % player.global_position.y)
+	check(room_node("Objects/BanditNote") is Note, "записка разбойников на столе")
+	await put(room_node("Objects/Herbalist").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(game_state.has_flag(&"herbalist_rescued"), "Травница развязана")
+	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.2)
+	rooms.level_menu.close()
+	check(game_state.has_flag(&"shard_fallen_giant"), "осколок у хижины")
+	player.restore()
+	var hp_ravine := player.health.current
+	await put(Vector3(4.8, 6.0, 0), 1.0)
+	await seconds(2.4)
+	check(player.global_position.y < -15.0 and not player.is_dead() and player.health.current < hp_ravine * 0.6,
+		"сорвался в пропасть: огромный урон, но жив (%.0f → %.0f)" % [hp_ravine, player.health.current])
+	check(room_node("Objects/RavineLadder") != null, "со дна пропасти — лестница наверх")
+	await rooms.travel(&"root_maze", ^"Spawns/FromGiant")
+	await seconds(0.3)
+
+	print("== Лес: корневой лабиринт")
+	var wraith := room_node("Objects/WraithA") as FogWraith
+	await frames(3)
+	check(wraith != null and wraith.body_color.a < 0.2, "призрак в тумане едва виден (%.2f)" % wraith.body_color.a)
+	player.restore()
+	var hp_root := player.health.current
+	await put(Vector3(-0.5, 8.4, 0), 1.0)
+	await seconds(2.6)
+	check((room_node("Objects/SawnRoot0") as GlassSurface)._broken and player.global_position.y < -7.0, "подрубленный корень рухнул")
+	check(not player.is_dead() and player.health.current < hp_root, "падение на дно: больно, но жив (%.0f → %.0f)" % [hp_root, player.health.current])
+	await put(room_node("Objects/RootCache").global_position + Vector3(0.0, 0.1, 1.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	player.restore()
+	check(game_state.has_flag(&"root_cache") and game_state.item_count(&"flask_vessel") == 1 and player.max_flasks() == 2,
+		"тайник в корне: второй глоток зелья")
+	await rooms.travel(&"swamp", ^"Spawns/FromMaze")
+	await seconds(0.3)
+
+	print("== Лес: болото")
+	await put(Vector3(-27.0, 0.1, 0), 1.0)
+	press("move_right")
+	await seconds(0.4)
+	release("move_right")
+	var clean_run := player.global_position.x + 27.0
+	await put(Vector3(-18.0, 0.1, 0), 1.0)
+	await frames(3)
+	check(player.in_mud(), "в грязи")
+	press("move_right")
+	await seconds(0.4)
+	release("move_right")
+	var mud_run := player.global_position.x + 18.0
+	check(mud_run < clean_run * 0.75, "грязь замедляет (%.1f м против %.1f)" % [mud_run, clean_run])
+	await put(Vector3(-18.0, 0.1, 0), 1.0)
+	player._combat_t = 0.0
+	player.stamina = player.stats.max_stamina
+	await tap("roll")
+	await frames(3)
+	check(player.stamina <= player.stats.max_stamina - player.stats.roll_cost * 1.7, "в грязи кувырок в бою дороже")
+	player._combat_t = 99.0
+	await seconds(0.6)
+	var knight := room_node("Objects/DrownedKnight") as DrownedKnight
+	check(knight.state == Dummy.State.DORMANT and knight.visual.position.y < -1.0, "утопленник лежит под водой")
+	player.restore()
+	await put(Vector3(knight.global_position.x - 4.5, 0.1, 0), 1.0)
+	await seconds(1.8)
+	check(knight._risen and knight.state != Dummy.State.DORMANT, "утопленник поднялся из воды")
+	var probe := Hitbox.new()
+	rooms.current_room.add_child(probe)
+	probe.damage = 20.0
+	probe.global_position = knight.global_position + Vector3(knight.facing * 1.0, 1.0, 0.0)
+	knight._set_state(Dummy.State.CHASE)
+	var hp_knight := knight.health.current
+	knight._on_hurt(probe)
+	check(hp_knight - knight.health.current < 5.0, "щит держит удар спереди (−%.1f)" % (hp_knight - knight.health.current))
+	probe.heavy = true
+	hp_knight = knight.health.current
+	knight._on_hurt(probe)
+	check(hp_knight - knight.health.current > 15.0, "тяжёлый удар пробивает щит (−%.1f)" % (hp_knight - knight.health.current))
+	probe.queue_free()
+	knight.health.take_damage(INF)
+	await seconds(0.6)
+	await rooms.travel(&"cursed_village", ^"Spawns/FromSwamp")
+	await seconds(0.3)
+
+	print("== Лес: мёртвая деревня и Безмолвный Кузнец")
+	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.2)
+	rooms.level_menu.close()
+	check(game_state.has_flag(&"shard_cursed_village"), "осколок у входа в деревню")
 	var smith := room_node("Objects/Blacksmith") as Blacksmith
-	check(smith != null and smith.health.max_health == 300.0, "кузнец на месте")
+	var arena := room_node("Objects/Arena") as BossArena
+	check(smith != null and smith.seated and smith.state == Dummy.State.DORMANT and smith.health.max_health == 800.0, "Кузнец сидит на камне среди черепов")
+	check(not arena.is_closed(), "пока тихо — тумана нет")
+	player.restore()
+	await put(Vector3(smith.global_position.x - 6.0, 0.1, 0), 1.0)
+	for i in 480:
+		await frames(1)
+		if smith._engaged:
+			break
+	check(smith._engaged and arena.is_closed() and smith.state != Dummy.State.DORMANT, "дух вселился, Кузнец встал, поднялись туманные стены")
+	check(rooms.hud.boss_bar != null, "у босса полоса здоровья")
+	await put(Vector3(arena.left_x + 1.5, 0.1, 0), -1.0)
+	press("move_left")
+	await seconds(0.8)
+	release_all()
+	check(player.global_position.x > arena.left_x - 0.2, "сквозь туманную стену не выйти")
 	player.restore()
 	await put(Vector3(smith.global_position.x - 2.2, 0.1, 0), 1.0)
 	smith.facing = -1.0
-	var hp_smith := player.health.current
 	var saw_slam := false
-	var hammer_head := smith.hammer.get_node("Head") as Node3D
+	var hammer_head := smith.hammer_head as Node3D
 	var hammer_top := 0.0
 	var smith_hit := false
 	var hp_frame := player.health.current
-	for i in 900:
+	for i in 1500:
 		await frames(1)
 		smith_hit = smith_hit or player.health.current < hp_frame
-		player.health.current = maxf(player.health.current, 40.0)
+		player.health.current = maxf(player.health.current, 50.0)
 		hp_frame = player.health.current
-		saw_slam = saw_slam or (smith.state == Dummy.State.WINDUP and smith._blow == Blacksmith.Blow.SLAM)
-		if smith.state == Dummy.State.WINDUP and smith._blow == Blacksmith.Blow.SLAM:
+		var slamming := smith.state == Dummy.State.WINDUP and smith._blow in [Blacksmith.Blow.SLAM, Blacksmith.Blow.SLAM_HELD]
+		saw_slam = saw_slam or slamming
+		if slamming:
 			hammer_top = maxf(hammer_top, hammer_head.global_position.y - smith.global_position.y)
-		if saw_slam and smith.state == Dummy.State.RECOVER:
+		if saw_slam and smith.state == Dummy.State.RECOVER and smith._chain.size() <= 1:
 			break
-	check(saw_slam, "кузнец заносит молот сверху (удар №3)")
-	check(smith_hit, "удар Кузнеца достаёт героя, хотя модель стоит глубже")
-	check(hammer_top > 3.2, "молот поднят над головой (%.1f м)" % hammer_top)
+	check(saw_slam, "Кузнец заносит молот сверху")
+	check(smith_hit, "удар Кузнеца достаёт героя")
+	check(hammer_top > 3.0, "молот поднят над головой (%.1f м)" % hammer_top)
 	await seconds(0.25)
-	check(hammer_head.global_position.y - smith.global_position.y < 0.8, "молот упал до земли (%.1f м)" % (hammer_head.global_position.y - smith.global_position.y))
+	check(hammer_head.global_position.y - smith.global_position.y < 1.0, "молот упал до земли (%.1f м)" % (hammer_head.global_position.y - smith.global_position.y))
 	check(smith.recover_time >= smith.slam_stuck * 0.7, "после удара сверху молот застревает в камне (%.1f с)" % smith.recover_time)
+	var saw_drag := false
+	for i in 600:
+		await frames(1)
+		player.health.current = maxf(player.health.current, 50.0)
+		if smith.state == Dummy.State.CHASE:
+			player.global_position.x = smith.global_position.x + (6.0 if smith.global_position.x < 4.0 else -6.0)
+		if smith.state == Dummy.State.ATTACK and smith._blow == Blacksmith.Blow.DRAG:
+			saw_drag = true
+			break
+	check(saw_drag, "волок: тащит молот и бьёт")
 	check(smith.hurt_voice == &"" and smith.death_voice == &"", "Кузнец безмолвен")
 	check(not smith.backstab_allowed, "у Кузнеца нет добивания в спину: перекат за спину его не даёт")
-	check(rooms.hud.boss_bar != null, "у босса полоса здоровья")
-	check(hp_smith > 0.0, "герой жив")
-	await seconds(0.2)
+	await seconds(1.5)
 	# Герой всегда перед Кузнецом: модель и молот не перекрывают его, куда бы тот ни смотрел.
 	for side in 2:
 		check(smith.body_mesh.global_position.z + 0.55 < -0.38 and hammer_head.global_position.z + 0.35 < 0.0, "модель и молот за героем (facing %.0f)" % smith.facing)
 		smith.facing = -smith.facing
 		await frames(2)
 	# Перекат сквозь босса: без переката он твёрдый, из переката выходим за спиной.
-	var smith_home := smith.global_position
+	var smith_home := Vector3(4.0, smith.global_position.y, 0.0)
+	smith.global_position = smith_home
 	var smith_reach: float = smith.body_half_width() + 0.3
 	smith.set_physics_process(false)
 	await put(Vector3(smith_home.x - 1.5, 0.1, 0), 1.0)
@@ -1721,40 +1950,71 @@ func run() -> void:
 	await seconds(0.6)
 	release_all()
 	check(player.global_position.x < smith_home.x - smith_reach, "шагом сквозь Кузнеца не пройти")
-	player.stamina = player.stats.max_stamina
+	player._combat_t = 99.0
 	await tap("roll")
 	await seconds(0.6)
 	check(player.global_position.x > smith_home.x + smith_reach, "перекат выводит за спину Кузнеца")
 	check(player._rolled_through.is_empty(), "после переката босс снова твёрдый")
-	# Издали перекат кончился бы внутри босса: докатывается до выхода.
 	await put(Vector3(smith_home.x - 3.4, 0.1, 0), 1.0)
-	player.stamina = player.stats.max_stamina
 	await tap("roll")
 	await seconds(0.9)
 	check(player.global_position.x > smith_home.x + smith_reach, "перекат не заканчивается внутри босса")
 	check(player.state == Player.State.MOVE, "перекат закончился (%s)" % player.state)
-	# Босс у стены: упёрлись — выходим обратно, а не застреваем.
-	var smith_wall := Vector3(-22.3, smith_home.y, 0.0)
+	# Босс у туманной стены: упёрлись — выходим обратно, а не застреваем.
+	var smith_wall := Vector3(arena.left_x + 0.9, smith_home.y, 0.0)
 	smith.global_position = smith_wall
 	await put(Vector3(smith_wall.x + 1.3, 0.1, 0), -1.0)
-	player.stamina = player.stats.max_stamina
 	await tap("roll")
 	await seconds(1.0)
 	check(absf(player.global_position.x - smith_wall.x) >= smith_reach, "у стены из босса выходим обратно")
 	check(player.state == Player.State.MOVE and player._rolled_through.is_empty(), "у стены перекат закончился")
 	smith.global_position = smith_home
 	smith.set_physics_process(true)
-	await put(Vector3(smith_home.x - 2.2, 0.1, 0), 1.0)
+	# Сбитая стойкость — на колено, можно добить.
+	await put(Vector3(smith_home.x - 2.5, 0.1, 0), 1.0)
+	var boss_probe := Hitbox.new()
+	rooms.current_room.add_child(boss_probe)
+	boss_probe.global_position = smith.global_position + Vector3(-1.0, 1.0, 0.0)
+	boss_probe.damage = 1.0
+	boss_probe.poise_damage = smith.max_poise + 10.0
+	smith._on_hurt(boss_probe)
+	check(smith.state == Dummy.State.OFF_BALANCE and smith.can_be_riposted(), "сбитая стойкость: Кузнец на колене, можно добить")
+	await seconds(2.6)
+	# Вторая фаза.
+	boss_probe.poise_damage = 0.0
+	boss_probe.damage = smith.health.current - smith.health.max_health * 0.5
+	smith._on_hurt(boss_probe)
+	check(smith.phase == 2 and smith.hurtbox.invulnerable, "на половине здоровья — вторая фаза, в переходе неуязвим")
+	for i in 600:
+		await frames(1)
+		player.health.current = maxf(player.health.current, 50.0)
+		if not smith._scene_running:
+			break
+	check(not smith._scene_running and not smith.hurtbox.invulnerable and smith.hammer_head.material_override != null, "молот горит духом, бой продолжается")
+	var phase_moves := {}
+	for i in 1500:
+		await frames(1)
+		player.health.current = maxf(player.health.current, 50.0)
+		if smith.state == Dummy.State.CHASE:
+			var boss_gap := 8.0 if not phase_moves.has(Blacksmith.Blow.LEAP) else 5.0
+			player.global_position.x = smith.global_position.x + (boss_gap if smith.global_position.x < 4.0 else -boss_gap)
+		if smith.state in [Dummy.State.WINDUP, Dummy.State.ATTACK]:
+			phase_moves[smith._blow] = true
+		if phase_moves.has(Blacksmith.Blow.LEAP) and phase_moves.has(Blacksmith.Blow.HANDS):
+			break
+	check(phase_moves.has(Blacksmith.Blow.LEAP), "фаза 2: прыжок на героя")
+	check(phase_moves.has(Blacksmith.Blow.HANDS), "фаза 2: руки духа из земли")
+	boss_probe.queue_free()
 	check(not room_node("Objects/BossEcho").enabled, "отзвук кузнеца пока недоступен")
-	smith.health.take_damage(smith.health.max_health * 0.6)
-	check(smith._enraged(), "на половине здоровья кузнец злее")
 	var hammer_before: float = game_state.mastery_xp(&"hammer")
 	smith.last_weapon = &"sword"
 	smith.health.take_damage(INF)
 	await frames(2)
 	check(game_state.mastery_xp(&"hammer") > hammer_before, "победа над кузнецом учит молоту")
-	await seconds(0.5)
+	await seconds(1.5)
+	check(Engine.time_scale == 1.0, "замедление последнего удара кончилось")
 	check(game_state.has_flag(&"boss_smith"), "кузнец побеждён")
+	check(not arena.is_closed(), "туман растворился")
 	var echo_find := room_node("Objects/BossEcho") as ItemPickup
 	check(echo_find.enabled and echo_find.visible, "отзвук кузнеца появился")
 	var echoes_smith: int = game_state.echoes
@@ -1767,16 +2027,55 @@ func run() -> void:
 	await rooms._rest()
 	await seconds(0.8)
 	check(room_node("Objects/Blacksmith") == null or room_node("Objects/Blacksmith").is_queued_for_deletion(), "отдых не воскрешает босса")
+
+	print("== Возвращение к часовне")
+	await rooms.travel(&"chapel_yard", ^"Spawns/FromForest")
+	await seconds(0.3)
+	var herbalist := room_node("Objects/Herbalist") as Npc
+	check(herbalist != null and not herbalist.is_queued_for_deletion(), "спасённая Травница у часовни")
+	await put(herbalist.global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(game_state.item_count(&"flask_potency") == 1, "Травница сделала зелье крепче")
 	await rooms.travel(&"chapel", ^"Spawns/FromMirror")
 	await seconds(0.3)
 	mirror = room_node("Objects/MainMirror") as MainMirror
-	check(not mirror.is_locked() and mirror.lit_panes() == 3, "вернулся: Главное Зеркало открылось")
+	check(not mirror.is_locked() and mirror.lit_panes() == 5, "вернулся: Главное Зеркало открылось")
 	await put(mirror.global_position + Vector3(0.5, 0.1, 0.0))
 	await seconds(0.4)
 	await tap("interact")
 	await seconds(1.0)
 	check(rooms.current_room_id == &"room_001", "Главное Зеркало ведёт в замок")
 	game_state.set_flag(&"has_bow")
+
+	print("== Новая игра при сохранении: герой не пропадает")
+	var real_save: String = game_state.save_path
+	game_state.save_path = "user://smoke_menu.sav"
+	game_state.saves_enabled = true
+	rooms.save_now()
+	main.queue_free()
+	await frames(3)
+	var fresh: Node = load("res://main.tscn").instantiate()
+	var fresh_rooms := fresh.get_node("RoomManager") as RoomManager
+	fresh_rooms.start_room = &"village_hut"
+	get_tree().root.add_child(fresh)
+	await seconds(2.0)
+	var hero := fresh.get_node("Player") as Player
+	check(not hero.is_dead() and hero.frozen and fresh_rooms.current_room == null, "меню открыто 2 с — герой жив и ждёт")
+	var start_menu: StartMenu
+	for child in fresh_rooms.hud.get_children():
+		if child is StartMenu:
+			start_menu = child
+	start_menu.chosen.emit(false)
+	await seconds(1.0)
+	check(not hero.is_dead() and fresh_rooms.current_room_id == &"village_hut" and absf(hero.global_position.y) < 3.0,
+		"«Новая игра»: герой живой, в хижине")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(game_state.save_path))
+	game_state.saves_enabled = false
+	game_state.save_path = real_save
+	fresh.queue_free()
+	await frames(2)
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures else 0)

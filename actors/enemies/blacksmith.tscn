@@ -1,20 +1,49 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene format=3]
 
-[ext_resource type="Script" path="res://actors/enemies/blacksmith.gd" id="1_dummy"]
+[ext_resource type="Script" path="res://actors/enemies/blacksmith.gd" id="1_script"]
 [ext_resource type="Script" path="res://combat/hitboxes/hitbox.gd" id="2_hitbox"]
 [ext_resource type="Script" path="res://combat/hitboxes/hurtbox.gd" id="3_hurtbox"]
 [ext_resource type="Script" path="res://combat/damage/health.gd" id="4_health"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_iron"]
+albedo_color = Color(0.32, 0.31, 0.33, 1.0)
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.2, 0.13, 0.08, 1.0)
+
+[sub_resource type="StandardMaterial3D" id="Mat_scar"]
+albedo_color = Color(0.16, 0.14, 0.15, 1.0)
+
+[sub_resource type="StandardMaterial3D" id="Mat_eye"]
+albedo_color = Color(0.75, 0.35, 1.0, 1.0)
+emission_enabled = true
+emission = Color(0.75, 0.35, 1.0, 1)
+emission_energy_multiplier = 5.0
 
 [sub_resource type="BoxShape3D" id="Shape_body"]
 size = Vector3(1.3, 2.8, 1.0)
 
 [sub_resource type="BoxMesh" id="Mesh_body"]
-size = Vector3(1.6, 2.8, 1.1)
+size = Vector3(1.6, 2.3, 1.1)
+
+[sub_resource type="BoxMesh" id="Mesh_shoulders"]
+material = SubResource("Mat_scar")
+size = Vector3(2.0, 0.6, 1.2)
+
+[sub_resource type="BoxMesh" id="Mesh_skull"]
+material = SubResource("Mat_scar")
+size = Vector3(0.55, 0.6, 0.55)
+
+[sub_resource type="BoxMesh" id="Mesh_eye"]
+material = SubResource("Mat_eye")
+size = Vector3(0.1, 0.07, 0.6)
 
 [sub_resource type="BoxMesh" id="Mesh_handle"]
+material = SubResource("Mat_wood")
 size = Vector3(0.16, 2.2, 0.16)
 
 [sub_resource type="BoxMesh" id="Mesh_head"]
+material = SubResource("Mat_iron")
 size = Vector3(1.1, 0.7, 0.7)
 
 [sub_resource type="BoxShape3D" id="Shape_attack"]
@@ -26,7 +55,7 @@ size = Vector3(1.7, 3.0, 1.2)
 [node name="Blacksmith" type="CharacterBody3D"]
 collision_layer = 4
 collision_mask = 3
-script = ExtResource("1_dummy")
+script = ExtResource("1_script")
 body_color = Color(0.24, 0.22, 0.24, 1)
 hurt_voice = &""
 death_voice = &""
@@ -36,10 +65,12 @@ chase_speed = 2.2
 attack_range = 3.3
 recover_time = 1.0
 stagger_time = 0.4
-max_poise = 260.0
-poise_regen = 22.0
+max_poise = 300.0
+poise_regen = 30.0
+off_balance_time = 2.4
 turn_time = 1.0
 backstab_allowed = false
+parry_allowed = false
 roll_through = true
 windup_tint = 0.2
 echoes = 0
@@ -54,8 +85,27 @@ shape = SubResource("Shape_body")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.15)
 
 [node name="Body" type="MeshInstance3D" parent="Visual"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
 mesh = SubResource("Mesh_body")
+
+[node name="Shoulders" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, 2.35, 0)
+mesh = SubResource("Mesh_shoulders")
+
+[node name="Head" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, 2.85, 0)
+
+[node name="Skull" type="MeshInstance3D" parent="Visual/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("Mesh_skull")
+
+[node name="EyeA" type="MeshInstance3D" parent="Visual/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.24, 0.06, 0)
+mesh = SubResource("Mesh_eye")
+
+[node name="EyeB" type="MeshInstance3D" parent="Visual/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 0.06, 0)
+mesh = SubResource("Mesh_eye")
 
 [node name="Hammer" type="Node3D" parent="Visual"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 2.0, 0.75)
@@ -72,7 +122,7 @@ mesh = SubResource("Mesh_head")
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("2_hitbox")
-damage = 18.0
+damage = 22.0
 knockback = 8.0
 
 [node name="Shape" type="CollisionShape3D" parent="Visual/AttackHitbox"]
@@ -90,4 +140,4 @@ shape = SubResource("Shape_hurt")
 
 [node name="Health" type="Node" parent="."]
 script = ExtResource("4_health")
-max_health = 300.0
+max_health = 800.0

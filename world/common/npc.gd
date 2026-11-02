@@ -12,6 +12,10 @@ extends Interactable
 @export var gift_weapon: StringName
 @export var gift_flag: StringName
 @export var gift_line := ""
+## Подарок-предмет вместо оружия (GameState.add_item), тоже один раз — по gift_flag.
+@export var gift_item: StringName
+## Есть только когда стоит этот флаг (Травница — после спасения). Пусто — всегда.
+@export var appear_flag: StringName
 @export var look_color := Color(0.3, 0.26, 0.22)
 ## На сколько фигура стоит глубже плоскости героя.
 @export var look_depth := 1.2
@@ -21,6 +25,9 @@ var _next := 0
 
 func _ready() -> void:
 	super()
+	if appear_flag != &"" and not GameState.has_flag(appear_flag):
+		queue_free()
+		return
 	prompt = "Поговорить: %s" % npc_name
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -49,10 +56,14 @@ func _ready() -> void:
 
 
 func interact(by: Player) -> void:
-	if gift_weapon != &"" and not GameState.has_flag(gift_flag):
+	if (gift_weapon != &"" or gift_item != &"") and not GameState.has_flag(gift_flag):
 		GameState.set_flag(gift_flag)
-		by.equip(gift_weapon)
-		Events.item_found.emit(gift_weapon)
+		if gift_weapon != &"":
+			by.equip(gift_weapon)
+			Events.item_found.emit(gift_weapon)
+		else:
+			GameState.add_item(gift_item)
+			Events.item_found.emit(gift_item)
 		_say(gift_line)
 		return
 	var pool := lines_after if after_flag != &"" and GameState.has_flag(after_flag) else lines

@@ -70,6 +70,8 @@ func _ready() -> void:
 	_sun_energy = sun.light_energy
 	_setup_picture()
 	_start_music()
+	# Пока комнаты нет, герой висит на месте: иначе, пока открыто меню, он падает в пустоту и гибнет.
+	player.frozen = true
 	if GameState.saves_enabled and GameState.has_save():
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		var menu := StartMenu.new()
@@ -118,6 +120,7 @@ func _begin(resume: bool) -> void:
 		player.equip(GameState.weapon_id)
 		_load_room(extra["reality"], extra["room"])
 		player.respawn(extra["position"])
+	player.frozen = false
 	camera_rig.snap_to_target()
 	hud.fade_to(0.0, 0.6)
 	if hide_cursor:
@@ -320,6 +323,8 @@ func _rest() -> void:
 
 
 func _on_player_died() -> void:
+	if current_room == null:
+		return
 	_busy = true
 	GameState.drop_echoes(_world_key(current_room_id, reality), player.last_ground, player.death_weapon, player.facing)
 	# Дать телу упасть и прочитать надпись.
