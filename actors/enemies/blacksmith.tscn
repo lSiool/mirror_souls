@@ -1,0 +1,93 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://actors/enemies/blacksmith.gd" id="1_dummy"]
+[ext_resource type="Script" path="res://combat/hitboxes/hitbox.gd" id="2_hitbox"]
+[ext_resource type="Script" path="res://combat/hitboxes/hurtbox.gd" id="3_hurtbox"]
+[ext_resource type="Script" path="res://combat/damage/health.gd" id="4_health"]
+
+[sub_resource type="BoxShape3D" id="Shape_body"]
+size = Vector3(1.3, 2.8, 1.0)
+
+[sub_resource type="BoxMesh" id="Mesh_body"]
+size = Vector3(1.6, 2.8, 1.1)
+
+[sub_resource type="BoxMesh" id="Mesh_handle"]
+size = Vector3(0.16, 2.2, 0.16)
+
+[sub_resource type="BoxMesh" id="Mesh_head"]
+size = Vector3(1.1, 0.7, 0.7)
+
+[sub_resource type="BoxShape3D" id="Shape_attack"]
+size = Vector3(3.0, 2.6, 4.0)
+
+[sub_resource type="BoxShape3D" id="Shape_hurt"]
+size = Vector3(1.7, 3.0, 1.2)
+
+[node name="Blacksmith" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 3
+script = ExtResource("1_dummy")
+body_color = Color(0.24, 0.22, 0.24, 1)
+hurt_voice = &""
+death_voice = &""
+detect_range = 13.0
+back_sense_range = 2.5
+chase_speed = 2.2
+attack_range = 3.3
+recover_time = 1.0
+stagger_time = 0.4
+max_poise = 260.0
+poise_regen = 22.0
+turn_time = 1.0
+backstab_allowed = false
+roll_through = true
+windup_tint = 0.2
+echoes = 0
+mastery_xp = 6.0
+weapon_type = &"hammer"
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)
+shape = SubResource("Shape_body")
+
+[node name="Visual" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.15)
+
+[node name="Body" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)
+mesh = SubResource("Mesh_body")
+
+[node name="Hammer" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 2.0, 0.75)
+
+[node name="Handle" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
+mesh = SubResource("Mesh_handle")
+
+[node name="Head" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.05, 0)
+mesh = SubResource("Mesh_head")
+
+[node name="AttackHitbox" type="Area3D" parent="Visual"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("2_hitbox")
+damage = 18.0
+knockback = 8.0
+
+[node name="Shape" type="CollisionShape3D" parent="Visual/AttackHitbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0, 1.2, 0)
+shape = SubResource("Shape_attack")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("3_hurtbox")
+
+[node name="Shape" type="CollisionShape3D" parent="Hurtbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("Shape_hurt")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("4_health")
+max_health = 300.0
