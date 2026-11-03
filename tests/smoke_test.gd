@@ -1453,8 +1453,8 @@ func run() -> void:
 	release("shoot")
 	await seconds(3.8)
 	var hero_echoes := rooms.current_room.find_children("*", "HeroEcho", true, false)
-	check(game_state.echoes == 0 and game_state.hero_echo.get("amount", 0) == 50,
-		"смерть: половина пропала, половина — в отзвуке героя (%d)" % game_state.hero_echo.get("amount", 0))
+	check(game_state.echoes == 0 and game_state.hero_echo.get("amount", 0) == 100,
+		"смерть: все отзвуки — в отзвуке героя (%d)" % game_state.hero_echo.get("amount", 0))
 	check(hero_echoes.size() == 1 and absf(hero_echoes[0].global_position.x + 16.0) < 0.6, "силуэт стоит на месте гибели")
 	if hero_echoes.size() == 1:
 		var shade := (hero_echoes[0] as HeroEcho)._silhouette
@@ -1467,14 +1467,14 @@ func run() -> void:
 	player.health.take_damage(INF)
 	await seconds(3.8)
 	hero_echoes = rooms.current_room.find_children("*", "HeroEcho", true, false)
-	check(game_state.hero_echo.get("amount", 0) == 20 and hero_echoes.size() == 1,
-		"погиб снова, не забрав: прежний отзвук пропал, в новом половина (%d)" % game_state.hero_echo.get("amount", 0))
+	check(game_state.hero_echo.get("amount", 0) == 40 and hero_echoes.size() == 1,
+		"погиб снова, не забрав: прежний отзвук пропал, в новом — новые (%d)" % game_state.hero_echo.get("amount", 0))
 	if hero_echoes.size() == 1:
 		await put(hero_echoes[0].global_position + Vector3(0.0, 0.1, 0.0))
 		await seconds(0.2)
 		await tap("interact")
 		await seconds(0.8)
-	check(game_state.echoes == 20 and game_state.hero_echo.is_empty(), "коснулся отзвука — отзвуки вернулись (%d)" % game_state.echoes)
+	check(game_state.echoes == 40 and game_state.hero_echo.is_empty(), "коснулся отзвука — отзвуки вернулись (%d)" % game_state.echoes)
 
 	print("== Сохранение")
 	var save_file := "user://smoke_test_save.sav"

@@ -93,10 +93,10 @@ func add_echoes(amount: int) -> void:
 	Events.echoes_changed.emit(echoes)
 
 
-## Смерть: половина отзвуков пропадает, вторая остаётся в отзвуке героя на месте гибели.
+## Смерть: все отзвуки остаются в отзвуке героя на месте гибели.
 ## Прежний, не подобранный отзвук исчезает вместе со своими отзвуками.
 func drop_echoes(reality: StringName, at: Vector3, weapon: StringName, facing: float) -> void:
-	var kept := echoes / 2
+	var kept := echoes
 	hero_echo = {} if kept == 0 else {"reality": reality, "position": at, "amount": kept,
 		"weapon": weapon, "facing": facing}
 	echoes = 0
