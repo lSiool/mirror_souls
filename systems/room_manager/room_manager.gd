@@ -137,7 +137,7 @@ func _begin(resume: bool) -> void:
 func save_now() -> void:
 	if current_room == null or player.is_dead():
 		return
-	GameState.save_game({"room": current_room_id, "reality": reality, "position": player.last_ground,
+	GameState.save_game({"room": current_room_id, "reality": reality, "position": player.safe_ground,
 		"stats": player.stats.to_dict()})
 
 
@@ -332,7 +332,8 @@ func _on_player_died() -> void:
 	if current_room == null:
 		return
 	_busy = true
-	GameState.drop_echoes(_world_key(current_room_id, reality), player.last_ground, player.death_weapon, player.facing)
+	# Отзвук остаётся на последнем безопасном месте — до ловушки, что убила героя.
+	GameState.drop_echoes(_world_key(current_room_id, reality), player.safe_ground, player.death_weapon, player.facing)
 	# Дать телу упасть и прочитать надпись.
 	await get_tree().create_timer(DEATH_HOLD).timeout
 	await hud.fade_to(1.0, 0.5)

@@ -10,6 +10,10 @@ signal hit_landed(hurtbox: Hurtbox)
 @export var knockback := 6.0
 @export var heavy := false
 @export var non_lethal := false
+## Рана герою: с таким шансом удар пускает кровь — wound_total здоровья за wound_time секунд.
+@export_range(0.0, 1.0) var wound_chance := 0.0
+@export var wound_total := 0.0
+@export var wound_time := 4.0
 ## Чьё это оружие: убийство этим ударом идёт в его мастерство. Пусто — не оружие героя (ловушка).
 var weapon_type: StringName
 ## Сколько кровотечения копит удар в цели (Dummy.bleed); 0 — не копит.

@@ -57,6 +57,10 @@ func _ready() -> void:
 		queue_free()
 		return
 	attack_hitbox.hit_landed.connect(_on_hit_hero)
+	# Когти иногда пускают кровь — сильнее, чем колья.
+	attack_hitbox.wound_chance = 0.2
+	attack_hitbox.wound_total = 10.0
+	attack_hitbox.wound_time = 5.0
 
 
 ## Услышал зов: бой окончен, зверь замирает и поднимает морду.

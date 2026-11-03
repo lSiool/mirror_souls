@@ -188,8 +188,9 @@ look_color = Color(0.7, 0.72, 0.76, 1)
 [node name="BowFind" type="Area3D" parent="Objects" groups=["normal_only"]]
 position = Vector3(-15.6, 0, 0)
 script = ExtResource("13_pickup")
-flag = &"has_bow"
-pickup_prompt = "Подобрать лук"
+item_id = &"bow_guard"
+flag = &"got_bow_guard"
+pickup_prompt = "Подобрать лук стражи"
 look_size = Vector3(1.2, 0.08, 0.08)
 look_color = Color(0.45, 0.3, 0.18, 1)
 

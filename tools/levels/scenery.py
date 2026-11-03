@@ -18,7 +18,7 @@ GLOW = {"window": ((1.0, 0.6, 0.25), 2.6), "fire": ((1.0, 0.45, 0.12), 4.0), "mo
         "candle": ((1.0, 0.7, 0.35), 3.0), "lantern": ((1.0, 0.68, 0.3), 5.0), "gas": ((0.45, 0.6, 0.25), 1.2),
         "ember": ((0.9, 0.35, 0.1), 1.6)}
 ## Полупрозрачные слои тумана: цвет и непрозрачность. Рисуются шейдером дымки: мягкие края, медленный шум.
-VEILS = {"fog_veil": ((0.42, 0.45, 0.5), 0.2), "fog_thick": ((0.4, 0.43, 0.48), 0.32)}
+VEILS = {"fog_veil": ((0.42, 0.45, 0.5), 0.2), "fog_thick": ((0.4, 0.43, 0.48), 0.32), "fog_dense": ((0.44, 0.47, 0.52), 0.5)}
 MIST_SHADER = """shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
 uniform vec4 tint : source_color = vec4(0.42, 0.45, 0.5, 0.2);
@@ -255,7 +255,8 @@ class Scene:
         return (f'[sub_resource type="Environment" id="{sid}"]\nbackground_mode = 1\nbackground_color = Color({e["bg"][0]}, {e["bg"][1]}, {e["bg"][2]}, 1)\n'
                 f'ambient_light_source = 2\nambient_light_color = Color({e["amb"][0]}, {e["amb"][1]}, {e["amb"][2]}, 1)\nambient_light_energy = {e["amb_e"]}\n'
                 f'tonemap_mode = 2\nglow_enabled = true\nglow_intensity = 0.7\nglow_bloom = 0.06\nfog_enabled = true\n'
-                f'fog_light_color = Color({e["fog"][0]}, {e["fog"][1]}, {e["fog"][2]}, 1)\nfog_density = {e["fog_d"]}')
+                f'fog_light_color = Color({e["fog"][0]}, {e["fog"][1]}, {e["fog"][2]}, 1)\nfog_density = {e["fog_d"]}'
+                + (f'\nfog_height = {e["fog_h"]}\nfog_height_density = {e["fog_hd"]}' if "fog_h" in e else ""))
 
     def text(self):
         ext = [f'[ext_resource type="{kind}" path="{path}" id="{key}"]' for key, (kind, path) in EXT.items()]

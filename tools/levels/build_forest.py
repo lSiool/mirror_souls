@@ -240,12 +240,12 @@ def fallen_giant():
     # Дно пропасти: туман, крысиное гнездо, колья и лестница наверх.
     for i, y in enumerate((-3.0, -9.0)):
         s.veil(D, f"RavineFog{i}", (1.0, y, 0.8 if i else -1.2), (34.0, 5.0), "fog_veil")
-    s.ladder("RavineLadder", 17.4, -14.0, 18.0, -1.0)
-    s.ladder_look("Ravine", 17.4, -14.0, 18.0, "rope")
+    # Верёвочная лестница свисает в трещину ствола — туда же, куда падают.
+    s.ladder("RavineLadder", 4.8, -14.0, 18.0, 1.0)
     s.enemy("RatA", "rat", (-12.0, -14.0, 0))
     s.enemy("RatB", "rat", (-8.0, -14.0, 0))
     s.enemy("RatC", "rat", (-4.0, -14.0, 0))
-    s.instance("RavineSpikes", "Objects", "spikes", ["position = Vector3(12.0, -14.0, 0)", "width = 3.0", "trap_damage = 25.0", "non_lethal = true"])
+    s.instance("RavineSpikes", "Objects", "spikes", ["position = Vector3(12.0, -14.0, 0)", "width = 3.0", "trap_damage = 25.0"])
     for i, x in enumerate((-10.0, -3.0, 3.0)):
         s.box(D, f"Bones{i}", (x, -13.8, -1.0), (0.8, 0.2, 0.4), "bone")
     s.marker("FromWall", (-28.0, 0.1, 0))
@@ -256,53 +256,92 @@ def fallen_giant():
 
 
 # ---------------------------------------------------------------- Кадр 4: корневой лабиринт
+## Ярусы (верх пола): дно бездны −10, нижняя тропа 3, главный путь 8, верхние 13 и 18.
+## Над каждой лестницей — дыра в ярусе, наверху пол со стороны exit_dir.
+ROOTS = {"bg": (0.02, 0.025, 0.03), "amb": (0.26, 0.3, 0.32), "amb_e": 0.34, "fog": (0.17, 0.19, 0.21), "fog_d": 0.042,
+         "fog_h": 2.0, "fog_hd": 0.2}
+
+
 def root_maze():
-    s = Scene("RootMaze", "root_maze", 56.0, FOREST, sun_energy=0.12)
+    s = Scene("RootMaze", "root_maze", 56.0, ROOTS, sun_energy=0.12)
+
+    def tier(name, x0, x1, y):
+        s.box(G, name, ((x0 + x1) / 2, y - 0.4, 0), (x1 - x0, 0.8, 2.6), "root", True)
+
     s.box(G, "AbyssFloor", (0.0, -12.0, 0), (56.0, 4.0, 4.4), "mud", True)
-    s.box(G, "WallLeft", (-28.5, 4.0, 0), (1.0, 40.0, 4.4), "stone_dark", True)
-    s.box(G, "WallRight", (28.5, 4.0, 0), (1.0, 40.0, 4.4), "stone_dark", True)
+    s.box(G, "WallLeft", (-28.5, 9.0, 0), (1.0, 42.0, 4.4), "stone_dark", True)
+    s.box(G, "WallRight", (28.5, 9.0, 0), (1.0, 42.0, 4.4), "stone_dark", True)
     s.box(G, "EntryRoots", (-23.0, -1.0, 0), (10.0, 18.0, 4.4), "root", True)
     s.box(G, "ExitRoots", (23.0, -1.0, 0), (10.0, 18.0, 4.4), "root", True)
-    # Верх: мосты из корней с дырой для спуска и подрубленным участком.
-    s.box(G, "RootBridgeA1", (-16.0, 7.6, 0), (4.0, 0.8, 2.6), "root", True)
-    s.box(G, "RootBridgeA2", (-6.7, 7.6, 0), (10.6, 0.8, 2.6), "root", True)
+    # Главный путь: дыры над лестницами с нижней тропы, подрубленный корень над бездной.
+    tier("RootBridgeA1", -18.0, -13.8, 8.0)
+    tier("RootBridgeA2", -12.2, -1.4, 8.0)
     s.used.add("rotten")
     for i, x in enumerate((-0.7, 0.7)):
         s.instance(f"SawnRoot{i}", "Objects", "glass", [f"position = Vector3({x}, 7.75, 0)", "size = Vector3(1.4, 0.5, 2.6)",
                    "crumble_time = 0.45", 'look = SubResource("Mat_rotten")'])
     s.box(D, "SawMark", (0.0, 7.9, 1.32), (0.15, 0.5, 0.05), "char")
-    s.box(G, "RootBridgeB", (9.7, 7.6, 0), (16.6, 0.8, 2.6), "root", True)
-    # Низ: безопасная тропа по корням с разрывом под подрубленным местом (его перепрыгивают),
-    # тайник внутри расколотого корня.
-    s.box(G, "RootLowA", (-9.95, 2.6, 0), (16.1, 0.8, 2.6), "root", True)
-    s.box(G, "RootLowB", (7.95, 2.6, 0), (12.1, 0.8, 2.6), "root", True)
+    tier("RootBridgeB", 1.4, 12.6, 8.0)
+    tier("RootBridgeB2", 14.2, 18.0, 8.0)
+    # Нижняя тропа: от стены до стены, один разрыв под подрубленным корнем — в бездну.
+    tier("RootLowA", -18.0, -1.9, 3.0)
+    tier("RootLowB", 1.9, 18.0, 3.0)
     s.ladder("LowLadderA", -13.0, 3.0, 5.0, 1.0)
-    s.ladder_look("LowA", -13.0, 3.0, 5.0)
-    s.ladder("LowLadderB", 15.0, 3.0, 5.0, 1.0)
-    s.ladder_look("LowB", 15.0, 3.0, 5.0)
-    s.box(D, "HollowBack", (5.5, 4.4, -1.6), (3.6, 3.0, 0.4), "char")
-    s.box(D, "HollowArchL", (3.6, 4.4, -1.1), (0.6, 3.2, 1.2), "root", rot=(0, 0, 0.15))
-    s.box(D, "HollowArchR", (7.4, 4.4, -1.1), (0.6, 3.2, 1.2), "root", rot=(0, 0, -0.15))
-    s.box(D, "HollowTop", (5.5, 6.1, -1.1), (4.6, 0.6, 1.2), "root")
+    s.ladder("LowLadderB", 13.4, 3.0, 5.0, 1.0)
+    # Тайник в расколотом корне на нижней тропе.
+    s.box(D, "HollowBack", (5.5, 4.4, -1.9), (3.6, 3.0, 0.4), "char")
+    s.box(D, "HollowArchL", (3.6, 4.4, -1.6), (0.6, 3.2, 0.8), "root", rot=(0, 0, 0.15))
+    s.box(D, "HollowArchR", (7.4, 4.4, -1.6), (0.6, 3.2, 0.8), "root", rot=(0, 0, -0.15))
+    s.box(D, "HollowTop", (5.5, 6.1, -1.6), (4.6, 0.6, 0.8), "root")
     s.chest("RootCache", (5.5, 3.0, -1.0), 200, "root_cache", ("flask_vessel",))
-    s.candles(D, "CacheCandles", 4.2, 3.0, -1.3)
-    # Дно бездны: крысиное гнездо, колья, лестница к выходу.
-    s.ladder("AbyssLadder", 17.4, -10.0, 18.0, 1.0)
-    s.ladder_look("Abyss", 17.4, -10.0, 18.0, "rope")
-    for i, x in enumerate((-6.0, 0.0, 6.0)):
+    s.candles(D, "CacheCandles", 4.2, 3.0, -1.5)
+    # Верхний ярус 1: над туманом, прыжок через разрыв, припасы охотника.
+    s.ladder("UpLadderA", -8.0, 8.0, 5.0, 1.0)
+    tier("RootHighA", -16.0, -8.8, 13.0)
+    tier("RootHighB", -7.2, 5.0, 13.0)
+    tier("RootHighC", 7.5, 14.0, 13.0)
+    s.node("HunterSupplies", 'type="Area3D"', "Objects", ["position = Vector3(-14.0, 13.0, 0)", 'script = ExtResource("pickup")',
+           'flag = &"root_supplies"', "echoes = 120", 'pickup_prompt = "Забрать припасы охотника"',
+           "look_size = Vector3(0.6, 0.35, 0.45)", "look_color = Color(0.4, 0.3, 0.2, 1)"])
+    # Верхний ярус 2: брошенный пост охотника, его лук.
+    s.ladder("UpLadderB", 12.6, 13.0, 5.0, -1.0)
+    tier("RootTop", 4.0, 11.8, 18.0)
+    s.box(D, "PostRail", (7.9, 18.9, -1.0), (7.6, 0.1, 0.1), "wood_dark")
+    for i, x in enumerate((4.4, 7.9, 11.4)):
+        s.box(D, f"PostPole{i}", (x, 19.4, -1.0), (0.14, 2.8, 0.14), "wood_dark")
+    s.box(D, "PostRoof", (7.9, 20.9, -0.6), (8.4, 0.18, 2.4), "wood_dark", rot=(0, 0, 0.05))
+    s.box(D, "HunterRibs", (7.2, 18.15, -0.8), (0.9, 0.25, 0.5), "bone")
+    s.sphere(D, "HunterSkull", (7.9, 18.25, -0.8), 0.18, "bone")
+    s.note("HunterNote", 9.0, 18.0, "Записка охотника", [
+        "«Из тумана не спуститься — внизу что-то ждёт.",
+        "Лук я берёг для сына. Пусть возьмёт тот, кто дойдёт сюда.»"])
+    s.node("BowHunter", 'type="Area3D"', "Objects", ["position = Vector3(5.5, 18.0, 0)", 'script = ExtResource("pickup")',
+           'item_id = &"bow_hunter"', 'flag = &"got_bow_hunter"', 'pickup_prompt = "Взять охотничий лук"',
+           "look_size = Vector3(1.2, 0.08, 0.08)", "look_color = Color(0.5, 0.36, 0.2, 1)"])
+    # Дно бездны: крысы у стены, смертельные колья, летуны под корнями, лестница наверх под разрывом.
+    s.ladder("AbyssLadder", -1.5, -10.0, 13.0, -1.0)
+    for i, x in enumerate((-16.0, -12.5, -9.0)):
         s.enemy(f"Rat{'ABC'[i]}", "rat", (x, -10.0, 0))
-    s.instance("AbyssSpikes", "Objects", "spikes", ["position = Vector3(10.5, -10.0, 0)", "width = 3.0", "trap_damage = 25.0", "non_lethal = true"])
-    for i, x in enumerate((-14.0, -2.0, 12.0)):
+    s.instance("AbyssSpikes", "Objects", "spikes", ["position = Vector3(10.5, -10.0, 0)", "width = 3.0", "trap_damage = 25.0"])
+    s.enemy("AbyssBatA", "bat", (-5.0, -6.8, 0))
+    s.enemy("AbyssBatB", "bat", (5.0, -6.8, 0))
+    for i, x in enumerate((-14.0, -4.0, 14.0)):
         s.box(D, f"Bones{i}", (x, -9.8, -1.0), (0.8, 0.2, 0.4), "bone")
-    # Призраки в тумане, фонари, корни-исполины фоном.
+    # Летуны: двое над главным путём, двое над верхним ярусом.
     s.enemy("WraithA", "wraith", (-8.0, 11.0, 0))
-    s.enemy("WraithB", "wraith", (9.0, 11.5, 0))
-    for i, x in enumerate((-18.0, 12.0)):
-        s.lantern_post(D, f"Lamp{i}", x, -0.8, ground=8.0, energy=1.0, rng=6.0)
+    s.enemy("WraithB", "wraith", (9.0, 11.0, 0))
+    s.enemy("WraithC", "wraith", (-2.0, 16.0, 0))
+    s.enemy("WraithD", "wraith", (10.5, 16.0, 0))
+    # Фонари на ярусах (за плоскостью боя), корни-исполины фоном.
+    for i, (x, ground) in enumerate(((-17.0, 8.0), (16.5, 8.0), (-15.0, 13.0), (13.5, 13.0))):
+        s.lantern_post(D, f"Lamp{i}", x, -1.8, ground=ground, energy=1.0, rng=6.0)
     for i, x in enumerate((-20.0, -6.0, 8.0, 20.0)):
-        s.box(D, f"BigRoot{i}", (x, 2.0, -4.0 - i % 2), (3.0, 26.0, 2.0), "root", rot=(0, 0, (i % 2 - 0.5) * 0.3))
-    for i, (y, z, mat) in enumerate(((-2.0, -2.0, "fog_thick"), (-6.0, 0.9, "fog_veil"), (12.0, -3.0, "fog_veil"))):
-        s.veil(D, f"Fog{i}", (0.0, y, z), (56.0, 8.0), mat)
+        s.box(D, f"BigRoot{i}", (x, 8.0, -4.0 - i % 2), (3.0, 32.0, 2.0), "root", rot=(0, 0, (i % 2 - 0.5) * 0.3))
+    # Туман: сзади слоями и спереди, между ярусами — мешает смотреть.
+    for i, (y, z, mat) in enumerate(((-6.0, -2.4, "fog_dense"), (0.0, -2.4, "fog_thick"), (6.0, -2.6, "fog_thick"),
+                                     (12.0, -2.8, "fog_veil"), (17.0, -3.0, "fog_veil"), (-4.0, 0.9, "fog_dense"),
+                                     (5.5, 0.9, "fog_thick"), (11.0, 0.9, "fog_thick"), (16.5, 0.9, "fog_veil"))):
+        s.veil(D, f"Fog{i}", (0.0, y, z), (56.0, 7.0), mat)
     s.marker("FromGiant", (-26.0, 8.1, 0))
     s.marker("FromSwamp", (26.0, 8.1, 0))
     s.door("DoorToGiant", -27.3, 8.0, "fallen_giant", "Spawns/FromMaze", "Назад к поваленному дубу")

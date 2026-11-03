@@ -13,9 +13,14 @@ const GLASS_MATERIAL: Array[int] = [1, 1, 2, 2, 3]
 const GLASS_ECHOES: Array[int] = [100, 250, 500, 900, 1500]
 const GLASS_DAMAGE_STEP := 0.12
 const SAVE_VERSION := 1
+## Луки — два простых, разного происхождения: [название, натяжение ×, урон ×]. Подобранный — в руке.
+const BOWS := {
+	&"bow_hunter": ["охотничий лук", 0.8, 0.85],
+	&"bow_guard": ["лук стражи", 1.2, 1.2],
+}
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
-	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items"]
+	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -23,6 +28,8 @@ var echoes := 0
 var flags := {}
 ## Оружие в руке; пусто — герой пока безоружен.
 var weapon_id: StringName
+## Лук в руке (BOWS); пусто — обычный, без множителей.
+var bow_id: StringName
 ## Сохранять ли на диск (тесты отключают) и куда.
 var saves_enabled := true
 var save_path := "user://save.sav"
@@ -164,11 +171,30 @@ func temper(weapon_id: StringName) -> bool:
 
 func add_item(id: StringName) -> void:
 	items[id] = item_count(id) + 1
+	if BOWS.has(id):
+		bow_id = id
+		set_flag(&"has_bow")
 	Events.item_found.emit(id)
 
 
 func item_count(id: StringName) -> int:
 	return items.get(id, 0)
+
+
+func owned_bows() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for id: StringName in BOWS:
+		if item_count(id) > 0:
+			result.append(id)
+	return result
+
+
+func bow_draw_mult() -> float:
+	return BOWS[bow_id][1] if BOWS.has(bow_id) else 1.0
+
+
+func bow_damage_mult() -> float:
+	return BOWS[bow_id][2] if BOWS.has(bow_id) else 1.0
 
 
 ## Потратить один предмет; false — его нет.

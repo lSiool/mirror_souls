@@ -13,6 +13,11 @@ func _ready() -> void:
 	collision_layer = 0
 	collision_mask = 1 << 1
 	damage = trap_damage
+	add_to_group("hazard")
+	# Колья иногда пускают кровь, слабо.
+	wound_chance = 0.2
+	wound_total = 4.0
+	wound_time = 4.0
 	knockback = 3.0 if non_lethal else 0.0
 	active = true
 
@@ -47,3 +52,9 @@ func _physics_process(delta: float) -> void:
 	# Ушёл с кольев — в следующий раз ранят снова.
 	if not _already_hit.is_empty() and get_overlapping_areas().is_empty():
 		_already_hit.clear()
+
+
+## Над кольями ли эта точка (с запасом): отзвук героя на кольях не оставляем.
+func covers(at: Vector3) -> bool:
+	var local := to_local(at)
+	return absf(local.x) < width * 0.5 + 0.6 and local.y > -0.6 and local.y < 2.5

@@ -67,6 +67,15 @@ func put(at: Vector3, facing := 1.0) -> void:
 	await frames(3)
 
 
+## Все узлы комнаты, для которых check(node) истинно.
+func nodes_where(root: Node, test: Callable) -> Array[Node]:
+	var result: Array[Node] = []
+	for node in root.find_children("*", "", true, false):
+		if test.call(node):
+			result.append(node)
+	return result
+
+
 func room_node(path: String) -> Node:
 	return rooms.current_room.get_node_or_null(path)
 
@@ -384,6 +393,34 @@ func run() -> void:
 	player._combat_t = 99.0
 	player.stamina = player.stats.max_stamina
 	await seconds(0.3)
+
+	print("== Кровотечение героя")
+	player.restore()
+	var hp_wound := player.health.current
+	player.start_wound(4.0, 4.0)
+	await seconds(1.0)
+	var lost_wound := hp_wound - player.health.current
+	check(player.wound_t > 0.0 and lost_wound > 0.6 and lost_wound < 1.6, "рана кровоточит: −%.1f за секунду" % lost_wound)
+	await seconds(3.4)
+	check(player.wound_t <= 0.0, "кровь остановилась")
+	player.health.current = 3.0
+	player.start_wound(50.0, 1.0, true)
+	await seconds(1.3)
+	check(not player.is_dead() and player.health.current >= 1.0, "рана от оборотня не убивает (%.1f)" % player.health.current)
+	var calm := Hitbox.new()
+	rooms.current_room.add_child(calm)
+	calm.damage = 1.0
+	player.restore()
+	player._on_hurt(calm)
+	check(player.wound_t <= 0.0, "удар без шанса раны — крови нет")
+	calm.wound_chance = 1.0
+	calm.wound_total = 4.0
+	player._on_hurt(calm)
+	check(player.wound_t > 0.0, "удар с шансом раны — кровь")
+	calm.queue_free()
+	player.wound_t = 0.0
+	player.restore()
+	await seconds(0.8)
 
 	print("== Грани")
 	var youth := Facet.by_id(&"facet_youth")
@@ -1803,7 +1840,46 @@ func run() -> void:
 	await seconds(2.4)
 	check(player.global_position.y < -11.0 and not player.is_dead() and player.health.current < hp_ravine * 0.8,
 		"сорвался в пропасть: огромный урон, но жив (%.0f → %.0f)" % [hp_ravine, player.health.current])
-	check(room_node("Objects/RavineLadder") != null, "со дна пропасти — лестница наверх")
+	var ravine_ladder := room_node("Objects/RavineLadder") as Ladder
+	player.hurtbox.invulnerable = true
+	await put(ravine_ladder.global_position + Vector3(0.0, 0.1, 0.0), 1.0)
+	press("move_up")
+	await seconds(ravine_ladder.height / player.stats.climb_speed + 1.2)
+	release("move_up")
+	await seconds(0.6)
+	player.hurtbox.invulnerable = false
+	check(player.is_on_floor() and player.global_position.y > 3.5, "из пропасти — по лестнице в трещине на ствол (y=%.2f)" % player.global_position.y)
+	# Колья на дне убивают; отзвук героя остаётся до них, на безопасном месте.
+	var ravine_spikes := room_node("Objects/RavineSpikes") as Spikes
+	ravine_spikes.wound_chance = 1.0
+	for rat in nodes_where(rooms.current_room, func(n: Node) -> bool: return n is Rat):
+		rat.process_mode = Node.PROCESS_MODE_DISABLED
+	game_state.add_echoes(200)
+	var spike_x := ravine_spikes.global_position.x
+	await put(Vector3(spike_x - 3.2, -13.9, 0), 1.0)
+	await seconds(0.3)
+	player.health.current = 30.0
+	var spike_died := false
+	var spike_bled := false
+	for i in 8:
+		await put(Vector3(spike_x, -12.6, 0), 1.0)
+		await seconds(0.3)
+		spike_bled = spike_bled or player.wound_t > 0.0
+		if player.is_dead():
+			spike_died = true
+			break
+		await put(Vector3(spike_x - 3.2, -13.9, 0), 1.0)
+		await seconds(0.15)
+	check(spike_bled, "колья пускают кровь")
+	check(spike_died, "колья на дне пропасти убивают")
+	check(not game_state.hero_echo.is_empty() and game_state.hero_echo["position"].x < spike_x - 2.0,
+		"отзвук героя остался до кольев (x=%.1f, колья %.1f)" % [game_state.hero_echo.get("position", Vector3.ZERO).x, spike_x])
+	for i in 600:
+		await frames(1)
+		if not player.is_dead() and not rooms._busy:
+			break
+	check(not player.is_dead() and rooms.current_room_id == &"fallen_giant" and player.global_position.y > 3.0,
+		"возродился у осколка на стволе")
 	await rooms.travel(&"root_maze", ^"Spawns/FromGiant")
 	await seconds(0.3)
 
@@ -1811,12 +1887,28 @@ func run() -> void:
 	var wraith := room_node("Objects/WraithA") as FogWraith
 	await frames(3)
 	check(wraith != null and wraith.body_color.a < 0.2, "призрак в тумане едва виден (%.2f)" % wraith.body_color.a)
+	check(nodes_where(rooms.current_room, func(n: Node) -> bool: return n is FogWraith).size() >= 4, "летунов в тумане четверо")
+	await put(Vector3(-5.0, 8.1, 0), 1.0)
+	await seconds(0.4)
+	var abyss_bat := room_node("Objects/AbyssBatA") as Bat
+	check(not abyss_bat._awake, "летуны бездны спят, пока герой наверху")
 	player.restore()
 	var hp_root := player.health.current
 	await put(Vector3(-0.5, 8.4, 0), 1.0)
 	await seconds(2.6)
 	check((room_node("Objects/SawnRoot0") as GlassSurface)._broken and player.global_position.y < -7.0, "подрубленный корень рухнул")
 	check(not player.is_dead() and player.health.current < hp_root, "падение на дно: больно, но жив (%.0f → %.0f)" % [hp_root, player.health.current])
+	await seconds(0.4)
+	check(abyss_bat._awake or (room_node("Objects/AbyssBatB") as Bat)._awake, "внизу на героя бросаются летуны")
+	var abyss_ladder := room_node("Objects/AbyssLadder") as Ladder
+	player.hurtbox.invulnerable = true
+	await put(abyss_ladder.global_position + Vector3(0.0, 0.1, 0.0), -1.0)
+	press("move_up")
+	await seconds(abyss_ladder.height / player.stats.climb_speed + 1.2)
+	release("move_up")
+	await seconds(0.6)
+	player.hurtbox.invulnerable = false
+	check(player.is_on_floor() and player.global_position.y > 2.7, "из бездны — по лестнице на нижнюю тропу (y=%.2f)" % player.global_position.y)
 	await put(room_node("Objects/RootCache").global_position + Vector3(0.0, 0.1, 1.0))
 	await seconds(0.2)
 	await tap("interact")
@@ -1824,6 +1916,15 @@ func run() -> void:
 	player.restore()
 	check(game_state.has_flag(&"root_cache") and game_state.item_count(&"flask_vessel") == 1 and player.max_flasks() == 2,
 		"тайник в корне: второй глоток зелья")
+	var draw_plain := player._bow_draw_time()
+	player.hurtbox.invulnerable = true
+	await put(room_node("Objects/BowHunter").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	player.hurtbox.invulnerable = false
+	check(game_state.bow_id == &"bow_hunter" and game_state.has_flag(&"has_bow") and player._bow_draw_time() < draw_plain,
+		"наверху лабиринта — охотничий лук: натягивается быстрее (%.2f → %.2f с)" % [draw_plain, player._bow_draw_time()])
 	await rooms.travel(&"swamp", ^"Spawns/FromMaze")
 	await seconds(0.3)
 
@@ -2047,7 +2148,37 @@ func run() -> void:
 	await tap("interact")
 	await seconds(1.0)
 	check(rooms.current_room_id == &"room_001", "Главное Зеркало ведёт в замок")
+	await put(room_node("Objects/BowFind").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(game_state.bow_id == &"bow_guard" and game_state.bow_damage_mult() > 1.0, "в замке — лук стражи: бьёт сильнее")
+	rooms.level_menu.switch_bow()
+	check(game_state.bow_id == &"bow_hunter", "в меню осколка можно взять другой лук")
 	game_state.set_flag(&"has_bow")
+
+	print("== Все лестницы проходимы")
+	player.hurtbox.invulnerable = true
+	for ladder_room: StringName in [&"village_house", &"chapel", &"cemetery_gate", &"forest_wall", &"fallen_giant", &"root_maze"]:
+		var probe_room := (load("res://world/rooms/%s.tscn" % ladder_room) as PackedScene).instantiate()
+		var probe_spawn := probe_room.get_node("Spawns").get_child(0).name
+		probe_room.free()
+		await rooms.travel(ladder_room, NodePath("Spawns/" + probe_spawn))
+		await seconds(0.2)
+		for pane in nodes_where(rooms.current_room, func(n: Node) -> bool: return n is GlassSurface):
+			pane.shatter()
+		for foe in get_tree().get_nodes_in_group("enemy"):
+			foe.process_mode = Node.PROCESS_MODE_DISABLED
+		for node in nodes_where(rooms.current_room, func(n: Node) -> bool: return n is Ladder):
+			var each := node as Ladder
+			await put(each.global_position + Vector3(0.0, 0.1, 0.0), each.exit_dir)
+			press("move_up")
+			await seconds(each.height / player.stats.climb_speed + 1.2)
+			release("move_up")
+			await seconds(0.6)
+			check(player.is_on_floor() and player.global_position.y >= each.top_y() - 0.3,
+				"%s/%s: долез и встал на пол (y=%.2f, верх %.2f)" % [ladder_room, each.name, player.global_position.y, each.top_y()])
+	player.hurtbox.invulnerable = false
 
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path

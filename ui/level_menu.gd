@@ -45,6 +45,7 @@ var _weapon_page: VBoxContainer
 var _temper: Button
 var _glass_label: Label
 var _mastery_label: Label
+var _bow_switch: Button
 ## Набранные, но ещё не подтверждённые очки: параметр → сколько.
 var _pending := {}
 var _minus := {}
@@ -137,6 +138,10 @@ func _ready() -> void:
 	_temper.custom_minimum_size.y = 40
 	_temper.pressed.connect(temper)
 	_weapon_page.add_child(_temper)
+	_bow_switch = Button.new()
+	_bow_switch.custom_minimum_size.y = 36
+	_bow_switch.pressed.connect(switch_bow)
+	_weapon_page.add_child(_bow_switch)
 	_weapon_page.add_child(HSeparator.new())
 	_mastery_label = _line(_weapon_page)
 	_leave = Button.new()
@@ -349,7 +354,22 @@ func temper() -> void:
 	_focus_first()
 
 
+## Взять в руку другой лук, если их два.
+func switch_bow() -> void:
+	var bows := GameState.owned_bows()
+	if bows.size() < 2:
+		return
+	GameState.bow_id = bows[(bows.find(GameState.bow_id) + 1) % bows.size()]
+	Sfx.play(&"glass_glint", _player.global_position, -12.0)
+	_refresh()
+
+
 func _refresh_weapon() -> void:
+	var bows := GameState.owned_bows()
+	_bow_switch.visible = bows.size() >= 2
+	if bows.size() >= 2:
+		var other: StringName = bows[(bows.find(GameState.bow_id) + 1) % bows.size()]
+		_bow_switch.text = "Лук: %s → взять %s" % [GameState.BOWS.get(GameState.bow_id, ["—"])[0], GameState.BOWS[other][0]]
 	var weapon := _player.weapon
 	_temper.visible = weapon != null
 	if weapon == null:

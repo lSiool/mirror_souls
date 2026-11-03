@@ -10,6 +10,7 @@ const DEATH_LABEL_DELAY := 0.95
 const DEATH_STING_DB := -9.0
 const CARD_TIME := 1.9
 const ITEM_NAMES := {&"clear_glass": "чистое стекло", &"facet_slot": "слот для граней", &"tempered_glass": "закалённое стекло",
+	&"bow_hunter": "охотничий лук", &"bow_guard": "лук стражи", &"has_bow": "лук",
 	&"flask_vessel": "второй глоток зелья", &"flask_potency": "крепкое зелье Травницы",
 	&"stick": "палка", &"sword": "меч", &"bow": "лук", &"boss_smith_echo": "отзвук Безмолвного Кузнеца"}
 

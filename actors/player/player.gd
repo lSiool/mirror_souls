@@ -116,6 +116,13 @@ var _air_top := 0.0
 var _airborne := false
 ## Где герой последний раз стоял на полу: там остаётся его отзвук, даже если он погиб в яме.
 var last_ground := Vector3.ZERO
+## Последнее место на земле вне ловушек: здесь остаётся отзвук героя и сюда пишет сохранение.
+var safe_ground := Vector3.ZERO
+## Кровотечение героя: сколько секунд ещё течёт, сколько в секунду, может ли убить.
+var wound_t := 0.0
+var _wound_rate := 0.0
+var _wound_soft := false
+var _wound_drip := 0.0
 ## С каким оружием погиб — оно угадывается в отзвуке героя.
 var death_weapon: StringName = &"sword"
 ## Чем целится лук: кнопками (прямо / вверх / вниз), мышью — на курсор, правым стиком — куда
@@ -218,6 +225,7 @@ func _physics_process(delta: float) -> void:
 # --- Таймеры и ввод ---------------------------------------------------------
 
 func _tick(delta: float) -> void:
+	_tick_wound(delta)
 	_coyote = maxf(_coyote - delta, 0.0)
 	_jump_buffer = maxf(_jump_buffer - delta, 0.0)
 	_attack_buffer = maxf(_attack_buffer - delta, 0.0)
@@ -964,14 +972,14 @@ func _start_draw() -> void:
 	arms.show_bow(true)
 	_draw_sound = Sfx.play(&"bow_draw", global_position)
 	if _draw_sound:
-		_draw_sound.pitch_scale *= clampf(BOW_DRAW_SOUND_TIME / stats.mod(&"bow_draw_time", stats.bow_draw_time), 0.8, 1.25)
+		_draw_sound.pitch_scale *= clampf(BOW_DRAW_SOUND_TIME / _bow_draw_time(), 0.8, 1.25)
 
 
 ## Натяжение: держим кнопку — лук натягивается, герой идёт медленно. Отпустили — выстрел.
 ## Мышью лук смотрит на курсор, правым стиком — куда наклонён стик (отпустил — направление
 ## остаётся); герой разворачивается к цели и может пятиться. Кнопками — прямо, вверх или вниз.
 func _bow_state(delta: float) -> void:
-	_draw_t = minf(_draw_t + delta / stats.mod(&"bow_draw_time", stats.bow_draw_time), 1.0)
+	_draw_t = minf(_draw_t + delta / _bow_draw_time(), 1.0)
 	var x := _input_x()
 	var stick := Input.get_vector("aim_left", "aim_right", "aim_down", "aim_up")
 	if stick != Vector2.ZERO:
@@ -995,7 +1003,7 @@ func _fire() -> void:
 	var angle := _aim_angle()
 	var dir := Vector3(cos(angle) * facing, sin(angle), 0.0)
 	var speed := lerpf(stats.bow_speed_min, stats.bow_speed_max, _draw_t)
-	var damage := lerpf(stats.bow_damage_min, stats.bow_damage_max, _draw_t) * stats.bow_damage_mult
+	var damage := lerpf(stats.bow_damage_min, stats.bow_damage_max, _draw_t) * stats.bow_damage_mult * GameState.bow_damage_mult()
 	var poise_dmg := lerpf(stats.bow_poise_min, stats.bow_poise_max, _draw_t)
 	# Стрела вылетает из лука — по линии прицела от плеча.
 	var at := global_position + Vector3(0.0, BOW_HEIGHT, 0.0) + dir * BOW_REACH
@@ -1202,6 +1210,8 @@ func _on_hurt(hitbox: Hitbox) -> void:
 			return
 	health.take_damage(hitbox.damage, hitbox.non_lethal)
 	_combat_t = 0.0
+	if hitbox.wound_chance > 0.0 and randf() < hitbox.wound_chance:
+		start_wound(hitbox.wound_total, hitbox.wound_time, hitbox.non_lethal)
 	body.flash(Color(1.0, 0.25, 0.2))
 	Sfx.play(&"player_hurt", global_position)
 	Events.camera_shake_requested.emit(0.3, 0.2)
@@ -1212,6 +1222,43 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	velocity = Vector3(dir.x * hitbox.knockback, 5.0, 0.0)
 	_iframes = stats.hurt_iframes
 	_set_state(State.HURT)
+
+
+func _bow_draw_time() -> float:
+	return stats.mod(&"bow_draw_time", stats.bow_draw_time) * GameState.bow_draw_mult()
+
+
+## Стоит ли герой на ловушке (шипы и т. п. в группе "hazard").
+func _on_hazard() -> bool:
+	for node in get_tree().get_nodes_in_group("hazard"):
+		if node.has_method("covers") and node.covers(global_position):
+			return true
+	return false
+
+
+## Рана кровоточит: здоровье капает wound_time секунд. Новая рана не складывается, а продлевает.
+func start_wound(total: float, time: float, soft := false) -> void:
+	if time <= 0.0 or is_dead():
+		return
+	_wound_rate = maxf(_wound_rate if wound_t > 0.0 else 0.0, total / time)
+	wound_t = maxf(wound_t, time)
+	_wound_soft = soft
+	body.flash(Color(0.75, 0.05, 0.05))
+	HitSpark.spawn(get_parent(), global_position + Vector3(0.0, 1.1, 0.3), Color(0.6, 0.02, 0.02), 14)
+
+
+func _tick_wound(delta: float) -> void:
+	if wound_t <= 0.0:
+		return
+	if is_dead():
+		wound_t = 0.0
+		return
+	wound_t -= delta
+	health.take_damage(_wound_rate * delta, _wound_soft)
+	_wound_drip -= delta
+	if _wound_drip <= 0.0:
+		_wound_drip = 0.3
+		HitSpark.spawn(get_parent(), global_position + Vector3(randf_range(-0.2, 0.2), 0.9, 0.3), Color(0.55, 0.02, 0.02), 4)
 
 
 func _on_parry(attacker: Dummy) -> void:
@@ -1271,6 +1318,7 @@ func stand_up() -> void:
 
 
 func respawn(at: Vector3) -> void:
+	wound_t = 0.0
 	teleport(at)
 	restore()
 	_iframes = 1.0
@@ -1291,6 +1339,7 @@ func teleport(at: Vector3) -> void:
 	_airborne = false
 	_air_top = global_position.y
 	last_ground = global_position
+	safe_ground = global_position
 
 
 ## Высота падения: от верхней точки полёта до пола. Лазание, скольжение по скату и вис
@@ -1306,6 +1355,8 @@ func _track_fall() -> void:
 			_land_from(_air_top - y)
 		if grounded:
 			last_ground = global_position
+			if not _on_hazard():
+				safe_ground = global_position
 		_airborne = false
 		_air_top = y
 	else:
