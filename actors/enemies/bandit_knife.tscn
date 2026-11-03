@@ -79,7 +79,6 @@ body_color = Color(0.18, 0.17, 0.15, 1)
 max_poise = 30.0
 turn_time = 0.25
 echoes = 45
-mastery_xp = 1.5
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.875, 0)

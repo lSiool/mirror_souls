@@ -37,6 +37,18 @@ const POSE_OVERHEAD := 0.35
 const POSE_BACK := 1.7
 const POSE_FLOOR := -2.5
 const POSE_SWEPT := -1.9
+## Поза на коленях после смерти: в ней он застывает.
+const KNEEL_Y := -0.8
+const KNEEL_TILT := -0.45
+## Стеклянная статуя: цвет, отсвет; сколько после смерти он человек, сколько стекленеет,
+## через сколько после этого летят отзвуки.
+const STATUE_COLOR := Color(0.7, 0.85, 1.0, 0.62)
+const STATUE_GLOW := Color(0.45, 0.7, 1.0)
+const STATUE_DELAY := 2.0
+const STATUE_TIME := 1.8
+const STATUE_LOOT_DELAY := 0.5
+## Насколько впереди статуи ложится отзвук босса.
+const LOOT_AHEAD := 1.3
 
 enum Blow { SWEEP, SLAM, SLAM_HELD, SLAM_BIG, DRAG, LEAP, HANDS }
 
@@ -44,6 +56,9 @@ const COOLDOWNS := {Blow.DRAG: 6.0, Blow.LEAP: 7.0, Blow.HANDS: 9.0}
 
 ## Флаг мира «побеждён»: открывает Главное Зеркало, отдых его не воскрешает.
 @export var boss_flag: StringName = &"boss_smith"
+## Отзвуки и мастерство отданы — после того как он застыл статуей. Не стоит при новом заходе —
+## отдать сразу (герой ушёл, пока тело стекленело).
+@export var loot_flag: StringName = &"boss_smith_loot"
 @export var boss_name := "Безмолвный Кузнец"
 @export var sweep_windup := 0.85
 @export var slam_windup := 1.35
@@ -63,6 +78,8 @@ var _leap_x := 0.0
 var _spark_t := 0.0
 var _trail_t := 0.0
 var _pattern := 0
+## Застыл стеклом.
+var statue := false
 
 @onready var hammer: Node3D = $Visual/Hammer
 @onready var hammer_head: MeshInstance3D = $Visual/Hammer/Head
@@ -71,8 +88,9 @@ var _pattern := 0
 
 func _ready() -> void:
 	super()
+	leaves_statue = true
 	if GameState.has_flag(boss_flag):
-		queue_free()
+		_stand_as_statue()
 		return
 	for blow: Blow in COOLDOWNS:
 		_cooldowns[blow] = 2.0
@@ -367,8 +385,9 @@ func _on_died() -> void:
 	attack_hitbox.active = false
 	_set_state(State.DEAD)
 	Sfx.play(&"enemy_death", global_position)
-	Events.enemy_killed.emit(self)
 	collision_layer = 0
+	# Тело больше не толкают: сталкивается только с миром — долетит до земли и замрёт.
+	collision_mask = 1
 	hurtbox.set_deferred("monitorable", false)
 	_slow_motion()
 	_death_scene()
@@ -381,23 +400,131 @@ func _slow_motion() -> void:
 	Engine.time_scale = 1.0
 
 
-## Дух уходит, Кузнец опускается на колени и роняет молот — снова человек.
+## Дух уходит, Кузнец опускается на колени и роняет молот — снова человек. Потом застывает
+## стеклянной статуей, и только тогда с него летят отзвуки.
 func _death_scene() -> void:
 	for eye in eyes:
 		eye.visible = false
 	_spirit(false)
-	var kneel := create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE)
-	kneel.tween_property(visual, "position:y", -0.8, 1.2)
-	kneel.tween_property(body_mesh, "rotation:z", -0.45, 1.2)
-	kneel.tween_property(hammer, "rotation:z", POSE_FLOOR - 0.4, 0.8)
-	kneel.tween_method(func(c: Color) -> void: body_color = c, body_color, HUMAN_COLOR, 2.0)
+	_douse_hammer()
+	# Из любой позы — замаха, удара, прыжка — плавно на колени: в этой позе он и застынет.
+	var kneel := create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	kneel.tween_property(visual, "position:y", KNEEL_Y, 1.4)
+	kneel.tween_property(body_mesh, "rotation:z", KNEEL_TILT, 1.4)
+	kneel.tween_property(hammer, "rotation:z", POSE_FLOOR - 0.4, 1.1)
+	kneel.tween_method(func(c: Color) -> void: body_color = c, body_color, HUMAN_COLOR, STATUE_DELAY)
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.85, 0.6)
 	light.light_energy = 0.0
 	light.omni_range = 6.0
 	light.position = Vector3(0.0, 2.5, 1.0)
 	add_child(light)
-	create_tween().tween_property(light, "light_energy", 1.2, 2.5)
+	var glow := create_tween()
+	glow.tween_property(light, "light_energy", 1.2, 2.5)
+	glow.tween_property(light, "light_color", STATUE_GLOW, STATUE_TIME)
+	var wait := create_tween()
+	wait.tween_interval(STATUE_DELAY)
+	wait.tween_callback(_turn_to_glass)
+
+
+## Огонь духа на молоте гаснет.
+func _douse_hammer() -> void:
+	for child in hammer_head.get_children():
+		if child is CPUParticles3D:
+			(child as CPUParticles3D).emitting = false
+		elif child is OmniLight3D:
+			create_tween().tween_property(child, "light_energy", 0.0, 0.8)
+
+
+## Тело стекленеет снизу вверх: искры инея и треск, в конце блик — статуя готова, отзвуки летят.
+func _turn_to_glass() -> void:
+	Sfx.play(&"glass_crack", global_position, 2.0)
+	var glass := _glass_materials()
+	var tween := create_tween()
+	tween.tween_method(func(t: float) -> void: _glaze(glass, t), 0.0, 1.0, STATUE_TIME).set_trans(Tween.TRANS_SINE)
+	tween.tween_callback(func() -> void:
+		statue = true
+		Sfx.play(&"glass_glint", global_position, 2.0)
+		HitSpark.spawn(get_parent(), global_position + Vector3(0.0, 1.6, -0.4), STATUE_GLOW, 30))
+	tween.tween_interval(STATUE_LOOT_DELAY)
+	tween.tween_callback(_drop_loot)
+	var frost := create_tween()
+	for i in 5:
+		frost.tween_interval(STATUE_TIME / 5.0)
+		frost.tween_callback(func() -> void:
+			HitSpark.spawn(get_parent(), global_position + Vector3(randf_range(-0.8, 0.8), lerpf(0.2, 2.6, i / 4.0), -0.4), STATUE_COLOR, 10))
+
+
+## Своя копия материала у каждой части тела: [материал, цвет до стекла, шероховатость до стекла].
+func _glass_materials() -> Array:
+	var result := []
+	for node in visual.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if not mesh.visible or mesh in eyes:
+			continue
+		var base := mesh.material_override as StandardMaterial3D
+		if base == null and mesh.mesh:
+			base = mesh.mesh.surface_get_material(0) as StandardMaterial3D
+		var glass := base.duplicate() as StandardMaterial3D if base else StandardMaterial3D.new()
+		glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+		glass.emission_enabled = true
+		glass.rim_enabled = true
+		mesh.material_override = glass
+		result.append([glass, glass.albedo_color, glass.roughness, glass.emission, glass.emission_energy_multiplier])
+	return result
+
+
+func _glaze(glass: Array, t: float) -> void:
+	for part: Array in glass:
+		var material: StandardMaterial3D = part[0]
+		material.albedo_color = (part[1] as Color).lerp(STATUE_COLOR, t)
+		material.roughness = lerpf(part[2], 0.06, t)
+		material.metallic = 0.4 * t
+		material.rim = t
+		material.emission = (part[3] as Color).lerp(STATUE_GLOW, t)
+		material.emission_energy_multiplier = lerpf(part[4], 0.35, t)
+
+
+## Статуя готова: отзвуки летят к герою, мастерство засчитано, у статуи появляется отзвук босса.
+func _drop_loot() -> void:
+	_place_loot()
+	GameState.set_flag(loot_flag)
+	Events.enemy_killed.emit(self)
+
+
+## Отзвук босса — перед статуей, в плоскости героя, со стороны, куда она смотрит: статую
+## можно пройти насквозь, но поднимать лут удобнее перед ней.
+func _place_loot() -> void:
+	for node in get_parent().get_children():
+		var pickup := node as ItemPickup
+		if pickup and pickup.appear_flag == loot_flag:
+			pickup.global_position = Vector3(global_position.x + facing * LOOT_AHEAD, global_position.y, 0.0)
+
+
+## Побеждён раньше: на его месте стоит на коленях стеклянная статуя.
+func _stand_as_statue() -> void:
+	state = State.DEAD
+	statue = true
+	remove_from_group("enemy")
+	collision_layer = 0
+	collision_mask = 1
+	hurtbox.set_deferred("monitorable", false)
+	for eye in eyes:
+		eye.visible = false
+	visual.position.y = KNEEL_Y
+	body_mesh.rotation.z = KNEEL_TILT
+	hammer.rotation.z = POSE_FLOOR - 0.4
+	hammer.position.z = 0.75 * facing
+	body_color = HUMAN_COLOR
+	_material.albedo_color = HUMAN_COLOR
+	_material.emission = Color.BLACK
+	_glaze(_glass_materials(), 1.0)
+	set_physics_process(false)
+	# Ушёл из комнаты, пока стекленел: отзвуки — сейчас.
+	if not GameState.has_flag(loot_flag):
+		_drop_loot.call_deferred()
+	else:
+		_place_loot.call_deferred()
 
 
 func _on_hurt(hitbox: Hitbox) -> void:

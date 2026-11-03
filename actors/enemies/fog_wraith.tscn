@@ -48,7 +48,6 @@ parry_allowed = false
 hurt_voice = &""
 death_voice = &""
 echoes = 25
-mastery_xp = 1.0
 wake_range_x = 9.0
 wake_range_y = 6.0
 hover_height = 2.2

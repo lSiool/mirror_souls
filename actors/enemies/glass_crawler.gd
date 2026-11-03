@@ -59,7 +59,6 @@ func _ready() -> void:
 	death_voice = &""
 	# Мелкий враг — и отзвук мельче.
 	echoes = 15
-	mastery_xp = 0.6
 	# Желе из стекла: крови нет.
 	can_bleed = false
 	super()

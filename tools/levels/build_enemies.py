@@ -60,8 +60,7 @@ backstab_allowed = false
 parry_allowed = false
 hurt_voice = &""
 death_voice = &""
-echoes = 6
-mastery_xp = 0.5"""
+echoes = 6"""
     write("actors/enemies/rat.tscn", enemy_scene("res://actors/enemies/rat.gd", '[node name="Rat" type="CharacterBody3D"]\ncollision_layer = 4\ncollision_mask = 3',
                                                  "\n\n".join(subs), 25.0, props, "\n\n".join(nodes)))
 
@@ -100,8 +99,7 @@ attack_lunge = 5.0
 body_color = Color({"0.24, 0.19, 0.15" if heavy else "0.18, 0.17, 0.15"}, 1)
 max_poise = {45 if heavy else 30}.0
 turn_time = 0.25
-echoes = 45
-mastery_xp = 1.5"""
+echoes = 45"""
     name = "BanditHeavy" if heavy else "BanditKnife"
     write(f"actors/enemies/bandit_{kind}.tscn", enemy_scene("res://actors/enemies/bandit.gd",
           f'[node name="{name}" type="CharacterBody3D"]\ncollision_layer = 4\ncollision_mask = 3', "\n\n".join(subs), 90.0 if heavy else 70.0,
@@ -145,7 +143,6 @@ turn_time = 0.25
 hurt_voice = &""
 death_voice = &"enemy_death_voice"
 echoes = 80
-mastery_xp = 2.5
 weapon_type = &"sword\""""
     write("actors/enemies/drowned_knight.tscn", enemy_scene("res://actors/enemies/drowned_knight.gd",
           '[node name="DrownedKnight" type="CharacterBody3D"]\ncollision_layer = 4\ncollision_mask = 3', "\n\n".join(subs), 160.0, props, "\n\n".join(nodes)))
@@ -170,7 +167,6 @@ parry_allowed = false
 hurt_voice = &""
 death_voice = &""
 echoes = 25
-mastery_xp = 1.0
 wake_range_x = 9.0
 wake_range_y = 6.0
 hover_height = 2.2
@@ -214,7 +210,7 @@ parry_allowed = false
 roll_through = true
 windup_tint = 0.2
 echoes = 0
-mastery_xp = 6.0
+rank = 2
 weapon_type = &"hammer\""""
     write("actors/enemies/blacksmith.tscn", enemy_scene("res://actors/enemies/blacksmith.gd",
           '[node name="Blacksmith" type="CharacterBody3D"]\ncollision_layer = 4\ncollision_mask = 3', "\n\n".join(subs), 800.0, props, "\n\n".join(nodes)))

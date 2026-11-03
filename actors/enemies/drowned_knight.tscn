@@ -89,7 +89,6 @@ turn_time = 0.25
 hurt_voice = &""
 death_voice = &"enemy_death_voice"
 echoes = 80
-mastery_xp = 2.5
 weapon_type = &"sword"
 
 [node name="Collision" type="CollisionShape3D" parent="."]

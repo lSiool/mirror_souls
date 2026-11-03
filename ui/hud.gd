@@ -9,6 +9,8 @@ const DEATH_LABEL_DELAY := 0.95
 ## Тон под надписью звучит без места в мире — убавлен до уровня звуков комнаты.
 const DEATH_STING_DB := -9.0
 const CARD_TIME := 1.9
+## Высота чёрных полос катсцены.
+const CINEMA_BAR := 90.0
 const ITEM_NAMES := {&"clear_glass": "чистое стекло", &"facet_slot": "слот для граней", &"tempered_glass": "закалённое стекло",
 	&"bow_hunter": "охотничий лук", &"bow_guard": "лук стражи", &"has_bow": "лук",
 	&"flask_vessel": "второй глоток зелья", &"flask_potency": "крепкое зелье Травницы",
@@ -22,6 +24,11 @@ var boss_bar: ProgressBar
 var _boss_box: Control
 var _cards_running := false
 var _cards_skipped := false
+var _say_label: Label
+var _say_tween: Tween
+var _notice_label: Label
+var _notice_tween: Tween
+var _bars: Array[ColorRect] = []
 
 @onready var health_bar: ProgressBar = %HealthBar
 @onready var stamina_bar: ProgressBar = %StaminaBar
@@ -48,6 +55,8 @@ func _ready() -> void:
 	Events.message.connect(toast)
 	Events.boss_engaged.connect(_on_boss_engaged)
 	Events.mastery_step_reached.connect(_on_mastery_step)
+	_say_label = _make_line(Control.PRESET_CENTER_BOTTOM, 170, Control.GROW_DIRECTION_BEGIN)
+	_notice_label = _make_line(Control.PRESET_CENTER_TOP, 110, Control.GROW_DIRECTION_END)
 	death_label.visible = false
 	prompt_label.text = ""
 	fade.color.a = 1.0
@@ -103,13 +112,13 @@ func _on_echoes_changed(total: int) -> void:
 func _on_mastery_step(type: StringName, step: int) -> void:
 	var weapon := _player.weapon
 	if weapon and weapon.type == type and step <= weapon.step_names.size():
-		toast("Мастерство: %s" % weapon.step_names[step - 1])
+		notice("Мастерство: %s" % weapon.step_names[step - 1])
 
 
 ## Найден редкий предмет: название появляется над подсказкой и гаснет.
 func _on_item_found(id: StringName) -> void:
 	var facet := Facet.by_id(id)
-	toast("Найдено: %s" % (facet.display_name if facet else ITEM_NAMES.get(id, String(id))))
+	notice("Найдено: %s" % (facet.display_name if facet else ITEM_NAMES.get(id, String(id))))
 
 
 ## Здоровье босса внизу экрана, пока он жив и комната та же.
@@ -180,18 +189,57 @@ func play_cards(lines: PackedStringArray, each := CARD_TIME) -> void:
 	await tween.finished
 
 
+## Реплика, записка или событие внизу экрана. Одна строка: новая сменяет прежнюю, а не ложится поверх.
 func toast(text: String) -> void:
+	_say_tween = _show_line(_say_label, _say_tween, text)
+
+
+## Находка или новая ступень мастерства — своя строка вверху, чтобы реплика её не стёрла.
+func notice(text: String) -> void:
+	_notice_tween = _show_line(_notice_label, _notice_tween, text)
+
+
+func _make_line(preset: Control.LayoutPreset, margin: int, grow: Control.GrowDirection) -> Label:
 	var label := Label.new()
-	label.text = text
-	label.modulate = Color(0.72, 0.86, 1.0)
-	label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 170)
+	label.modulate = Color(0.72, 0.86, 1.0, 0.0)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.set_anchors_and_offsets_preset(preset, Control.PRESET_MODE_MINSIZE, margin)
 	label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	label.grow_vertical = grow
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(label)
+	return label
+
+
+## Показать текст в строке: прежний гаснет мгновенно, новый держится тем дольше, чем он длиннее.
+func _show_line(label: Label, old: Tween, text: String) -> Tween:
+	if old:
+		old.kill()
+	label.text = text
+	label.modulate.a = 1.0
 	var tween := create_tween()
-	tween.tween_interval(2.5)
+	tween.tween_interval(clampf(1.6 + text.length() * 0.045, 2.5, 7.0))
 	tween.tween_property(label, "modulate:a", 0.0, 0.6)
-	tween.tween_callback(label.queue_free)
+	return tween
+
+
+## Катсцена: сверху и снизу наезжают чёрные полосы, полоса босса и подсказка прячутся.
+func cinematic(on: bool, time := 0.5) -> void:
+	if _bars.is_empty():
+		for preset in [Control.PRESET_TOP_WIDE, Control.PRESET_BOTTOM_WIDE]:
+			var bar := ColorRect.new()
+			bar.color = Color.BLACK
+			bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			bar.set_anchors_and_offsets_preset(preset)
+			bar.grow_vertical = Control.GROW_DIRECTION_END if preset == Control.PRESET_TOP_WIDE else Control.GROW_DIRECTION_BEGIN
+			add_child(bar)
+			_bars.append(bar)
+	if is_instance_valid(_boss_box):
+		_boss_box.visible = not on
+	prompt_label.visible = not on
+	var tween := create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE)
+	for bar: ColorRect in _bars:
+		tween.tween_property(bar, "custom_minimum_size:y", CINEMA_BAR if on else 0.0, time)
 
 
 ## Не хватило выносливости: полоса коротко вспыхивает красным.

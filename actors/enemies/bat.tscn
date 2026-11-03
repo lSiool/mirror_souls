@@ -33,7 +33,6 @@ parry_allowed = false
 hurt_voice = &""
 death_voice = &""
 echoes = 10
-mastery_xp = 0.8
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 shape = SubResource("Shape_body")

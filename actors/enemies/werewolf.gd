@@ -24,6 +24,14 @@ const FEINT_SPEED := 9.0
 ## Уходит в лес: и вбок, и в глубину кадра.
 const FLEE_VELOCITY := Vector3(8.0, 0.0, -9.0)
 const FLEE_TIME := 2.0
+## Катсцена: сколько пригибается, на каком расстоянии от героя встаёт после прыжка и как высоко
+## дуга; сколько ударов когтями, каждый по стольку секунд и урона (не убивает).
+const MAUL_CROUCH := 0.4
+const MAUL_GAP := 0.5
+const MAUL_ARC := 2.6
+const MAUL_STRIKES := 5
+const MAUL_STRIKE := 0.24
+const MAUL_BITE := 4.0
 
 enum Move { CLAW, RUSH, LEAP, FEINT, HOWL }
 
@@ -45,6 +53,8 @@ var _fleeing := false
 var _flee_t := 0.0
 var _hits_taken := 0
 var _feint_wait := 3.0
+## Идёт катсцена конца боя: бой и физику ведёт она.
+var in_scene := false
 
 @onready var arm_front: Node3D = $Visual/ArmFront
 @onready var arm_back: Node3D = $Visual/ArmBack
@@ -61,6 +71,62 @@ func _ready() -> void:
 	attack_hitbox.wound_chance = 0.2
 	attack_hitbox.wound_total = 10.0
 	attack_hitbox.wound_time = 5.0
+
+
+## Конец боя на движке (SquareEvent): зверь пригибается, прыгает на героя, валит и рвёт.
+## Дальше — зов из леса (heed_call) и бегство (flee).
+func maul(hero: Player) -> void:
+	in_scene = true
+	attack_hitbox.active = false
+	hurtbox.set_deferred("monitorable", false)
+	collision_layer = 0
+	_set_state(State.DORMANT)
+	velocity = Vector3.ZERO
+	var dx := hero.global_position.x - global_position.x
+	if dx != 0.0:
+		facing = signf(dx)
+	visual.rotation.y = 0.0 if facing > 0.0 else PI
+	# Пригнулся, когти назад — сейчас прыгнет.
+	var crouch := create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE)
+	crouch.tween_property(visual, "scale:y", 0.68, MAUL_CROUCH)
+	crouch.tween_property(arm_front, "rotation:z", -2.0, MAUL_CROUCH)
+	crouch.tween_property(arm_back, "rotation:z", -1.4, MAUL_CROUCH)
+	crouch.tween_property(head, "rotation:z", -0.2, MAUL_CROUCH)
+	Sfx.play_ui(&"heartbeat")
+	await crouch.finished
+	# Прыжок дугой — встаёт над героем.
+	var from := global_position
+	var to := Vector3(hero.global_position.x - facing * MAUL_GAP, hero.global_position.y, from.z)
+	var air := clampf(absf(to.x - from.x) / 14.0, 0.45, 0.8)
+	Sfx.play(&"sword_swing", global_position, 3.0)
+	var leap := create_tween().set_parallel(true)
+	leap.tween_method(func(t: float) -> void:
+		global_position = from.lerp(to, t) + Vector3(0.0, sin(t * PI) * MAUL_ARC, 0.0), 0.0, 1.0, air)
+	leap.tween_property(visual, "scale:y", 1.12, air * 0.4)
+	leap.tween_property(arm_front, "rotation:z", 1.3, air * 0.5)
+	leap.tween_property(arm_back, "rotation:z", 1.0, air * 0.5)
+	await leap.finished
+	# Удар о землю: герой сбит с ног.
+	hero.knock_down()
+	hero.body.flash(Color(1.0, 0.25, 0.2))
+	Events.camera_shake_requested.emit(0.7, 0.45)
+	HitStop.stop(0.08)
+	Sfx.play(&"sword_block", global_position, 3.0)
+	HitSpark.spawn(get_parent(), hero.global_position + Vector3(0.0, 0.2, -0.3), Color(0.35, 0.3, 0.26), 26)
+	# Рвёт когтями, по очереди.
+	for i in MAUL_STRIKES:
+		var arm := arm_front if i % 2 == 0 else arm_back
+		var strike := create_tween().set_trans(Tween.TRANS_SINE)
+		strike.tween_property(arm, "rotation:z", -2.3, MAUL_STRIKE * 0.6)
+		strike.parallel().tween_property(visual, "scale:y", 1.0, MAUL_STRIKE * 0.6)
+		strike.tween_property(arm, "rotation:z", 1.4, MAUL_STRIKE * 0.4)
+		strike.parallel().tween_property(visual, "scale:y", 0.82, MAUL_STRIKE * 0.4)
+		await strike.finished
+		hero.health.take_damage(MAUL_BITE, true)
+		hero.body.flash(Color(1.0, 0.25, 0.2))
+		HitSpark.spawn(get_parent(), hero.global_position + Vector3(randf_range(-0.3, 0.3), 0.5, 0.3), Color(0.6, 0.02, 0.02), 12)
+		Sfx.play(&"enemy_hurt", hero.global_position, -2.0)
+		Events.camera_shake_requested.emit(0.3, 0.12)
 
 
 ## Услышал зов: бой окончен, зверь замирает и поднимает морду.
@@ -195,13 +261,13 @@ func _pin() -> void:
 	_set_state(State.DORMANT)
 	for i in PIN_BITES:
 		await get_tree().create_timer(PIN_TIME / (PIN_BITES + 1)).timeout
-		if not is_instance_valid(hero) or _called:
+		if not is_instance_valid(hero) or _called or in_scene:
 			return
 		hero.health.take_damage(PIN_BITE, true)
 		hero.body.flash(Color(1.0, 0.25, 0.2))
 		Events.camera_shake_requested.emit(0.25, 0.15)
 	await get_tree().create_timer(PIN_TIME / (PIN_BITES + 1)).timeout
-	if _called or not is_instance_valid(hero):
+	if _called or in_scene or not is_instance_valid(hero):
 		return
 	hero.stand_up()
 	hero.velocity = Vector3(facing * 9.0, 4.0, 0.0)
@@ -227,6 +293,8 @@ func _land() -> void:
 func _wake_check(delta: float) -> void:
 	if _called:
 		_after_call(delta)
+		return
+	if in_scene:
 		return
 	if engaged and _roar >= ROAR_TIME:
 		# Прижал героя к земле: стоит над ним.

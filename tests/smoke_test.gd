@@ -422,6 +422,37 @@ func run() -> void:
 	player.restore()
 	await seconds(0.8)
 
+	print("== Пауза между кувырками")
+	player.restore()
+	await put(Vector3(-16.0, 0.1, 0), 1.0)
+	await seconds(0.3)
+	await tap("roll")
+	await seconds(stats.roll_duration + 0.03)
+	check(player.state != Player.State.ROLL and player.roll_cooling(), "кувырок кончился — пауза перед следующим")
+	await tap("roll")
+	check(player.state != Player.State.ROLL, "в паузе новый кувырок не начинается")
+	await seconds(stats.roll_cooldown + 0.05)
+	check(player.state == Player.State.ROLL, "нажатие подождало паузу — кувырок")
+	await seconds(stats.roll_duration + 0.3)
+	# Кувырки подряд: всегда есть окно уязвимости длиннее самого короткого удара врага (0,16 с).
+	var open_t := 0.0
+	var open_best := 0.0
+	press("roll")
+	for i in 150:
+		await frames(1)
+		if player.hurtbox.invulnerable:
+			open_t = 0.0
+		else:
+			open_t += 1.0 / Engine.physics_ticks_per_second
+			open_best = maxf(open_best, open_t)
+		if i % 6 == 0:
+			release("roll")
+			await frames(1)
+			press("roll")
+	release("roll")
+	check(open_best >= 0.18, "кувырки подряд: щель уязвимости %.2f с — удар найдёт окно" % open_best)
+	await seconds(0.5)
+
 	print("== Грани")
 	var youth := Facet.by_id(&"facet_youth")
 	var experience := Facet.by_id(&"facet_experience")
@@ -455,19 +486,19 @@ func run() -> void:
 	check(player._parry_t == 0.0, "блок нажат — окна парирования нет")
 	var kills := 0
 	while game_state.mastery_step(&"sword") < 1 and kills < 200:
+		game_state.add_mastery(&"sword", Dummy.MASTERY_POINTS[Dummy.Rank.COMMON])
+		kills += 1
+	check(kills == 20 and player.can_parry() and player.weapon.combo_at(1).size() == 3, "первая ступень за 20 врагов: парирование (%d)" % kills)
+	while game_state.mastery_step(&"sword") < 2 and kills < 200:
 		game_state.add_mastery(&"sword", 1.0)
 		kills += 1
-	check(kills == 50 and player.weapon.combo_at(1).size() == 4, "первая ступень за 50 врагов: четвёртый удар")
+	check(kills == 50 and player.weapon.combo_at(2).size() == 4, "вторая — 50 врагов всего: четвёртый удар (%d)" % kills)
+	check(player.weapon.step_names[0] == "Парирование", "в меню первая ступень — парирование")
 	game_state.mastery.clear()
-	kills = 0
-	while game_state.mastery_step(&"sword") < 1 and kills < 200:
-		game_state.add_mastery(&"sword", 1000.0)
-		kills += 1
-	check(kills == 15, "даже сильные враги: не меньше 15 убийств на ступень (%d)" % kills)
+	check(Dummy.MASTERY_POINTS[Dummy.Rank.BOSS] == 5.0 and Dummy.MASTERY_POINTS[Dummy.Rank.MINIBOSS] == 2.0, "босс даёт 5 очков, мини-босс 2")
+	game_state.add_mastery(&"sword", Dummy.MASTERY_POINTS[Dummy.Rank.BOSS])
+	check(is_equal_approx(game_state.mastery_xp(&"sword"), 5.0), "босс засчитан целиком, без потолка")
 	game_state.mastery.clear()
-	stats.level = 60
-	check(is_equal_approx(stats.mastery_rate(), 2.0), "взрослому опыт идёт вдвое быстрее")
-	stats.level = 0
 	var spearman := room_node("Objects/Soldier") as Dummy
 	spearman.weapon_type = &"spear"
 	spearman.last_weapon = &"bow"
@@ -1625,10 +1656,19 @@ func run() -> void:
 	player.restore()
 	for i in 3600:
 		await frames(1)
-		if not wolf.is_inside_tree() or wolf._called:
+		if not wolf.is_inside_tree() or wolf.in_scene or wolf._called:
 			break
 		player.global_position.x = wolf.global_position.x + 1.5 * wolf.facing
-	check(not player.is_dead() and player.lying and player.frozen, "мальчишка повержен, но жив")
+	check(wolf.in_scene and player.frozen and rooms.hud._bars.size() == 2, "бой окончен — катсцена: полосы кадра, герой замер")
+	var hp_maul := player.health.current
+	for i in 600:
+		await frames(1)
+		if wolf._called:
+			break
+	check(absf(wolf.global_position.x - player.global_position.x) < 1.2, "зверь с прыжка встал над героем")
+	check(not player.is_dead() and player.lying and player.frozen and player.health.current <= maxf(hp_maul - 4.0, 1.0),
+		"мальчишку растерзали, но он жив (%.0f → %.0f)" % [hp_maul, player.health.current])
+	check(rooms.hud._say_label.text.contains("зов"), "из леса — зов, зверь замирает")
 	for i in 900:
 		await frames(1)
 		if game_state.has_flag(&"fire_out") and not player.lying:
@@ -1688,6 +1728,12 @@ func run() -> void:
 	await tap("interact")
 	await frames(3)
 	check((room_node("Objects/Smith") as Npc)._next == 1, "дальше кузнец рассказывает")
+	for i in 3:
+		await tap("interact")
+		await frames(2)
+	var spoken := rooms.hud.find_children("*", "Label", true, false).filter(
+		func(label: Label) -> bool: return label.text.begins_with("Кузнец:") and label.modulate.a > 0.0)
+	check(spoken.size() == 1 and rooms.hud._say_label.text.begins_with("Кузнец:"), "реплики не ложатся друг на друга: видна одна (%d)" % spoken.size())
 	var herbalist_here := room_node("Objects/Herbalist")
 	check((herbalist_here == null or herbalist_here.is_queued_for_deletion()) and room_node("Objects/Glassblower") != null,
 		"Травница пропала (её похитили), стекольщик на месте")
@@ -2108,16 +2154,38 @@ func run() -> void:
 	boss_probe.queue_free()
 	check(not room_node("Objects/BossEcho").enabled, "отзвук кузнеца пока недоступен")
 	var hammer_before: float = game_state.mastery_xp(&"hammer")
+	check(smith.rank == Dummy.Rank.BOSS, "Кузнец — босс: 5 очков мастерства")
+	var sword_before: float = game_state.mastery_xp(&"sword")
 	smith.last_weapon = &"sword"
 	smith.health.take_damage(INF)
-	await frames(2)
-	check(game_state.mastery_xp(&"hammer") > hammer_before, "победа над кузнецом учит молоту")
-	await seconds(1.5)
-	check(Engine.time_scale == 1.0, "замедление последнего удара кончилось")
+	await seconds(0.8)
 	check(game_state.has_flag(&"boss_smith"), "кузнец побеждён")
+	check(not room_node("Objects/BossEcho").enabled and not smith.statue and game_state.mastery_xp(&"hammer") == hammer_before,
+		"тело ещё не застыло — лута нет")
+	# Герой упирается в мёртвое тело и идёт сквозь него: тело стоит.
+	var corpse_x := smith.global_position.x
+	await put(Vector3(corpse_x - 1.0, smith.global_position.y + 0.1, 0.0), 1.0)
+	press("move_right")
+	await seconds(0.9)
+	release("move_right")
+	check(absf(smith.global_position.x - corpse_x) < 0.05, "мёртвое тело не сдвинуть (%.2f)" % (smith.global_position.x - corpse_x))
+	check(player.global_position.x > corpse_x, "сквозь тело можно пройти")
+	for i in 600:
+		await frames(1)
+		if game_state.has_flag(&"boss_smith_loot"):
+			break
+	check(smith.statue and smith.is_inside_tree(), "Кузнец застыл стеклянной статуей на месте")
+	check(absf(smith.global_position.x - corpse_x) < 0.05, "статуя стоит, где он умер")
+	check(Engine.time_scale == 1.0, "замедление последнего удара кончилось")
+	await frames(3)
+	check(game_state.mastery_xp(&"hammer") > hammer_before
+		and (is_equal_approx(game_state.mastery_xp(&"sword") - sword_before, 5.0) or game_state.mastery_step(&"sword") == 5),
+		"после статуи: 5 очков мечу, треть — молоту")
 	check(not arena.is_closed(), "туман растворился")
 	var echo_find := room_node("Objects/BossEcho") as ItemPickup
 	check(echo_find.enabled and echo_find.visible, "отзвук кузнеца появился")
+	check(absf(echo_find.global_position.x - (smith.global_position.x + smith.facing * Blacksmith.LOOT_AHEAD)) < 0.01 and echo_find.global_position.z == 0.0,
+		"отзвук лежит перед статуей")
 	var echoes_smith: int = game_state.echoes
 	await put(echo_find.global_position + Vector3(0.0, 0.1, 0.0))
 	await seconds(0.2)
@@ -2127,7 +2195,35 @@ func run() -> void:
 	await seconds(1.0)
 	await rooms._rest()
 	await seconds(0.8)
-	check(room_node("Objects/Blacksmith") == null or room_node("Objects/Blacksmith").is_queued_for_deletion(), "отдых не воскрешает босса")
+	var statue := room_node("Objects/Blacksmith") as Blacksmith
+	check(statue != null and statue.statue and statue.state == Dummy.State.DEAD and not statue.is_in_group("enemy"),
+		"отдых не воскрешает босса: на его месте статуя")
+
+	print("== Перенос к главному осколку")
+	var forest_shard := room_node("Objects/MirrorShard") as MirrorShard
+	Events.checkpoint_activated.emit(forest_shard)
+	for i in 300:
+		await frames(1)
+		if rooms.level_menu.is_open:
+			break
+	check(rooms.level_menu.hub_available and rooms.level_menu._hub.visible, "в меню лесного осколка — перенос к часовне")
+	rooms.level_menu.go_to_hub()
+	for i in 300:
+		await frames(1)
+		if rooms.current_room_id == &"chapel_yard" and not rooms._busy:
+			break
+	var hub_shard := room_node("Objects/MirrorShard") as Node3D
+	check(rooms.current_room_id == &"chapel_yard" and absf(player.global_position.x - hub_shard.global_position.x) < 3.0,
+		"перенёсся к главному осколку у часовни")
+	check(game_state.checkpoint_room == &"chapel_yard", "возрождение теперь у часовни")
+	Events.checkpoint_activated.emit(hub_shard)
+	for i in 300:
+		await frames(1)
+		if rooms.level_menu.is_open:
+			break
+	check(not rooms.level_menu.hub_available and not rooms.level_menu._hub.visible, "у главного осколка переноса нет")
+	rooms.level_menu.close()
+	await seconds(0.3)
 
 	print("== Возвращение к часовне")
 	await rooms.travel(&"chapel_yard", ^"Spawns/FromForest")

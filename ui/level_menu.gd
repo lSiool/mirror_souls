@@ -8,6 +8,8 @@ extends Control
 ## Третья — оружие: закалка стеклом качает урон, мастерство типа растёт в бою и открывает приёмы.
 
 signal closed
+## Перенестись к главному осколку у часовни (хаб).
+signal hub_requested
 
 const CLEAR_GLASS: StringName = &"clear_glass"
 const FACET_SLOT: StringName = &"facet_slot"
@@ -22,6 +24,8 @@ const PARAMS := {
 }
 
 var is_open := false
+## Можно ли отсюда перенестись к главному осколку: выставляет RoomManager перед open().
+var hub_available := false
 var reflection: ShardReflection
 var _player: Player
 var _animating := false
@@ -32,6 +36,7 @@ var _body_label: Label
 var _buttons := {}
 var _respec: Button
 var _leave: Button
+var _hub: Button
 var _level_tab: Button
 var _facet_tab: Button
 var _level_page: VBoxContainer
@@ -144,12 +149,25 @@ func _ready() -> void:
 	_weapon_page.add_child(_bow_switch)
 	_weapon_page.add_child(HSeparator.new())
 	_mastery_label = _line(_weapon_page)
+	_hub = Button.new()
+	_hub.text = "Перенестись к главному осколку — у часовни"
+	_hub.custom_minimum_size.y = 36
+	_hub.pressed.connect(go_to_hub)
+	column.add_child(_hub)
 	_leave = Button.new()
 	_leave.text = "Отойти"
 	_leave.custom_minimum_size.y = 36
 	_leave.pressed.connect(close)
 	column.add_child(_leave)
 	_build_dialog()
+
+
+## Закрыть меню и перенестись к главному осколку.
+func go_to_hub() -> void:
+	if not hub_available or _animating:
+		return
+	close()
+	hub_requested.emit()
 
 
 ## Окно «Повысить уровень?» поверх меню.
@@ -465,6 +483,8 @@ func _refresh() -> void:
 	_facet_tab.disabled = _page == Page.FACETS or _animating
 	_weapon_tab.disabled = _page == Page.WEAPON or _animating
 	_leave.disabled = _animating
+	_hub.visible = hub_available
+	_hub.disabled = _animating
 	if _page == Page.FACETS:
 		_refresh_facets()
 		return

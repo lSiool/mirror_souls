@@ -416,7 +416,7 @@ def cursed_village():
     s.node("Arena", 'type="Node3D"', "Objects", ['script = ExtResource("arena")', 'boss_path = NodePath("../Blacksmith")',
            "left_x = -10.0", "right_x = 19.0", "height = 9.0"])
     s.node("BossEcho", 'type="Area3D"', "Objects", ["position = Vector3(4.0, 0, 0)", 'script = ExtResource("pickup")', 'flag = &"boss_smith_echo"',
-           'appear_flag = &"boss_smith"', "echoes = 500", 'pickup_prompt = "Коснуться отзвука Безмолвного Кузнеца"',
+           'appear_flag = &"boss_smith_loot"', "echoes = 500", 'pickup_prompt = "Коснуться отзвука Безмолвного Кузнеца"',
            "look_size = Vector3(0.45, 1.1, 0.45)", "look_color = Color(0.5, 0.75, 1, 1)"])
     s.lantern_post(D, "Lamp", -26.0, -1.2, energy=0.9)
     s.dead_tree(D, "TreeA", -12.0, -4.0, 9.0)

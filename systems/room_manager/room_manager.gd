@@ -24,6 +24,10 @@ void fragment() {
 }
 """
 
+## Хаб: главный осколок у часовни — к нему переносятся с любого другого осколка.
+const HUB_ROOM: StringName = &"chapel_yard"
+const HUB_SHARD: NodePath = ^"Objects/MirrorShard"
+
 ## С какой комнаты начинается новая игра.
 @export var start_room: StringName = &"village_hut"
 @export var player_path: NodePath
@@ -66,6 +70,7 @@ func _ready() -> void:
 	level_menu = LevelMenu.new()
 	hud.add_child(level_menu)
 	level_menu.closed.connect(_on_level_menu_closed)
+	level_menu.hub_requested.connect(travel_to_hub)
 	player.died.connect(_on_player_died)
 	_sun_energy = sun.light_energy
 	_setup_picture()
@@ -250,6 +255,9 @@ func travel(room_id: StringName, spawn: NodePath) -> void:
 func wake_up(flag: StringName, spawn: NodePath, text: String) -> void:
 	_busy = true
 	await hud.fade_to(1.0, 1.2)
+	# Сцена кончилась: камера и кадр как обычно.
+	hud.cinematic(false, 0.0)
+	camera_rig.zoom(1.0, 0.0)
 	GameState.set_flag(flag)
 	GameState.set_checkpoint(current_room_id, NORMAL, spawn)
 	_load_room(NORMAL, current_room_id)
@@ -301,7 +309,35 @@ func _on_checkpoint_activated(shard: MirrorShard) -> void:
 func open_level_menu() -> void:
 	_busy = true
 	var shard := current_room.get_node_or_null(GameState.checkpoint_path) as Node3D
+	level_menu.hub_available = can_travel_to_hub()
 	level_menu.open(player, shard if shard else current_room)
+
+
+## С любого осколка, кроме главного, можно перенестись к главному — у часовни, где хаб.
+## Главный осколок должен быть уже зажжён.
+func can_travel_to_hub() -> bool:
+	return GameState.has_flag(StringName("shard_%s" % HUB_ROOM)) \
+		and not (current_room_id == HUB_ROOM and reality == NORMAL)
+
+
+## Перенос к главному осколку — как отдых у него: мир восстановлен, возрождение теперь там.
+func travel_to_hub() -> void:
+	if _busy or not can_travel_to_hub():
+		return
+	_busy = true
+	player.frozen = true
+	player.velocity = Vector3.ZERO
+	Sfx.play_ui(&"glass_glint", -6.0)
+	await hud.fade_to(1.0, 0.6)
+	GameState.set_checkpoint(HUB_ROOM, NORMAL, HUB_SHARD)
+	GameState.restore_world()
+	_load_room(NORMAL, HUB_ROOM)
+	player.respawn(_checkpoint_position())
+	camera_rig.snap_to_target()
+	player.frozen = false
+	save_now()
+	await hud.fade_to(0.0, 0.6)
+	_busy = false
 
 
 func _on_level_menu_closed() -> void:
@@ -349,9 +385,10 @@ func _on_player_died() -> void:
 
 ## Враг погиб: мир его запоминает, а отзвук летит к герою.
 func _on_enemy_killed(enemy: Dummy) -> void:
-	GameState.mark_killed(_world_key(current_room_id, reality), current_room.get_path_to(enemy))
-	# Мастерство: полный опыт оружию героя, треть — оружию врага: побеждая копейщика, учишься копью.
-	var xp := enemy.mastery_xp * player.stats.mastery_rate()
+	if not enemy.leaves_statue:
+		GameState.mark_killed(_world_key(current_room_id, reality), current_room.get_path_to(enemy))
+	# Мастерство: очки оружию героя, треть — оружию врага: побеждая копейщика, учишься копью.
+	var xp := enemy.mastery_points()
 	GameState.add_mastery(enemy.last_weapon, xp)
 	if enemy.weapon_type != enemy.last_weapon:
 		GameState.add_mastery(enemy.weapon_type, xp / 3.0)

@@ -3,10 +3,9 @@ extends Node
 ## отзвуки, флаги мира, убитые враги, разбитое стекло, отзвук героя и активный осколок-чекпоинт.
 ## Всё это пишется на диск (save_game): игру можно закрыть и продолжить.
 
-## Опыта на каждую ступень мастерства: обычный враг даёт около 1 (Dummy.mastery_xp).
-const MASTERY_NEEDS: Array[float] = [50.0, 100.0, 175.0, 275.0, 400.0]
-## Даже самый сильный враг: не меньше стольких убийств на ступень. Новое оружие не раскачать за минуту.
-const MASTERY_MIN_KILLS := 15.0
+## Очков мастерства на каждую ступень (Dummy.Rank: обычный враг 1, мини-босс 2, босс 5).
+## Первая ступень — 20 врагов, вторая — ещё 30, всего 50. Дальше — черновик (100, 175, 275 всего).
+const MASTERY_NEEDS: Array[float] = [20.0, 30.0, 50.0, 75.0, 100.0]
 ## Закалённое стекло: сколько материала и отзвуков стоит каждый шаг, прибавка урона за шаг.
 const GLASS_ITEM: StringName = &"tempered_glass"
 const GLASS_MATERIAL: Array[int] = [1, 1, 2, 2, 3]
@@ -111,14 +110,14 @@ func take_hero_echo() -> void:
 	add_echoes(amount)
 
 
-## Мастерство: опыт типа оружия. Не больше доли ступени за раз (MASTERY_MIN_KILLS).
+## Мастерство: очки типа оружия.
 func add_mastery(type: StringName, xp: float) -> void:
 	if type == &"" or xp <= 0.0:
 		return
 	var before := mastery_step(type)
 	if before >= MASTERY_NEEDS.size():
 		return
-	mastery[type] = mastery_xp(type) + minf(xp, MASTERY_NEEDS[before] / MASTERY_MIN_KILLS)
+	mastery[type] = mastery_xp(type) + xp
 	var after := mastery_step(type)
 	if after > before:
 		Events.mastery_step_reached.emit(type, after)

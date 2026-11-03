@@ -24,6 +24,10 @@ const HEAD_SLIDE_SPEED := 5.0
 ## Страховка: если добивание так и не пришло, враг освобождается сам.
 const CRITICAL_TIMEOUT := 2.0
 
+## Кто он для мастерства оружия героя. Кто из врагов мини-босс — решим позже; пока босс один — Кузнец.
+enum Rank { COMMON, MINIBOSS, BOSS }
+const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
+
 @export var facing := -1.0
 ## Спит до раскрытия (засада за стеклом) — тогда сразу атакует.
 @export var dormant := false
@@ -72,13 +76,15 @@ const CRITICAL_TIMEOUT := 2.0
 @export var death_voice: StringName = &"enemy_death_voice"
 ## Сколько отзвуков прошлого остаётся после врага (летят к герою сами).
 @export var echoes := 30
-## Опыт мастерства за этого врага; сильнее враг — больше.
-@export var mastery_xp := 1.0
+## Очки мастерства за него: обычный враг — 1, мини-босс — 2, босс — 5.
+@export var rank := Rank.COMMON
 ## Чем он сражается: герой, побеждая его, понемногу учится этому оружию. Пусто — когти, тело, клыки.
 @export var weapon_type: StringName
 ## Кровоточит ли: у стекла и механизмов крови нет.
 @export var can_bleed := true
 
+## Остаётся в мире статуей (босс): комната не забывает его как убитого, его хранит флаг босса.
+var leaves_statue := false
 ## Чьё оружие нанесло последний удар; пусто — не герой (ловушка, падение).
 var last_weapon: StringName
 ## Накопленное кровотечение 0…100: полное — рывок крови и доля здоровья. Без ударов спадает.
@@ -122,6 +128,10 @@ func _ready() -> void:
 	attack_hitbox.non_lethal = non_lethal
 	Events.noise_made.connect(_on_noise)
 	state = State.DORMANT if dormant else State.PATROL
+
+
+func mastery_points() -> float:
+	return MASTERY_POINTS[rank]
 
 
 ## Половина ширины тела: докуда герой ещё внутри него.
@@ -442,6 +452,8 @@ func _on_died() -> void:
 	Sfx.play(death_voice, global_position)
 	Events.enemy_killed.emit(self)
 	collision_layer = 0
+	# Мёртвого не толкают: только мир.
+	collision_mask = 1
 	hurtbox.set_deferred("monitorable", false)
 	var tween := create_tween()
 	tween.tween_property(visual, "scale", Vector3(1.3, 0.05, 1.3), 0.35).set_delay(0.15)

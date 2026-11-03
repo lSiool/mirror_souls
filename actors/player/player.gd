@@ -248,7 +248,7 @@ func _tick(delta: float) -> void:
 		if Input.is_action_just_pressed("attack"):
 			_attack_buffer = stats.attack_buffer
 		if Input.is_action_just_pressed("roll"):
-			_roll_buffer = stats.input_buffer
+			_roll_buffer = stats.input_buffer + _roll_wait()
 		if Input.is_action_just_pressed("block") and can_parry():
 			_parry_t = stats.parry_window
 		if Input.is_action_just_pressed("shoot"):
@@ -341,7 +341,7 @@ func _move_state(delta: float) -> void:
 		_jump()
 	elif _jump_buffer > 0.0 and not on_floor and is_instance_valid(_peg):
 		_peg_jump()
-	elif _roll_buffer > 0.0 and (on_floor or _coyote > 0.0):
+	elif _roll_buffer > 0.0 and not roll_cooling() and (on_floor or _coyote > 0.0):
 		_start_roll()
 	elif _attack_buffer > 0.0:
 		if not on_floor and weapon and Input.is_action_pressed("move_down"):
@@ -391,6 +391,9 @@ func _on_stats_changed() -> void:
 
 
 func _start_roll() -> void:
+	# Пауза после прошлого кувырка: нажатие ждёт в буфере, пока она не кончится.
+	if roll_cooling():
+		return
 	# Вне боя кувырок бесплатный; в бою — по цене, и без выносливости его нет.
 	var cost := roll_cost_now()
 	if cost > 0.0 and stamina < cost:
@@ -433,6 +436,19 @@ func _roll_state(delta: float) -> void:
 		_set_state(State.MOVE)
 		if queued:
 			_start_attack()
+
+
+## Кувырок ещё нельзя: не прошла пауза после прошлого.
+func roll_cooling() -> bool:
+	return state != State.ROLL and _since_roll < stats.roll_cooldown
+
+
+## Сколько ещё ждать кувырка: остаток этого кувырка (если нажали под его конец) и пауза.
+func _roll_wait() -> float:
+	if state == State.ROLL:
+		var left := stats.roll_duration - _state_time
+		return left + stats.roll_cooldown if left < stats.input_buffer else 0.0
+	return maxf(stats.roll_cooldown - _since_roll, 0.0)
 
 
 func _pass_through_bosses() -> void:
@@ -1304,12 +1320,13 @@ func _on_died() -> void:
 
 ## Возрождение у осколка: полное здоровье и выносливость, короткая неуязвимость.
 ## Сбит с ног и лежит: сцена ведёт героя сама, ввода нет.
-func knock_down() -> void:
+## Сцена берёт героя: замер на земле; lie — ещё и лежит.
+func knock_down(lie := true) -> void:
 	_set_state(State.MOVE)
 	velocity = Vector3.ZERO
 	global_position.y = last_ground.y if not is_on_floor() else global_position.y
 	frozen = true
-	lying = true
+	lying = lie
 
 
 func stand_up() -> void:

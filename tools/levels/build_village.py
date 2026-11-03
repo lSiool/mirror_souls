@@ -694,8 +694,7 @@ backstab_allowed = false
 parry_allowed = false
 hurt_voice = &""
 death_voice = &""
-echoes = 10
-mastery_xp = 0.8''',
+echoes = 10''',
   '''[node name="Collision" type="CollisionShape3D" parent="."]
 shape = SubResource("Shape_body")
 
@@ -811,8 +810,7 @@ turn_time = 0.12
 backstab_allowed = false
 parry_allowed = false
 roll_through = true
-echoes = 0
-mastery_xp = 0.0""",
+echoes = 0""",
   """[node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
 shape = SubResource("Shape_body")

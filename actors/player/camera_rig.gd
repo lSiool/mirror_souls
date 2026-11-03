@@ -16,6 +16,8 @@ var _look := 0.0
 var _shake_strength := 0.0
 var _shake_time := 0.0
 var _shake_duration := 0.0
+var _base_distance := 0.0
+var _zoom_tween: Tween
 
 @onready var camera: Camera3D = $Camera3D
 
@@ -23,6 +25,7 @@ var _shake_duration := 0.0
 func _ready() -> void:
 	_target = get_node_or_null(target_path)
 	camera.fov = fov
+	_base_distance = distance
 	Events.camera_shake_requested.connect(shake)
 	snap_to_target()
 
@@ -52,6 +55,17 @@ func shake(strength: float, duration: float) -> void:
 	_shake_strength = strength
 	_shake_duration = duration
 	_shake_time = duration
+
+
+## Наезд или отъезд камеры для сцены: factor от обычного расстояния; 1 — как было.
+func zoom(factor: float, time: float) -> void:
+	if _zoom_tween:
+		_zoom_tween.kill()
+	if time <= 0.0:
+		distance = _base_distance * factor
+		return
+	_zoom_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	_zoom_tween.tween_property(self, "distance", _base_distance * factor, time)
 
 
 func snap_to_target() -> void:

@@ -99,7 +99,6 @@ parry_allowed = false
 hurt_voice = &""
 death_voice = &""
 echoes = 6
-mastery_xp = 0.5
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.225, 0)
