@@ -1,0 +1,261 @@
+[gd_scene load_steps=18 format=3]
+
+[ext_resource type="Script" path="res://world/rooms/room.gd" id="1_room"]
+[ext_resource type="PackedScene" path="res://world/glass/glass_surface.tscn" id="2_glass"]
+[ext_resource type="PackedScene" path="res://world/mirrors/mirror_portal.tscn" id="3_portal"]
+[ext_resource type="Script" path="res://world/mirrors/mirror_transformation.gd" id="4_transform"]
+[ext_resource type="Script" path="res://world/mirrors/flip_x.gd" id="5_flip"]
+[ext_resource type="PackedScene" path="res://world/checkpoints/mirror_shard.tscn" id="6_shard"]
+[ext_resource type="PackedScene" path="res://world/chest/chest.tscn" id="7_chest"]
+[ext_resource type="PackedScene" path="res://actors/enemies/dummy.tscn" id="8_dummy"]
+[ext_resource type="PackedScene" path="res://world/hazards/spikes.tscn" id="9_spikes"]
+[ext_resource type="PackedScene" path="res://actors/enemies/glass_crawler.tscn" id="10_crawler"]
+[ext_resource type="Script" path="res://world/props/hanging_prop.gd" id="11_hanging"]
+[ext_resource type="Script" path="res://world/common/room_door.gd" id="12_door"]
+[ext_resource type="Script" path="res://world/common/item_pickup.gd" id="13_pickup"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.36, 0.35, 0.34, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_platform"]
+albedo_color = Color(0.47, 0.45, 0.42, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_back"]
+albedo_color = Color(0.17, 0.16, 0.16, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.5, 0.34, 0.2, 1)
+roughness = 0.85
+
+[sub_resource type="Resource" id="FlipX_main"]
+script = ExtResource("5_flip")
+
+[node name="Room001" type="Node3D"]
+script = ExtResource("1_room")
+room_id = &"room_001"
+width = 48.0
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="FloorLeft" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-7.5, -2, 0)
+use_collision = true
+size = Vector3(33, 4, 4)
+material = SubResource("Mat_stone")
+
+[node name="FloorRight" type="CSGBox3D" parent="Geometry"]
+position = Vector3(18.5, -2, 0)
+use_collision = true
+size = Vector3(11, 4, 4)
+material = SubResource("Mat_stone")
+
+[node name="PitBottom" type="CSGBox3D" parent="Geometry"]
+position = Vector3(11, -3.5, 0)
+use_collision = true
+size = Vector3(4, 1, 4)
+material = SubResource("Mat_stone")
+
+[node name="WallLeft" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-24.5, 5, 0)
+use_collision = true
+size = Vector3(1, 22, 4)
+material = SubResource("Mat_stone")
+
+[node name="WallRight" type="CSGBox3D" parent="Geometry"]
+position = Vector3(24.5, 5, 0)
+use_collision = true
+size = Vector3(1, 22, 4)
+material = SubResource("Mat_stone")
+
+[node name="Ceiling" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0, 13.5, 0)
+use_collision = true
+size = Vector3(50, 1, 4)
+material = SubResource("Mat_stone")
+
+[node name="UpperLedge" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-7, 6.8, 0)
+use_collision = true
+size = Vector3(3, 0.4, 3)
+material = SubResource("Mat_platform")
+
+[node name="NichePillarLeft" type="CSGBox3D" parent="Geometry"]
+position = Vector3(19.2, 1.6, -1.5)
+size = Vector3(0.4, 3.2, 1.5)
+material = SubResource("Mat_platform")
+
+[node name="NichePillarRight" type="CSGBox3D" parent="Geometry"]
+position = Vector3(21.8, 1.6, -1.5)
+size = Vector3(0.4, 3.2, 1.5)
+material = SubResource("Mat_platform")
+
+[node name="NicheLintel" type="CSGBox3D" parent="Geometry"]
+position = Vector3(20.5, 3.35, -1.5)
+size = Vector3(3, 0.3, 1.5)
+material = SubResource("Mat_platform")
+
+[node name="MirrorLedge" type="CSGBox3D" parent="Geometry" groups=["mirror_only"]]
+position = Vector3(-10.25, 8.3, 0)
+use_collision = true
+size = Vector3(2.5, 0.4, 3)
+material = SubResource("Mat_platform")
+
+[node name="ArrowBoard" type="CSGBox3D" parent="Geometry" groups=["arrow_soft"]]
+position = Vector3(23.85, 3, 0)
+use_collision = true
+size = Vector3(0.3, 4.4, 2)
+material = SubResource("Mat_wood")
+
+[node name="SecretLedge" type="CSGBox3D" parent="Geometry"]
+position = Vector3(20.1, 3.4, 0.2)
+use_collision = true
+size = Vector3(2.2, 0.4, 1.6)
+material = SubResource("Mat_wood")
+
+[node name="BackWall" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0, 4, -2.5)
+size = Vector3(50, 20, 0.5)
+material = SubResource("Mat_back")
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="PlayerStart" type="Marker3D" parent="Spawns"]
+position = Vector3(-21, 0.1, 0)
+
+[node name="Glass" type="Node3D" parent="."]
+
+[node name="Tower" parent="Glass" instance=ExtResource("2_glass")]
+position = Vector3(-13, 3, 0)
+role = 2
+size = Vector3(4, 6, 2)
+breakable = false
+
+[node name="Slope" parent="Glass" groups=["normal_only"] instance=ExtResource("2_glass")]
+position = Vector3(-1.07, 4.56, 0)
+rotation = Vector3(0, 0, -0.4636)
+role = 1
+size = Vector3(10.2, 0.3, 2)
+
+[node name="SlopeSolid" parent="Glass" groups=["mirror_only"] instance=ExtResource("2_glass")]
+position = Vector3(-1.07, 4.56, 0)
+rotation = Vector3(0, 0, -0.4636)
+role = 1
+size = Vector3(10.2, 0.3, 2)
+breakable = false
+
+[node name="TrapGlass" parent="Glass" instance=ExtResource("2_glass")]
+position = Vector3(11, -0.15, 0)
+glass_type = 2
+size = Vector3(4, 0.3, 2)
+crumble_time = 0.42
+restore_time = 2.75
+
+[node name="NicheGlass" parent="Glass" node_paths=PackedStringArray("contents") groups=["normal_only"] instance=ExtResource("2_glass")]
+position = Vector3(20.5, 1.6, -0.75)
+size = Vector3(2.2, 3.2, 0.2)
+contents = [NodePath("../../Objects/Chest")]
+
+[node name="NicheGlassMurky" parent="Glass" groups=["mirror_only"] instance=ExtResource("2_glass")]
+position = Vector3(20.5, 1.6, -0.75)
+glass_type = 1
+size = Vector3(2.2, 3.2, 0.2)
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="MirrorPortal" parent="Objects" instance=ExtResource("3_portal")]
+position = Vector3(15.5, 0, 0)
+transformations = Array[ExtResource("4_transform")]([SubResource("FlipX_main")])
+
+[node name="DoorBack" type="Area3D" parent="Objects" groups=["normal_only"]]
+position = Vector3(-23.2, 0, 0)
+script = ExtResource("12_door")
+target_room = &"chapel"
+target_spawn = NodePath("Spawns/FromMirror")
+open_prompt = "Вернуться через зеркало"
+
+[node name="SwordFind" type="Area3D" parent="Objects" groups=["normal_only"]]
+position = Vector3(-20.2, 0, 0)
+script = ExtResource("13_pickup")
+weapon_id = &"sword"
+flag = &"got_sword"
+pickup_prompt = "Подобрать меч"
+look_size = Vector3(1.1, 0.08, 0.14)
+look_color = Color(0.7, 0.72, 0.76, 1)
+
+[node name="BowFind" type="Area3D" parent="Objects" groups=["normal_only"]]
+position = Vector3(-15.6, 0, 0)
+script = ExtResource("13_pickup")
+item_id = &"bow_guard"
+flag = &"got_bow_guard"
+pickup_prompt = "Подобрать лук стражи"
+look_size = Vector3(1.2, 0.08, 0.08)
+look_color = Color(0.45, 0.3, 0.18, 1)
+
+[node name="MirrorShard" parent="Objects" instance=ExtResource("6_shard")]
+position = Vector3(-18.5, 0, 0)
+
+[node name="Chest" parent="Objects" groups=["normal_only"] instance=ExtResource("7_chest")]
+position = Vector3(20.5, 0, -1.6)
+reward = 50
+items = Array[StringName]([&"facet_blood"])
+flag_id = &"room_001_chest"
+
+[node name="MirrorChest" parent="Objects" groups=["mirror_only"] instance=ExtResource("7_chest")]
+position = Vector3(-10.5, 8.5, 0)
+reward = 150
+items = Array[StringName]([&"facet_slot", &"tempered_glass"])
+flag_id = &"room_001_mirror_chest"
+
+[node name="Soldier" parent="Objects" groups=["normal_only"] instance=ExtResource("8_dummy")]
+weapon_type = &"sword"
+position = Vector3(0, 0, 0)
+patrol_distance = 3.0
+max_poise = 50.0
+turn_time = 0.4
+
+[node name="MirrorSoldier" parent="Objects" groups=["mirror_only"] instance=ExtResource("8_dummy")]
+weapon_type = &"sword"
+position = Vector3(6, 0, 0)
+patrol_distance = 1.5
+windup_time = 0.8
+max_poise = 120.0
+turn_time = 0.1
+backstab_allowed = false
+
+[node name="Crawler" parent="Objects" groups=["mirror_only"] instance=ExtResource("10_crawler")]
+position = Vector3(20.5, 0, -1.6)
+dormant = true
+non_lethal = true
+source_glass = NodePath("../../Glass/NicheGlassMurky")
+
+[node name="SecretChest" parent="Objects" groups=["normal_only"] instance=ExtResource("7_chest")]
+position = Vector3(20.1, 3.6, 0)
+reward = 80
+items = Array[StringName]([&"clear_glass", &"tempered_glass"])
+flag_id = &"room_001_secret_chest"
+
+[node name="Chandelier" type="Node3D" parent="Objects"]
+position = Vector3(11, 9, 0)
+script = ExtResource("11_hanging")
+rope_length = 4.0
+
+[node name="IceStalactite" type="Node3D" parent="Objects" groups=["mirror_only"]]
+position = Vector3(6, 13, 0)
+script = ExtResource("11_hanging")
+kind = 1
+matter = 1
+hits_required = 1
+rope_length = 0.0
+size = Vector2(0.9, 2.6)
+becomes_platform = false
+
+[node name="CeilingCrawler" parent="Objects" groups=["normal_only"] instance=ExtResource("10_crawler")]
+position = Vector3(22.5, 12, 0)
+ceiling_hang = true
+
+[node name="Spikes" parent="Objects" instance=ExtResource("9_spikes")]
+position = Vector3(11, -3, 0)
+width = 3.8

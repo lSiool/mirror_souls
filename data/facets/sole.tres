@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Facet" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://systems/progression/facet.gd" id="1_facet"]
+
+[resource]
+script = ExtResource("1_facet")
+id = &"facet_sole"
+display_name = "Гладкая подошва"
+description = "По стеклу скользишь быстрее."
+cost = 1
+age_curve = 0
+modifiers = {&"max_slide_speed": 1.25}

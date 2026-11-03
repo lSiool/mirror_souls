@@ -1,0 +1,74 @@
+Frame 1 Prompt:
+STYLE: dark gothic fantasy painterly 2.5D game art, hand-painted digital oil texture, visible brushstrokes, Mandragora-inspired level design, side-view platformer level.
+SCENE:
+Entrance to an old village cemetery. Wrought-iron gothic gate between weathered stone pillars. A single large lantern burning on the gate pillar is the brightest point of the image. Warm amber light against cold grey-blue fog.
+Main path continues right toward the dead forest.
+Large exposed black roots climb along the cemetery wall, forming a climbable secondary route above the gate.
+In the distance stands a decayed saint statue with a broken face and missing arm.
+Upper secret platform hidden among roots. Small treasure chest guarded by a rotten wooden plank concealing a shallow spike pit.
+Dead grass, moss, muddy footpath, ravens, crooked gravestones, thick fog approaching from the forest.
+FOCUS:
+the lantern and the climbable root route.
+Clear gameplay readability and exploration routes.
+AVOID:
+photorealism, UI, text, watermark, neon colors.
+
+Frame 1.2 Prompt:
+Ancient cemetery deep in fog. Split gameplay routes. Two stone crypts among dead trees and ornate grave statues.
+One crypt remains sealed and mysterious.
+The second crypt stands open. Two grave robbers emerge carrying stolen valuables. Broken sarcophagus visible inside the crypt entrance.
+Multiple level routes created by roots, collapsed walls and elevated grave terraces.
+Dense atmosphere, storytelling through environment.
+Main path seeks toward the forest while optional paths lead to crypt exploration.
+
+Frame 2 Prompt:
+Colossal dead forest wall. Gigantic black twisted trees fused together into an impenetrable barrier.
+Multiple traversal layers:
+ground path,
+climbable roots,
+hanging vines,
+abandoned hunter ladders,
+collapsed watch platforms.
+Grey-white fog conceals distant tree layers.
+The forest appears alive and hostile.
+Clear distinction between lower route and upper exploration route.
+
+Frame 3 Prompt:
+Massive fallen black oak bridging a deep ravine. Walkable trunk route far above the ground.
+At the highest point stands a crude bandit hut.
+Interior visible in side-view cutaway. Bandit belongings scattered everywhere.
+In a dark corner sits a bound herbalist prisoner, weak but alive.
+Fog below obscures the depth of the ravine.
+High-risk exploration reward route.
+FOCUS:
+bandit hut atop the fallen giant.
+
+
+Frame 4 Prompt:
+Labyrinth of colossal roots above a fog abyss.
+Multiple interconnected routes carved into root structures.
+Hidden flying enemies concealed inside dense fog.
+One partially sawn root bridge appears stable but can collapse, dropping the player into a dangerous lower section.
+A hollow root contains a hidden treasure cache.
+Heavy vertical gameplay with climbing, balancing and exploration.
+Dense atmospheric fog obscuring threats and depth.
+
+Frame 5 Prompt:
+Murky swamp level.
+Deep mud slows movement.
+Pools of stagnant black water reflect pale fog.
+A skeletal undead warrior emerges from the swamp. Rusted sword and shield. Bones visible through rotten armor covered in reeds, moss and swamp vines.
+Despite its appearance, it is posed aggressively and ready for swift combat.
+Dead trees, bog gas, broken walkways and flooded roots.
+FOCUS:
+the undead swamp warrior.
+
+Frame 6 Prompt:
+Abandoned village consumed by moss and decay. Broken windows, collapsed roofs, overgrown paths.
+Central square dominated by a lone blacksmith sitting motionless on a stone. Heavy hammer resting nearby. Scattered skulls around the square.
+Wide side-view composition establishing a future boss arena.
+Second panel:
+A spectral cursed spirit swirls from the air and enters the blacksmith. Dark energy gathers around the figure. Boss encounter begins.
+FOCUS:
+transition from eerie silence to supernatural threat.
+Dark gothic fantasy, tragic atmosphere, exploration-driven worldbuilding.

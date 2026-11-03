@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://world/glass/glass_surface.gd" id="1_glass"]
+[ext_resource type="Script" path="res://combat/hitboxes/hurtbox.gd" id="2_hurtbox"]
+
+[node name="GlassSurface" type="StaticBody3D"]
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_glass")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+
+[node name="Hurtbox" type="Area3D" parent="."]
+collision_layer = 16
+collision_mask = 0
+script = ExtResource("2_hurtbox")
+
+[node name="Shape" type="CollisionShape3D" parent="Hurtbox"]

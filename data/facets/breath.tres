@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Facet" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://systems/progression/facet.gd" id="1_facet"]
+
+[resource]
+script = ExtResource("1_facet")
+id = &"facet_breath"
+display_name = "Второе дыхание"
+description = "Выносливость возвращается быстрее."
+cost = 2
+age_curve = 0
+modifiers = {&"stamina_regen": 1.3}
