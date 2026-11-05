@@ -985,6 +985,8 @@ func run() -> void:
 	await seconds(1.5)
 
 	print("== Щит: парирует сразу, блок дешевле")
+	var soldier_at := soldier.global_position
+	var soldier_facing := soldier.facing
 	var mastery_saved: Dictionary = game_state.mastery.duplicate()
 	game_state.mastery.clear()
 	player.restore()
@@ -1065,6 +1067,10 @@ func run() -> void:
 	game_state.items.erase(GameState.SHIELD_ITEM)
 	player.equip(&"sword")
 	check(player.arms.shield_at == PlayerArms.ShieldAt.NONE and player.weapon.id == &"sword", "щит убран, в руке снова меч")
+	# Парирование и удары молота сдвинули и развернули солдата; дальше его ждут на прежнем месте.
+	soldier.global_position = soldier_at
+	soldier.facing = soldier_facing
+	soldier._set_state(Dummy.State.PATROL)
 
 	print("== Лук: быстрый и натянутый выстрел")
 	soldier = room_node("Objects/Soldier") as Dummy
