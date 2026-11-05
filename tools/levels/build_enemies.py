@@ -80,7 +80,10 @@ def bandit(kind):
              mesh_node("Body", "Visual", "Mesh_body", (0, 1.22, 0)), mesh_node("Legs", "Visual", "Mesh_legs", (0, 0.33, 0)),
              mesh_node("Head", "Visual", "Mesh_head", (0.04, 1.97, 0)), mesh_node("Hood", "Visual", "Mesh_hood", (-0.02, 2.0, 0))]
     if heavy:
-        nodes += [mesh_node("Prop", "Visual", "Mesh_prop", (0.45, 1.3, 0.3), 0.5), mesh_node("PropTop", "Visual", "Mesh_prop_top", (0.72, 1.78, 0.3), 0.5)]
+        # Подсвечник — молот низкого качества (§6.2): древко с чашей-навершием на оси в руках,
+        # bandit.gd поворачивает ось по позам ударов молота.
+        nodes += [node3d("PropPivot", "Visual", (0.3, 1.05, 0.3)), mesh_node("Prop", "Visual/PropPivot", "Mesh_prop", (0, 0.55, 0)),
+                  mesh_node("PropTop", "Visual/PropPivot", "Mesh_prop_top", (0, 1.06, 0))]
     else:
         nodes += [mesh_node("Prop", "Visual", "Mesh_prop", (0.5, 1.15, 0.3)), mesh_node("Sack", "Visual", "Mesh_sack", (-0.45, 1.4, -0.1), 0.3)]
     nodes += [hitbox_nodes("Visual", "Shape_attack", (0.85, 1.1, 0), 16.0 if heavy else 10.0, 6.0 if heavy else 3.0), hurtbox_nodes("Shape_hurt", 0.95)]

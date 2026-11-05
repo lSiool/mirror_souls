@@ -12,6 +12,8 @@ var steps_seen: Array[int] = []
 var last_step: AttackStep
 var last_arrow: Arrow
 var last_arrow_speed := 0.0
+## Надписи игроку (Events.message) по порядку.
+var messages: Array[String] = []
 
 
 func _ready() -> void:
@@ -178,6 +180,7 @@ func run() -> void:
 	player.attack_step_started.connect(func(st: AttackStep, i: int, _t: int) -> void:
 		steps_seen.append(i)
 		last_step = st)
+	Events.message.connect(func(text: String) -> void: messages.append(text))
 	player.arrow_fired.connect(func(a: Arrow) -> void:
 		last_arrow = a
 		last_arrow_speed = a.velocity.length())
@@ -981,6 +984,88 @@ func run() -> void:
 	check(player.health.current < hp_late, "блок после удара не спас (hp %.0f → %.0f)" % [hp_late, player.health.current])
 	await seconds(1.5)
 
+	print("== Щит: парирует сразу, блок дешевле")
+	var mastery_saved: Dictionary = game_state.mastery.duplicate()
+	game_state.mastery.clear()
+	player.restore()
+	check(not player.can_parry(), "без щита и мастерства — только блок")
+	game_state.add_item(GameState.SHIELD_ITEM)
+	await frames(2)
+	check(player.shield_in_hand() and player.can_parry() and player.arms.shield_at == PlayerArms.ShieldAt.HAND,
+		"щит в руке — парирует без ступени мастерства")
+	await seconds(0.5)
+	await face_enemy(soldier)
+	await wait_windup(soldier, 0.08)
+	var hp_shield := player.health.current
+	await tap("block")
+	await seconds(0.2)
+	check(soldier.state == Dummy.State.OFF_BALANCE and player.health.current == hp_shield, "щитом парировал (state=%d)" % soldier.state)
+	await seconds(1.8)
+	player.restore()
+	await face_enemy(soldier)
+	press("block")
+	await frames(3)
+	check(player.arms.shield_at == PlayerArms.ShieldAt.GUARD, "в блоке щит выставлен вперёд")
+	await wait_windup(soldier, 0.1)
+	player._stamina_delay = 10.0
+	var stamina_shield := player.stamina
+	await wait_attack_over(soldier)
+	var shield_cost := stamina_shield - player.stamina
+	var weapon_cost: float = soldier.attack_hitbox.damage * player.stats.block_stamina_mult
+	check(absf(shield_cost - weapon_cost * Player.SHIELD_BLOCK_MULT) < 1.0, "блок щитом дешевле: %.1f вместо %.1f" % [shield_cost, weapon_cost])
+	release_all()
+	player._stamina_delay = 0.0
+	await seconds(1.2)
+
+	print("== Подсвечник: удары молота")
+	player.restore()
+	player.equip(&"candlestick")
+	await frames(2)
+	check(player.weapon.type == &"hammer" and player.weapon.two_handed and player.arms.sword_pivot.find_child("Head", false, false) != null,
+		"подсвечник — двуручный молот с навершием")
+	check(player.arms.shield_at == PlayerArms.ShieldAt.BACK and not player.can_parry(), "с двуручным щит за спиной, парирования нет")
+	check(game_state.owned_weapons().has(&"candlestick") and game_state.owned_weapons().has(&"sword"), "меч остался с собой")
+	check(player._series().size() == 2, "до мастерства — два удара серии")
+	game_state.mastery[&"hammer"] = 50.0
+	check(player._series().size() == 3 and player._series()[2] == player.weapon.extra_hit, "на второй ступени третий удар — сверху")
+	await put(Vector3(-16.0, 0.1, 0))
+	await seconds(0.3)
+	sfx.history.clear()
+	await tap("attack")
+	for i in 120:
+		if player.state == Player.State.ATTACK and player._step == player.weapon.combo[0] and player._state_time > 0.42:
+			break
+		await frames(1)
+	check(absf(player.arms.sword_pivot.rotation.z - player.weapon.combo[0].blade_to) < 0.15,
+		"после удара молот лежит в конце взмаха (%.2f)" % player.arms.sword_pivot.rotation.z)
+	await tap("attack")
+	for i in 120:
+		if player._step == player.weapon.combo[1] and player._state_time > 0.3:
+			break
+		await frames(1)
+	check(player._step == player.weapon.combo[1], "второй — подхват")
+	await tap("attack")
+	for i in 120:
+		if player._step == player.weapon.extra_hit and player._state_time > 0.5:
+			break
+		await frames(1)
+	check(player._step == player.weapon.extra_hit and heard(&"sword_block"), "третий — удар сверху, молот бьёт в пол")
+	await seconds(1.0)
+	player.restore()
+	press("attack")
+	await seconds(1.5)
+	check(player.state == Player.State.CHARGE and player._charge_ready, "держит удар — заряд")
+	release("attack")
+	await frames(3)
+	check(player._step == player.weapon.charged, "отпустил — раскрутка")
+	await seconds(0.65)
+	check(player.state == Player.State.ATTACK and player._step == player.weapon.charged.follow_up, "раскрутка сама переходит в удар сверху")
+	await seconds(1.2)
+	game_state.mastery = mastery_saved
+	game_state.items.erase(GameState.SHIELD_ITEM)
+	player.equip(&"sword")
+	check(player.arms.shield_at == PlayerArms.ShieldAt.NONE and player.weapon.id == &"sword", "щит убран, в руке снова меч")
+
 	print("== Лук: быстрый и натянутый выстрел")
 	soldier = room_node("Objects/Soldier") as Dummy
 	player.restore()
@@ -1545,11 +1630,16 @@ func run() -> void:
 	await tap("interact")
 	await seconds(0.7)
 	check(rooms.current_room_id == &"village_street", "без палки в дом не войти")
-	await put(room_node("Objects/Stick").global_position + Vector3(0.0, 0.1, 0.0))
+	check(messages.has("«Голыми руками не помочь…»"), "на выходе из хижины: голыми руками не помочь")
+	check(messages[-1].contains("поленница"), "у запертого дома — намёк на поленницу")
+	var log_pickup := room_node("Objects/Stick") as ItemPickup
+	check(log_pickup.global_position.x < room_node("Objects/DoorToHut").global_position.x + 4.0, "брусок у хижины, у поленницы")
+	await put(log_pickup.global_position + Vector3(0.0, 0.1, 0.0))
 	await seconds(0.3)
 	await tap("interact")
 	await frames(3)
-	check(player.weapon != null and player.weapon.id == &"stick" and game_state.has_flag(&"got_stick"), "подобрал палку")
+	check(player.weapon != null and player.weapon.id == &"stick" and game_state.has_flag(&"got_stick"), "взял брусок")
+	check(messages[-1] == "«Всё равно сгорит. А так мне будет спокойнее.»", "реплика, когда взял брусок")
 	check(player.weapon.combo.size() == 3 and player.weapon.type == &"sword", "палка бьёт как меч")
 	check(player._blade_damage() < player.stats.sword_damage, "палка слабее меча")
 	await put(Vector3(-13.0, 1.4, 0))
@@ -1724,10 +1814,23 @@ func run() -> void:
 	await tap("interact")
 	await frames(3)
 	check(player.weapon.id == &"sword" and game_state.has_flag(&"got_sword"), "кузнец отдал меч")
+	var echoes_yard: int = game_state.echoes
+	game_state.add_echoes(300 - game_state.echoes)
 	await seconds(0.2)
 	await tap("interact")
 	await frames(3)
+	check(messages[-1].contains("гоплон") and messages[-1].contains("250") and game_state.item_count(GameState.SHIELD_ITEM) == 0,
+		"кузнец предлагает щит за 250 отзвуков")
+	await tap("interact")
+	await frames(3)
+	check(game_state.item_count(GameState.SHIELD_ITEM) == 1 and game_state.echoes == 50 and player.shield_in_hand(),
+		"купил щит — он в руке (%d отзвуков)" % game_state.echoes)
+	await tap("interact")
+	await frames(3)
 	check((room_node("Objects/Smith") as Npc)._next == 1, "дальше кузнец рассказывает")
+	game_state.items.erase(GameState.SHIELD_ITEM)
+	player.equip(&"sword")
+	game_state.add_echoes(echoes_yard - game_state.echoes)
 	for i in 3:
 		await tap("interact")
 		await frames(2)
@@ -1833,9 +1936,19 @@ func run() -> void:
 		if robbers_hit:
 			break
 	check(robbers_hit, "мародёры бьют героя")
+	check(heavy._move_i > 0 and heavy._moves.size() == 3, "мародёр бьёт ударами молота — подсвечником (%d)" % heavy._move_i)
 	heavy.health.take_damage(INF)
 	knife.health.take_damage(INF)
 	await seconds(1.0)
+	var candlestick := room_node("Objects/CandlestickDrop") as ItemPickup
+	check(candlestick != null, "мародёр выронил подсвечник")
+	if candlestick:
+		await put(candlestick.global_position + Vector3(0.0, 0.1, 0.0))
+		await seconds(0.2)
+		await tap("interact")
+		await frames(3)
+	check(player.weapon != null and player.weapon.id == &"candlestick" and game_state.has_flag(&"got_candlestick"), "подобрал подсвечник")
+	player.equip(&"sword")
 	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
 	await seconds(0.2)
 	await tap("interact")

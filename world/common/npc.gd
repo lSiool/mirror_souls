@@ -14,6 +14,12 @@ extends Interactable
 @export var gift_line := ""
 ## Подарок-предмет вместо оружия (GameState.add_item), тоже один раз — по gift_flag.
 @export var gift_item: StringName
+## Товар за отзвуки (кузнец — щит): первый разговор — предложение, следующий — покупка,
+## если отзвуков хватает. Пусто — не торгует. Купленный товар больше не предлагают.
+@export var sell_item: StringName
+@export var sell_price := 0
+@export var sell_offer := ""
+@export var sell_line := ""
 ## Есть только когда стоит этот флаг (Травница — после спасения). Пусто — всегда.
 @export var appear_flag: StringName
 @export var look_color := Color(0.3, 0.26, 0.22)
@@ -21,6 +27,7 @@ extends Interactable
 @export var look_depth := 1.2
 
 var _next := 0
+var _offered := false
 
 
 func _ready() -> void:
@@ -66,7 +73,19 @@ func interact(by: Player) -> void:
 			Events.item_found.emit(gift_item)
 		_say(gift_line)
 		return
-	var pool := lines_after if after_flag != &"" and GameState.has_flag(after_flag) else lines
+	# Не хватает отзвуков — предложит один раз, дальше обычные реплики.
+	if sell_item != &"" and GameState.item_count(sell_item) == 0:
+		var affordable := GameState.echoes >= sell_price
+		if _offered and affordable:
+			GameState.add_echoes(-sell_price)
+			GameState.add_item(sell_item)
+			_say(sell_line)
+			return
+		if not _offered:
+			_offered = true
+			_say("%s (%d отзвуков, у тебя %d)" % [sell_offer, sell_price, GameState.echoes])
+			return
+	var pool :=lines_after if after_flag != &"" and GameState.has_flag(after_flag) else lines
 	if pool.is_empty():
 		return
 	_say(pool[_next % pool.size()])

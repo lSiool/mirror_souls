@@ -14,7 +14,7 @@ const CINEMA_BAR := 90.0
 const ITEM_NAMES := {&"clear_glass": "чистое стекло", &"facet_slot": "слот для граней", &"tempered_glass": "закалённое стекло",
 	&"bow_hunter": "охотничий лук", &"bow_guard": "лук стражи", &"has_bow": "лук",
 	&"flask_vessel": "второй глоток зелья", &"flask_potency": "крепкое зелье Травницы",
-	&"stick": "палка", &"sword": "меч", &"bow": "лук", &"boss_smith_echo": "отзвук Безмолвного Кузнеца"}
+	&"stick": "палка", &"sword": "меч", &"candlestick": "подсвечник", &"shield_hoplon": "щит", &"bow": "лук", &"boss_smith_echo": "отзвук Безмолвного Кузнеца"}
 
 @export var player_path: NodePath
 

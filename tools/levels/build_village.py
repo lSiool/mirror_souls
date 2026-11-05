@@ -30,6 +30,7 @@ class Scene:
                     "shard": ("PackedScene", "res://world/checkpoints/mirror_shard.tscn"),
                     "fire": ("Script", "res://world/common/fire_spot.gd"), "bgscene": ("Script", "res://world/common/background_scene.gd"),
                     "ambience": ("Script", "res://world/common/burning_ambience.gd"), "npc": ("Script", "res://world/common/npc.gd"),
+                    "sayline": ("Script", "res://world/common/say_line.gd"),
                     "mainmirror": ("Script", "res://world/common/main_mirror.gd"), "squareevent": ("Script", "res://world/rooms/square_event.gd"),
                     "wolf": ("PackedScene", "res://actors/enemies/werewolf.tscn"), "glass": ("PackedScene", "res://world/glass/glass_surface.tscn"),
                     "chest": ("PackedScene", "res://world/chest/chest.tscn")}
@@ -305,9 +306,18 @@ st.marker("FromHut", (-28.0, 1.3, 0))
 st.marker("FromHouse", (26.5, 0.1, 0))
 door(st, "DoorToHut", -28.0, 1.2, "village_hut", "Spawns/FromStreet", "Войти в хижину")
 door(st, "DoorToHouse", 26.5, 0, "village_house", "Spawns/FromStreet", "Войти в дом",
-     ['required_flag = &"got_stick"', 'locked_text = "С голыми руками туда лучше не соваться."'])
-st.node("Stick", 'type="Area3D"', "Objects", ["position = Vector3(-18.5, 1.2, 0)", 'script = ExtResource("pickup")', 'weapon_id = &"stick"',
-                                                'flag = &"got_stick"', 'pickup_prompt = "Подобрать палку"'])
+     ['required_flag = &"got_stick"', 'locked_text = "С голыми руками туда лучше не соваться. У хижины была поленница…"'])
+# Поленница у стены хижины. Топоры похватали жители, когда услышали крики, — остались только дрова.
+# Прочный брусок прислонён к стопке: первое оружие, его видно по тёплому блику (§8.9).
+for i, (y, z, length) in enumerate(((0.12, -0.85, 1.6), (0.12, -0.61, 1.6), (0.33, -0.73, 1.5), (0.33, -0.49, 1.4), (0.54, -0.67, 1.2))):
+    st.cyl(d, f"Woodpile{i}", (-25.3, 1.2 + y, z), 0.12, length, "wood", rot=(0, 0, round(math.pi / 2, 4)), sides=8)
+st.node("Stick", 'type="Area3D"', "Objects", ["position = Vector3(-24.9, 1.2, 0)", 'script = ExtResource("pickup")', 'weapon_id = &"stick"',
+                                                'flag = &"got_stick"', 'pickup_prompt = "Взять брусок"',
+                                                'pickup_line = "«Всё равно сгорит. А так мне будет спокойнее.»"',
+                                                "look_size = Vector3(0.14, 1.3, 0.14)", "look_color = Color(0.36, 0.25, 0.15, 1)",
+                                                "look_rotation = Vector3(-0.3, 0, 0.12)", "look_offset = Vector3(0, 0, -0.25)"])
+st.node("NeedWeapon", 'type="Area3D"', "Objects", ["position = Vector3(-28.0, 1.2, 0)", 'script = ExtResource("sayline")',
+                                                     'text = "«Голыми руками не помочь…»"', 'until_flag = &"got_stick"'])
 
 # Деревня в огне: тени дерутся на фоне, в одном месте человек становится зверем, в другом отползает
 for i, (x, y, z, size) in enumerate(((-28.0, 6.5, -2.6, (5, 4, 1)), (-18.0, 7.0, -6.5, (4, 4, 1)), (-6.0, 7.0, -8.0, (5, 5, 1)), (8.0, 6.5, -11.0, (5, 5, 1)),
@@ -561,6 +571,8 @@ npc(ch, "Smith", -18.0, "Кузнец",
      "Травницу никто не видел с той ночи. Если она в лесу — найди её."],
     (0.3, 0.22, 0.18),
     ['gift_weapon = &"sword"', 'gift_flag = &"got_sword"', 'gift_line = "Живой… Палкой много не навоюешь. Держи, он старый, но честный."',
+     'sell_item = &"shield_hoplon"', 'sell_price = 250', 'sell_offer = "Есть круглый щит, гоплон. Старый, но удар держит. Возьмёшь?"',
+     'sell_line = "Держи. Подставляй его под удар — и вовремя: отобьёшь не хуже клинка."',
      'after_flag = &"boss_smith"', 'lines_after = PackedStringArray("Значит, это был он… От него одни руки и остались.", "Спасибо, что не дал ему дальше так ходить.")'])
 npc(ch, "Herbalist", -13.0, "Травница",
     ["Разбойники утащили меня в ту ночь, пока все тушили огонь.",

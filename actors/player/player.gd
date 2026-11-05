@@ -34,6 +34,8 @@ const MUD_ROLL_COST := 1.8
 ## Сколько добавляет к лечению одно улучшение зелья (Травница).
 const FLASK_POTENCY_STEP := 0.15
 const PLUNGE_LAND_TIME := 0.15
+## Блок щитом дешевле блока оружием (§6.2).
+const SHIELD_BLOCK_MULT := 0.6
 const HURT_TIME := 0.3
 const SLIDE_LEAN := 0.35
 ## С какой скоростью герой соскальзывает с головы врага: на врагах не стоят.
@@ -76,6 +78,8 @@ var _input_lock := 0.0
 var _combo := 0
 var _step: AttackStep
 var _fast_attack := false
+## Удар о пол этой стадии уже прозвучал.
+var _impact_done := false
 var _roll_dir := 1.0
 var _roll_speed := 0.0
 var _plunge_landed_at := -1.0
@@ -178,6 +182,8 @@ func _ready() -> void:
 	body = PlayerBody.new(body_mesh, body_shape.shape as CapsuleShape3D)
 	stats.changed.connect(_on_stats_changed)
 	_on_stats_changed()
+	# Купленный щит сразу в руке.
+	Events.item_found.connect(func(_id: StringName) -> void: _refresh_shield())
 
 
 func _physics_process(delta: float) -> void:
@@ -306,6 +312,7 @@ func _set_state(new_state: State) -> void:
 	elif state == State.LEDGE_HANG:
 		# Руки заняты краем — меч прижат клинком вниз.
 		arms.point_down()
+	_refresh_shield()
 
 
 func _apply_gravity(delta: float) -> void:
@@ -548,6 +555,7 @@ func _begin_attack(step: AttackStep, index: int) -> void:
 	_spend_stamina(stats.attack_cost * step.stamina_mult)
 	_combo = index
 	_step = step
+	_impact_done = false
 	# Импульс переходит в удар: первый удар на высокой скорости тяжелее.
 	_fast_attack = index <= 1 and absf(velocity.x) > stats.move_speed * 1.2
 	var bonus := 1.3 if _fast_attack else 1.0
@@ -579,6 +587,9 @@ func _attack_state(delta: float) -> void:
 		_apply_gravity(delta)
 		if t < _step.air_hover and velocity.y < 0.0:
 			velocity.y = 0.0
+	if _step.ground_impact and not _impact_done and t >= _step.active_to and on_floor:
+		_impact_done = true
+		_ground_impact()
 	if t >= _step.chain_from:
 		if _roll_buffer > 0.0 and on_floor:
 			_start_roll()
@@ -587,6 +598,9 @@ func _attack_state(delta: float) -> void:
 			_start_attack()
 			return
 	if t >= _step.duration:
+		if _step.follow_up:
+			_begin_attack(_step.follow_up, 0)
+			return
 		# Удар всё ещё держат — заряд. Лёгкий удар не ждёт: сначала взмах, заряд после него.
 		if on_floor and weapon.charged and _step != weapon.charged and Input.is_action_pressed("attack"):
 			_start_charge()
@@ -868,7 +882,40 @@ func _critical_spark(strength: float) -> void:
 func equip(id: StringName) -> void:
 	weapon = WeaponData.by_id(id) if id != &"" else null
 	GameState.weapon_id = id
+	GameState.own_weapon(id)
 	arms.set_weapon(weapon)
+	_refresh_shield()
+
+
+func has_shield() -> bool:
+	return GameState.item_count(GameState.SHIELD_ITEM) > 0
+
+
+## Щит в руке: есть, оружие не двуручное и лук не натянут.
+func shield_in_hand() -> bool:
+	return has_shield() and not (weapon and weapon.two_handed) and state != State.BOW
+
+
+## Щит в руке, выставлен в блоке или висит за спиной.
+func _refresh_shield() -> void:
+	if arms == null:
+		return
+	if not has_shield():
+		arms.place_shield(PlayerArms.ShieldAt.NONE)
+	elif not shield_in_hand():
+		arms.place_shield(PlayerArms.ShieldAt.BACK)
+	elif state == State.BLOCK:
+		arms.place_shield(PlayerArms.ShieldAt.GUARD)
+	else:
+		arms.place_shield(PlayerArms.ShieldAt.HAND)
+
+
+## Молот ударил в пол: тряска, крошка и звук камня — и без попадания по врагу.
+func _ground_impact() -> void:
+	var at := global_position + Vector3(facing * (_step.hitbox_offset.x + 0.3), 0.1, 0.3)
+	Events.camera_shake_requested.emit(0.4 if _step.heavy else 0.25, 0.25)
+	Sfx.play(&"sword_block", at, 2.0 if _step.heavy else -2.0)
+	HitSpark.spawn(get_parent(), at, Color(0.5, 0.48, 0.45), 24 if _step.heavy else 12)
 
 
 ## Лестница: вверх-вниз без гравитации. Наверху — подтягивается на этаж; прыжок — соскочил.
@@ -895,9 +942,10 @@ func _mastery_step() -> int:
 	return GameState.mastery_step(weapon.type) if weapon else 0
 
 
-## Без щита парирует только оружие, которым герой овладел до второй ступени; до этого — блок.
+## Щит парирует сразу (§6.2). Без него — только оружие, которым герой овладел до первой
+## ступени; до этого — блок.
 func can_parry() -> bool:
-	return _mastery_step() >= WeaponData.STEP_PARRY
+	return shield_in_hand() or _mastery_step() >= WeaponData.STEP_PARRY
 
 
 func _series() -> Array[AttackStep]:
@@ -1288,7 +1336,7 @@ func _on_parry(attacker: Dummy) -> void:
 
 ## Удар принят на блок: урона нет, но он стоит выносливости. Не хватило — блок пробит.
 func _on_block(hitbox: Hitbox) -> void:
-	var cost := hitbox.damage * stats.block_stamina_mult
+	var cost := hitbox.damage * stats.block_stamina_mult * (SHIELD_BLOCK_MULT if shield_in_hand() else 1.0)
 	var at := global_position + Vector3(facing * 0.6, 1.2, 0.3)
 	# Пробитый блок звенит громче: клинок отбит.
 	Sfx.play(&"sword_block", at, 0.0 if stamina >= cost else 4.0)

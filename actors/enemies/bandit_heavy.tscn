@@ -102,12 +102,15 @@ mesh = SubResource("Mesh_head")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.02, 2.0, 0)
 mesh = SubResource("Mesh_hood")
 
-[node name="Prop" type="MeshInstance3D" parent="Visual"]
-transform = Transform3D(0.8776, 0.4794, 0, -0.4794, 0.8776, 0, 0, 0, 1, 0.45, 1.3, 0.3)
+[node name="PropPivot" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 1.05, 0.3)
+
+[node name="Prop" type="MeshInstance3D" parent="Visual/PropPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
 mesh = SubResource("Mesh_prop")
 
-[node name="PropTop" type="MeshInstance3D" parent="Visual"]
-transform = Transform3D(0.8776, 0.4794, 0, -0.4794, 0.8776, 0, 0, 0, 1, 0.72, 1.78, 0.3)
+[node name="PropTop" type="MeshInstance3D" parent="Visual/PropPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.06, 0)
 mesh = SubResource("Mesh_prop_top")
 
 [node name="AttackHitbox" type="Area3D" parent="Visual"]

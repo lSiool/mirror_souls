@@ -27,6 +27,20 @@ const STEP_SPECIAL := 5
 ## Вид заглушки: цвет (прозрачный — как у меша) и масштаб клинка.
 @export var look_color := Color(0.0, 0.0, 0.0, 0.0)
 @export var look_scale := Vector3.ONE
+## Навершие на конце древка (головка молота); нулевой размер — нет.
+@export var head_size := Vector3.ZERO
+## Двуручное: щит висит за спиной (§6.2).
+@export var two_handed := false
+
+@export_group("Позы")
+## Стойка, блок и заряд: угол и сдвиг рукояти, как в AttackStep. Молот лежит на плече.
+@export var rest_blade := 0.5
+@export var rest_grip := Vector2.ZERO
+@export var guard_blade := -0.75
+@export var guard_grip := Vector2(0.2, 0.05)
+@export var charge_blade := 1.9
+@export var charge_grip := Vector2(-0.35, 0.05)
+@export_group("")
 @export var combo: Array[AttackStep] = []
 ## Удар во время скольжения или сразу на выходе из него.
 @export var slide_attack: AttackStep

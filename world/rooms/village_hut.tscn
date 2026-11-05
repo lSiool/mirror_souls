@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3]
+[gd_scene load_steps=31 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -25,6 +25,8 @@
 [ext_resource type="Script" path="res://world/common/burning_ambience.gd" id="ambience"]
 
 [ext_resource type="Script" path="res://world/common/npc.gd" id="npc"]
+
+[ext_resource type="Script" path="res://world/common/say_line.gd" id="sayline"]
 
 [ext_resource type="Script" path="res://world/common/main_mirror.gd" id="mainmirror"]
 

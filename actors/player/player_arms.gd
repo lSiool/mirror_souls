@@ -1,11 +1,17 @@
 class_name PlayerArms
 extends RefCounted
-## Руки героя: позы и взмахи меча, лук. Заглушка до настоящей анимации модели.
+## Руки героя: позы и взмахи оружия, лук и щит. Заглушка до настоящей анимации модели.
 ## Поза задаётся в пространстве героя, смотрящего вправо (см. AttackStep).
 
 const WORLD_MASK := 1
 ## Наклон плоскости лежащего оружия от пола к камере, рад.
 const LYING_TILT := 1.05
+## Щит-гоплон: радиус, толщина диска, насколько выпукла середина.
+const SHIELD_RADIUS := 0.42
+const SHIELD_THICK := 0.05
+const SHIELD_DOME := 0.12
+
+enum ShieldAt { NONE, HAND, GUARD, BACK }
 
 var sword_pivot: Node3D
 var _grip_base: Vector3
@@ -16,12 +22,17 @@ var _nocked: Node3D
 var _dropped: Node3D
 ## Есть ли что-то в руке: безоружный герой клинка не показывает.
 var armed := true
+var _weapon: WeaponData
+var _head: MeshInstance3D
+var _shield: Node3D
+var shield_at := ShieldAt.NONE
 
 
 func _init(visual: Node3D, sword: Node3D) -> void:
 	sword_pivot = sword
 	_grip_base = sword.position
 	_build_bow(visual)
+	_build_shield(visual)
 	rest()
 
 
@@ -38,13 +49,20 @@ func swing(step: AttackStep) -> void:
 	for prop: String in targets:
 		_tween.tween_property(sword_pivot, prop, targets[prop], time) \
 			.set_delay(step.active_from).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# Тяжёлое оружие лежит в конце взмаха, потом его поднимают обратно в стойку.
+	if step.recover_from > step.active_to and step.duration > step.recover_from:
+		_tween.chain().tween_interval(step.recover_from - step.active_to)
+		var back := step.duration - step.recover_from
+		_tween.chain().tween_property(sword_pivot, "rotation:z", _rest_blade(), back).set_trans(Tween.TRANS_SINE)
+		_tween.tween_property(sword_pivot, "rotation:y", 0.0, back)
+		_tween.tween_property(sword_pivot, "position", _grip(_rest_grip()), back).set_trans(Tween.TRANS_SINE)
 
 
 ## Заряд: клинок отведён назад, вдоль плеча.
 func charge_pose() -> void:
 	kill()
-	sword_pivot.rotation = Vector3(0.0, 0.0, 1.9)
-	sword_pivot.position = _grip(Vector2(-0.35, 0.05))
+	sword_pivot.rotation = Vector3(0.0, 0.0, _weapon.charge_blade if _weapon else 1.9)
+	sword_pivot.position = _grip(_weapon.charge_grip if _weapon else Vector2(-0.35, 0.05))
 
 
 ## Плавно перевести клинок в позу (фазы добивания).
@@ -63,15 +81,15 @@ func point_down() -> void:
 
 func rest() -> void:
 	kill()
-	sword_pivot.rotation = Vector3(0.0, 0.0, 0.5)
-	sword_pivot.position = _grip_base
+	sword_pivot.rotation = Vector3(0.0, 0.0, _rest_blade())
+	sword_pivot.position = _grip(_rest_grip())
 
 
-## Стойка блока: клинок наискось перед собой.
+## Стойка блока: клинок наискось перед собой, молот — низко поперёк.
 func guard() -> void:
 	kill()
-	sword_pivot.rotation = Vector3(0.0, 0.0, -0.75)
-	sword_pivot.position = _grip(Vector2(0.2, 0.05))
+	sword_pivot.rotation = Vector3(0.0, 0.0, _weapon.guard_blade if _weapon else -0.75)
+	sword_pivot.position = _grip(_weapon.guard_grip if _weapon else Vector2(0.2, 0.05))
 
 
 ## Блок пробит: клинок отброшен за спину.
@@ -82,8 +100,11 @@ func guard_broken() -> void:
 
 ## Взять оружие в руку: заглушка клинка принимает его вид. null — руки пусты.
 func set_weapon(weapon: WeaponData) -> void:
+	_weapon = weapon
 	armed = weapon != null
 	sword_pivot.visible = armed
+	if is_instance_valid(_head):
+		_head.free()
 	if weapon == null:
 		return
 	var blade := sword_pivot.get_child(0) as MeshInstance3D
@@ -91,12 +112,38 @@ func set_weapon(weapon: WeaponData) -> void:
 		return
 	blade.scale = weapon.look_scale
 	blade.position.y = 0.6 * weapon.look_scale.y
+	var mat: StandardMaterial3D = null
 	if weapon.look_color.a > 0.0:
-		var mat := StandardMaterial3D.new()
+		mat = StandardMaterial3D.new()
 		mat.albedo_color = weapon.look_color
-		blade.material_override = mat
-	else:
-		blade.material_override = null
+	blade.material_override = mat
+	if weapon.head_size != Vector3.ZERO:
+		var box := BoxMesh.new()
+		box.size = weapon.head_size
+		_head = MeshInstance3D.new()
+		_head.name = &"Head"
+		_head.mesh = box
+		_head.material_override = mat
+		# Навершие — на конце древка (меш клинка 1.1 по высоте, от рукояти).
+		_head.position.y = blade.position.y + 0.55 * weapon.look_scale.y - weapon.head_size.y * 0.5
+		sword_pivot.add_child(_head)
+	rest()
+
+
+## Где щит: в руке, выставлен в блоке, за спиной или его нет.
+func place_shield(at: ShieldAt) -> void:
+	shield_at = at
+	_shield.visible = at != ShieldAt.NONE
+	match at:
+		ShieldAt.HAND:
+			_shield.position = Vector3(0.32, 1.1, 0.1)
+			_shield.rotation = Vector3.ZERO
+		ShieldAt.GUARD:
+			_shield.position = Vector3(0.5, 1.2, 0.15)
+			_shield.rotation = Vector3.ZERO
+		ShieldAt.BACK:
+			_shield.position = Vector3(-0.3, 1.2, 0.0)
+			_shield.rotation = Vector3(0.0, PI, 0.2)
 
 
 ## На время стрельбы меч убран, в руке лук.
@@ -201,6 +248,56 @@ func _local_aabb(root: Node3D) -> AABB:
 
 func _grip(offset: Vector2) -> Vector3:
 	return _grip_base + Vector3(offset.x, offset.y, 0.0)
+
+
+func _rest_blade() -> float:
+	return _weapon.rest_blade if _weapon else 0.5
+
+
+func _rest_grip() -> Vector2:
+	return _weapon.rest_grip if _weapon else Vector2.ZERO
+
+
+## Гоплон: круглый диск, середина чуть выпукла наружу, бронзовый обод. Лицом по взгляду (+X).
+func _build_shield(visual: Node3D) -> void:
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.42, 0.3, 0.17)
+	var bronze := StandardMaterial3D.new()
+	bronze.albedo_color = Color(0.55, 0.4, 0.2)
+	bronze.metallic = 0.5
+	bronze.roughness = 0.5
+	_shield = Node3D.new()
+	_shield.name = &"Shield"
+	visual.add_child(_shield)
+	_shield.add_child(_shield_part(SHIELD_RADIUS, SHIELD_THICK, wood, 0.0))
+	_shield.add_child(_shield_part(SHIELD_RADIUS + 0.04, SHIELD_THICK * 0.6, bronze, -SHIELD_THICK * 0.3))
+	var dome := SphereMesh.new()
+	dome.radius = SHIELD_RADIUS * 0.85
+	dome.height = SHIELD_RADIUS * 1.7
+	dome.radial_segments = 20
+	dome.rings = 8
+	dome.material = bronze
+	var dome_mesh := MeshInstance3D.new()
+	dome_mesh.mesh = dome
+	dome_mesh.scale = Vector3(SHIELD_DOME / (SHIELD_RADIUS * 0.85), 1.0, 1.0)
+	dome_mesh.position.x = SHIELD_THICK * 0.5
+	_shield.add_child(dome_mesh)
+	_shield.visible = false
+
+
+## Диск щита: цилиндр, положенный осью по взгляду.
+func _shield_part(radius: float, thick: float, mat: Material, x: float) -> MeshInstance3D:
+	var disc := CylinderMesh.new()
+	disc.top_radius = radius
+	disc.bottom_radius = radius
+	disc.height = thick
+	disc.radial_segments = 20
+	disc.material = mat
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = disc
+	mesh.rotation.z = PI * 0.5
+	mesh.position.x = x
+	return mesh
 
 
 func _build_bow(visual: Node3D) -> void:

@@ -51,6 +51,7 @@ var _temper: Button
 var _glass_label: Label
 var _mastery_label: Label
 var _bow_switch: Button
+var _weapon_switch: Button
 ## Набранные, но ещё не подтверждённые очки: параметр → сколько.
 var _pending := {}
 var _minus := {}
@@ -147,6 +148,10 @@ func _ready() -> void:
 	_bow_switch.custom_minimum_size.y = 36
 	_bow_switch.pressed.connect(switch_bow)
 	_weapon_page.add_child(_bow_switch)
+	_weapon_switch = Button.new()
+	_weapon_switch.custom_minimum_size.y = 36
+	_weapon_switch.pressed.connect(switch_weapon)
+	_weapon_page.add_child(_weapon_switch)
 	_weapon_page.add_child(HSeparator.new())
 	_mastery_label = _line(_weapon_page)
 	_hub = Button.new()
@@ -382,7 +387,23 @@ func switch_bow() -> void:
 	_refresh()
 
 
+## Взять в руку следующее оружие из того, что герой носит с собой.
+func switch_weapon() -> void:
+	var owned := GameState.owned_weapons()
+	if owned.size() < 2:
+		return
+	_player.equip(owned[(owned.find(GameState.weapon_id) + 1) % owned.size()])
+	Sfx.play(&"glass_glint", _player.global_position, -12.0)
+	_refresh()
+
+
 func _refresh_weapon() -> void:
+	var owned := GameState.owned_weapons()
+	_weapon_switch.visible = owned.size() >= 2
+	if owned.size() >= 2:
+		var next: StringName = owned[(owned.find(GameState.weapon_id) + 1) % owned.size()]
+		var held := _player.weapon.display_name if _player.weapon else "—"
+		_weapon_switch.text = "Оружие: %s → взять %s" % [held, WeaponData.by_id(next).display_name.to_lower()]
 	var bows := GameState.owned_bows()
 	_bow_switch.visible = bows.size() >= 2
 	if bows.size() >= 2:

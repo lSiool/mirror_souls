@@ -1,6 +1,10 @@
 class_name ItemPickup
 extends Interactable
 ## Находка на земле: оружие, способность или предмет. Подобрав, герой больше её не встретит.
+## Тёплый пульсирующий блик — язык «это можно взять» на всю игру (§8.9).
+
+const GLINT_COLOR := Color(1.0, 0.62, 0.3)
+const GLINT_PERIOD := 1.6
 
 ## Оружие, которое герой берёт в руку; пусто — не оружие.
 @export var weapon_id: StringName
@@ -16,6 +20,15 @@ extends Interactable
 @export var appear_flag: StringName
 @export var look_size := Vector3(1.0, 0.1, 0.1)
 @export var look_color := Color(0.4, 0.28, 0.16)
+## Поворот и сдвиг заглушки: брусок можно прислонить к поленнице.
+@export var look_rotation := Vector3(0.0, 0.35, 0.0)
+@export var look_offset := Vector3.ZERO
+## Что герой говорит, подобрав.
+@export var pickup_line := ""
+
+var _mat: StandardMaterial3D
+var _light: OmniLight3D
+var _t := 0.0
 
 
 func _ready() -> void:
@@ -33,36 +46,46 @@ func _ready() -> void:
 	var mesh := MeshInstance3D.new()
 	var stick := BoxMesh.new()
 	stick.size = look_size
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = look_color
-	stick.material = mat
+	_mat = StandardMaterial3D.new()
+	_mat.albedo_color = look_color
+	_mat.emission_enabled = true
+	_mat.emission = GLINT_COLOR
+	stick.material = _mat
 	mesh.mesh = stick
-	mesh.position = Vector3(0.0, look_size.y * 0.5 + 0.02, 0.0)
-	mesh.rotation.y = 0.35
+	mesh.position = look_offset + Vector3(0.0, look_size.y * 0.5 + 0.02, 0.0)
+	mesh.rotation = look_rotation
 	add_child(mesh)
-	# Слабый отблеск: находку видно на тёмной земле.
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.8, 0.55)
-	light.light_energy = 0.5
-	light.omni_range = 1.8
-	light.position.y = 0.5
-	add_child(light)
+	# Отблеск: находку видно на тёмной земле.
+	_light = OmniLight3D.new()
+	_light.light_color = Color(1.0, 0.8, 0.55)
+	_light.omni_range = 1.8
+	_light.position = look_offset + Vector3(0.0, 0.5, 0.3)
+	add_child(_light)
+	_glint(0.0)
 	if appear_flag != &"" and not GameState.has_flag(appear_flag):
 		visible = false
 		enabled = false
-	else:
-		set_process(false)
 
 
-func _process(_delta: float) -> void:
-	if GameState.has_flag(appear_flag):
+func _process(delta: float) -> void:
+	if not enabled and GameState.has_flag(appear_flag):
 		visible = true
 		enabled = true
-		set_process(false)
+	_t += delta
+	_glint(_t)
+
+
+## Блик дышит: свечение заглушки и отблеск разгораются и гаснут.
+func _glint(t: float) -> void:
+	var k := 0.5 + 0.5 * sin(t * TAU / GLINT_PERIOD)
+	_mat.emission_energy_multiplier = 0.15 + 0.65 * k
+	_light.light_energy = 0.35 + 0.45 * k
 
 
 func interact(by: Player) -> void:
 	GameState.set_flag(flag)
+	if pickup_line != "":
+		Events.message.emit(pickup_line)
 	if echoes > 0:
 		GameState.add_echoes(echoes)
 	if weapon_id != &"":

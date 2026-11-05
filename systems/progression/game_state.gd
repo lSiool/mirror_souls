@@ -17,6 +17,10 @@ const BOWS := {
 	&"bow_hunter": ["охотничий лук", 0.8, 0.85],
 	&"bow_guard": ["лук стражи", 1.2, 1.2],
 }
+## Оружие ближнего боя, которое герой носит с собой: в руке одно, сменить — у осколка.
+const WEAPONS: Array[StringName] = [&"stick", &"sword", &"candlestick"]
+## Щит-гоплон: продаёт кузнец часовни (§6.2).
+const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id"]
@@ -183,6 +187,20 @@ func item_count(id: StringName) -> int:
 func owned_bows() -> Array[StringName]:
 	var result: Array[StringName] = []
 	for id: StringName in BOWS:
+		if item_count(id) > 0:
+			result.append(id)
+	return result
+
+
+## Оружие взято в руку — теперь оно у героя с собой. Без надписи: её показывает находка.
+func own_weapon(id: StringName) -> void:
+	if WEAPONS.has(id) and item_count(id) == 0:
+		items[id] = 1
+
+
+func owned_weapons() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for id: StringName in WEAPONS:
 		if item_count(id) > 0:
 			result.append(id)
 	return result
