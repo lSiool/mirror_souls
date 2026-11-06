@@ -181,6 +181,8 @@ func run() -> void:
 		steps_seen.append(i)
 		last_step = st)
 	Events.message.connect(func(text: String) -> void: messages.append(text))
+	# Окно находки не перехватывает «взаимодействие» тестов; своя проверка — у бруска.
+	rooms.hud.popup.blocks_interact = false
 	player.arrow_fired.connect(func(a: Arrow) -> void:
 		last_arrow = a
 		last_arrow_speed = a.velocity.length())
@@ -310,6 +312,18 @@ func run() -> void:
 	check(rooms.current_room != room_before and player.health.current == player.stats.max_health,
 		"отдых у осколка: комната пересоздана, здоровье полное")
 	check(rooms.level_menu.is_open and player.frozen, "после отдыха открыто меню у осколка, герой стоит")
+	var shard_menu := rooms.level_menu
+	check(shard_menu._page == LevelMenu.Page.ROOT and shard_menu._pages[LevelMenu.Page.ROOT].visible, "меню осколка открывается списком")
+	shard_menu.show_page(LevelMenu.Page.LEVEL)
+	check(shard_menu._pages[LevelMenu.Page.LEVEL].visible and shard_menu._title.text == "Поднять уровень", "пункт «Поднять уровень» — свой экран")
+	shard_menu.back()
+	check(shard_menu.is_open and shard_menu._page == LevelMenu.Page.ROOT, "«Назад» возвращает к списку")
+	for page in [LevelMenu.Page.FACETS, LevelMenu.Page.WEAPON, LevelMenu.Page.ITEMS]:
+		shard_menu.show_page(page)
+	check(shard_menu._item_grid.get_child_count() >= 1, "в «Предметах» есть хотя бы зелье")
+	shard_menu.back()
+	shard_menu.back()
+	check(not shard_menu.is_open, "«Назад» в списке — отойти от осколка")
 	rooms.level_menu.close()
 	check(not player.frozen, "отошёл от осколка — герой свободен")
 	room_before = rooms.current_room
@@ -325,12 +339,12 @@ func run() -> void:
 	var speed_before := stats.move_speed
 	game_state.add_echoes(cost - 1 - game_state.echoes)
 	menu._refresh()
-	menu.choose(PlayerStats.Param.HEALTH)
+	menu.choose(PlayerStats.Param.VIGOR)
 	check(menu.pending_total() == 0 and menu._confirm.disabled, "не хватает отзвуков — выбрать нельзя")
 	game_state.add_echoes(1)
 	menu._refresh()
 	check(menu._confirm.disabled, "ничего не выбрано — «Подтвердить» не горит")
-	menu.choose(PlayerStats.Param.HEALTH)
+	menu.choose(PlayerStats.Param.VIGOR)
 	check(not menu._confirm.disabled and stats.level == 0 and game_state.echoes == cost, "выбрано — «Подтвердить» горит, уровень ещё не куплен")
 	menu.confirm()
 	check(menu._dialog.visible, "окно «Повысить уровень?»")
@@ -365,13 +379,55 @@ func run() -> void:
 		and stats.jump_velocity >= stats.jump_velocity_young * stats.jump_velocity_limit - 0.001
 		and stats.sword_damage <= stats.sword_damage_young * stats.sword_damage_limit + 0.001,
 		"тело не выходит за планки (скорость %.2f, прыжок %.2f, урон %.1f)" % [stats.move_speed, stats.jump_velocity, stats.sword_damage])
-	stats.points[PlayerStats.Param.HEALTH] = 15
+	stats.points[PlayerStats.Param.VIGOR] = 15
 	check(is_equal_approx(stats.health_bonus(15), 90.0) and is_equal_approx(stats.health_bonus(30), 150.0) \
 		and is_equal_approx(stats.health_bonus(50), 190.0), "здоровье ступенями: +90 к 15 очкам, +150 к 30, +190 к 50")
 	check(stats.health_bonus(51) - stats.health_bonus(50) < stats.health_bonus(1) * 0.2, "на высоких уровнях прибавка мала")
-	stats.points[PlayerStats.Param.HEALTH] = 2000
+	stats.points[PlayerStats.Param.VIGOR] = 2000
 	check(stats.max_health <= stats.base_health + stats.health_bonus_cap, "здоровье не выше потолка (%.0f)" % stats.max_health)
 	stats.reset_progress()
+
+	print("== Семь характеристик и скалирование")
+	check(PlayerStats.PARAM_ORDER.size() == 7 and PlayerStats.Param.ENDURANCE == 1 and PlayerStats.Param.DEXTERITY == 3,
+		"семь характеристик; первые четыре — прежние ключи сейва")
+	var sword_plain := player.weapon_damage(WeaponData.by_id(&"sword"), 0)
+	var hammer_plain := player.weapon_damage(WeaponData.by_id(&"candlestick"), 0)
+	stats.points[PlayerStats.Param.STRENGTH] = 20
+	var sword_gain := player.weapon_damage(WeaponData.by_id(&"sword"), 0) / sword_plain
+	var hammer_gain := player.weapon_damage(WeaponData.by_id(&"candlestick"), 0) / hammer_plain
+	check(sword_gain > 1.0 and hammer_gain > sword_gain, "сила: подсвечник (C) растёт сильнее меча (D): ×%.2f против ×%.2f" % [hammer_gain, sword_gain])
+	stats.points[PlayerStats.Param.DEXTERITY] = 20
+	check(player.weapon_damage(WeaponData.by_id(&"sword"), 0) / sword_plain > sword_gain and stats.critical_mult > 1.0,
+		"ловкость: меч (C) и добивания сильнее")
+	var load_before := stats.equip_load
+	stats.points[PlayerStats.Param.VITALITY] = 10
+	check(stats.equip_load > load_before and stats.defense(&"physical") > stats.defense(&"glass"), "крепость: больше вес и защита")
+	stats.points[PlayerStats.Param.LUCK] = 10
+	check(stats.discovery > 100.0 and stats.bleed_mult > 1.0, "удача: находчивость и кровотечение")
+	check(stats.mobility_at(30.0) > stats.mobility_at(14.0) and stats.mobility_at(45.0) > stats.mobility_at(55.0)
+		and stats.mobility_at(90.0) >= stats.mobility_floor, "подвижность: растёт до 45, потом падает до планки")
+	stats.reset_progress()
+	player.restore()
+	await put(Vector3(-20.0, 0.1, 0))
+	var light_hit := Hitbox.new()
+	rooms.current_room.add_child(light_hit)
+	light_hit.damage = 5.0
+	light_hit.poise_damage = 15.0
+	player._on_hurt(light_hit)
+	check(player.state == Player.State.HURT, "без стойкости удар сбивает героя")
+	await seconds(0.9)
+	stats.points[PlayerStats.Param.ENDURANCE] = 20
+	player._iframes = 0.0
+	player._on_hurt(light_hit)
+	check(player.state != Player.State.HURT and player.health.current < player.health.max_health, "стойкость 20: удар ранит, но не сбивает")
+	light_hit.heavy = true
+	player._iframes = 0.0
+	player._on_hurt(light_hit)
+	check(player.state == Player.State.HURT, "тяжёлый удар сбивает всегда")
+	light_hit.queue_free()
+	stats.reset_progress()
+	player.restore()
+	await seconds(0.9)
 	await seconds(0.5)
 
 	print("== Кувырок и выносливость")
@@ -1646,6 +1702,14 @@ func run() -> void:
 	await frames(3)
 	check(player.weapon != null and player.weapon.id == &"stick" and game_state.has_flag(&"got_stick"), "взял брусок")
 	check(messages[-1] == "«Всё равно сгорит. А так мне будет спокойнее.»", "реплика, когда взял брусок")
+	var popup := rooms.hud.popup
+	check(popup.visible and popup.shown == &"stick" and popup._name.text == "Брусок", "окно находки: значок и «Брусок»")
+	popup.blocks_interact = true
+	var said := messages.size()
+	await tap("interact")
+	await frames(2)
+	check(not popup.visible and messages.size() == said, "«ОК» закрыл окно и ничего не взял")
+	popup.blocks_interact = false
 	check(player.weapon.combo.size() == 3 and player.weapon.type == &"sword", "палка бьёт как меч")
 	check(player._blade_damage() < player.stats.sword_damage, "палка слабее меча")
 	await put(Vector3(-13.0, 1.4, 0))
@@ -1742,7 +1806,8 @@ func run() -> void:
 			var far_left := wolf_moves.size() < 2 or not wolf_moves.has(Werewolf.Move.LEAP) or not wolf_moves.has(Werewolf.Move.RUSH)
 			var wolf_gap := (8.0 if wolf.global_position.x < 0.0 else -8.0) if far_left else 1.6 * wolf.facing
 			player.global_position.x = wolf.global_position.x + wolf_gap
-		if wolf_moves.size() == 3 and wolf_hit:
+		# Ударов пять (с финтом и воем): ждём именно когти, рывок и прыжок, а не любые три.
+		if wolf_hit and wolf_moves.has(Werewolf.Move.CLAW) and wolf_moves.has(Werewolf.Move.RUSH) and wolf_moves.has(Werewolf.Move.LEAP):
 			break
 	check(wolf_moves.has(Werewolf.Move.CLAW), "оборотень бьёт когтями")
 	check(wolf_moves.has(Werewolf.Move.RUSH), "оборотень бросается рывком")
@@ -1955,6 +2020,11 @@ func run() -> void:
 		await frames(3)
 	check(player.weapon != null and player.weapon.id == &"candlestick" and game_state.has_flag(&"got_candlestick"), "подобрал подсвечник")
 	player.equip(&"sword")
+	rooms.level_menu._player = player
+	rooms.level_menu.switch_second()
+	check(game_state.second_weapon_id != &"" and game_state.second_weapon_id != game_state.weapon_id, "набор II: второе оружие с собой (%s)" % game_state.second_weapon_id)
+	check(player.equip_weight() > WeaponData.by_id(&"sword").weight, "второй набор весит")
+	game_state.second_weapon_id = &""
 	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
 	await seconds(0.2)
 	await tap("interact")
@@ -2102,6 +2172,8 @@ func run() -> void:
 	await put(Vector3(-18.0, 0.1, 0), 1.0)
 	await frames(3)
 	check(player.in_mud(), "в грязи")
+	await seconds(0.3)
+	check(player.has_effect(&"mud") and rooms.hud.effects_row.has_node("mud"), "в грязи — дебафф со значком под полосами")
 	press("move_right")
 	await seconds(0.4)
 	release("move_right")

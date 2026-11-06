@@ -16,6 +16,9 @@ extends Node3D
 @export var mood: Environment
 @export var sun_color := Color(1.0, 0.88, 0.72)
 @export var sun_energy := 1.1
+## Свет для HUD 0…1 (§8.12): металл и стекло тускнеют в темноте, бликуют на свету.
+## Меньше нуля — по освещению комнаты.
+@export var hud_light := -1.0
 @export_group("Пожар")
 ## Пока этот флаг не поставлен, комната горит: есть узлы контейнера Burning и своё освещение.
 ## Когда поставлен — вместо них контейнер AfterFire и обычное освещение. Пусто — комната не горит.
@@ -23,6 +26,23 @@ extends Node3D
 @export var burning_mood: Environment
 @export var burning_sun_color := Color(1.0, 0.5, 0.25)
 @export var burning_sun_energy := 0.3
+
+
+func _enter_tree() -> void:
+	add_to_group(&"room")
+
+
+## Насколько светло в комнате для HUD: окружение и солнце, с пожаром — его свет.
+func hud_brightness(gain: float) -> float:
+	if hud_light >= 0.0:
+		return hud_light
+	var burning := is_burning()
+	var env := burning_mood if burning and burning_mood else mood
+	var sun := burning_sun_energy if burning else sun_energy
+	var value := sun * 0.15
+	if env:
+		value += env.ambient_light_color.get_luminance() * env.ambient_light_energy * gain
+	return clampf(value, 0.0, 1.0)
 
 
 func is_burning() -> bool:

@@ -1,8 +1,10 @@
 class_name Hud
 extends Control
-## Интерфейс прототипа: здоровье, выносливость, отзвуки, зелье, текущая реальность,
-## подсказка взаимодействия, экран смерти и затемнение.
-## Отладка возраста (§1.3): F1/F2 меняют стартовый возраст на лету.
+## Интерфейс (§8.12): слева вверху медальон с зельем, полосы здоровья и выносливости в металлической
+## раме, под ними баффы и дебаффы; справа вверху отзвуки, справа внизу оружие обоих наборов.
+## Стекло и металл тускнеют в тёмной комнате и бликуют на светлой. Ещё — подсказка взаимодействия,
+## окно находки (ItemPopup), экран смерти и затемнение.
+## Отладка возраста (§1.3): F1/F2 меняют стартовый возраст на лету, F3 показывает числа тела.
 
 ## Через сколько секунд после смерти появляется «ТЫ ПОГИБ»: тело успевает упасть.
 const DEATH_LABEL_DELAY := 0.95
@@ -11,10 +13,16 @@ const DEATH_STING_DB := -9.0
 const CARD_TIME := 1.9
 ## Высота чёрных полос катсцены.
 const CINEMA_BAR := 90.0
-const ITEM_NAMES := {&"clear_glass": "чистое стекло", &"facet_slot": "слот для граней", &"tempered_glass": "закалённое стекло",
-	&"bow_hunter": "охотничий лук", &"bow_guard": "лук стражи", &"has_bow": "лук",
-	&"flask_vessel": "второй глоток зелья", &"flask_potency": "крепкое зелье Травницы",
-	&"stick": "палка", &"sword": "меч", &"candlestick": "подсвечник", &"shield_hoplon": "щит", &"bow": "лук", &"boss_smith_echo": "отзвук Безмолвного Кузнеца"}
+## Как часто HUD смотрит на свет комнаты и оружие в руках.
+const POLL_TIME := 0.25
+## Свет комнаты → яркость HUD: тёмная комната не гасит интерфейс совсем.
+const LIGHT_GAIN := 3.0
+const DIM_MIN := 0.62
+const BUFF_COLOR := Color(0.56, 0.64, 0.5)
+const DEBUFF_COLOR := Color(0.75, 0.22, 0.17)
+const MARK := preload("res://assets/ui/hud/mark.svg")
+const MARK_EMPTY := preload("res://assets/ui/hud/mark_empty.svg")
+const MEDALLION := preload("res://assets/ui/hud/medallion.svg")
 
 @export var player_path: NodePath
 
@@ -29,11 +37,26 @@ var _say_tween: Tween
 var _notice_label: Label
 var _notice_tween: Tween
 var _bars: Array[ColorRect] = []
+var popup: ItemPopup
+## Свет комнаты 0…1: от него тускнеют медальоны и бежит блик по зелью.
+var light := 0.5
+var _poll := 0.0
+var _weapon_key := ""
+var _weapon_icon: TextureRect
+var _weapon_name: Label
+var _weapon_glass: Label
+var _weapon_marks: HBoxContainer
+var _bow_line: Label
+var _bow_icon: TextureRect
+var _second_line: Label
+var _metal: Array[CanvasItem] = []
 
 @onready var health_bar: ProgressBar = %HealthBar
 @onready var stamina_bar: ProgressBar = %StaminaBar
 @onready var currency_label: Label = %Currency
 @onready var flasks_label: Label = %Flasks
+@onready var flask_icon: TextureRect = %Flask
+@onready var effects_row: HBoxContainer = %Effects
 @onready var reality_label: Label = %Reality
 @onready var age_label: Label = %AgeInfo
 @onready var prompt_label: Label = %Prompt
@@ -51,7 +74,10 @@ func _ready() -> void:
 	Events.reality_changed.connect(_on_reality_changed)
 	Events.interact_prompt_changed.connect(_on_prompt_changed)
 	Events.player_died.connect(_on_player_died)
-	Events.item_found.connect(_on_item_found)
+	popup = ItemPopup.new()
+	add_child(popup)
+	Events.item_found.connect(popup.show_item)
+	_player.effects_changed.connect(_refresh_effects)
 	Events.message.connect(toast)
 	Events.boss_engaged.connect(_on_boss_engaged)
 	Events.mastery_step_reached.connect(_on_mastery_step)
@@ -63,8 +89,21 @@ func _ready() -> void:
 	_on_echoes_changed(GameState.echoes)
 	_on_flasks_changed(_player.flasks, _player.max_flasks())
 	_player.stamina_short.connect(_flash_stamina)
-	currency_label.pivot_offset = Vector2(0.0, 12.0)
+	currency_label.pivot_offset = Vector2(320.0, 18.0)
+	_build_weapon_panel()
+	for path in ["TopLeft/Medallion", "TopLeft/Badge", "TopLeft/HealthFrame", "TopLeft/StaminaFrame"]:
+		_metal.append(get_node(path))
 	_refresh_age()
+	_refresh_effects()
+
+
+func _process(delta: float) -> void:
+	_poll -= delta
+	if _poll > 0.0:
+		return
+	_poll = POLL_TIME
+	_refresh_light()
+	_refresh_weapon()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -75,6 +114,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_player.stats.age -= 1
 	elif event.is_action_pressed("debug_age_up"):
 		_player.stats.age += 1
+	elif event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
+		age_label.visible = not age_label.visible
 
 
 func fade_to(alpha: float, duration: float) -> Signal:
@@ -101,7 +142,7 @@ func _on_stamina_changed(current: float, maximum: float) -> void:
 func _on_echoes_changed(total: int) -> void:
 	var grew := total > _echoes_shown
 	_echoes_shown = total
-	currency_label.text = "Отзвуки: %d" % total
+	currency_label.text = _grouped(total)
 	if grew:
 		var tween := create_tween()
 		tween.tween_property(currency_label, "scale", Vector2(1.25, 1.25), 0.08)
@@ -115,10 +156,151 @@ func _on_mastery_step(type: StringName, step: int) -> void:
 		notice("Мастерство: %s" % weapon.step_names[step - 1])
 
 
-## Найден редкий предмет: название появляется над подсказкой и гаснет.
-func _on_item_found(id: StringName) -> void:
-	var facet := Facet.by_id(id)
-	notice("Найдено: %s" % (facet.display_name if facet else ITEM_NAMES.get(id, String(id))))
+## Свет комнаты: окружение и солнце текущего мира; комната может задать его сама (Room.hud_light).
+func _refresh_light() -> void:
+	var room := get_tree().get_first_node_in_group(&"room") as Room
+	light = room.hud_brightness(LIGHT_GAIN) if room else 0.5
+	var dim := lerpf(DIM_MIN, 1.0, light)
+	for item in _metal:
+		item.self_modulate = Color(dim, dim, dim)
+	(flask_icon.material as ShaderMaterial).set_shader_parameter(&"light", light)
+
+
+## Баффы и дебаффы под полосами: значок и треугольник — вверх зелёный, вниз красный.
+func _refresh_effects() -> void:
+	for child in effects_row.get_children():
+		effects_row.remove_child(child)
+		child.queue_free()
+	for id: StringName in _player.effects:
+		var effect := StatusEffect.by_id(id)
+		var column := VBoxContainer.new()
+		column.name = String(id)
+		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		column.add_theme_constant_override("separation", 0)
+		var icon := TextureRect.new()
+		icon.texture = ItemCatalog.icon(id)
+		icon.custom_minimum_size = Vector2(46, 46)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.tooltip_text = effect.display_name if effect else String(id)
+		column.add_child(icon)
+		var arrow := Label.new()
+		var good := effect != null and effect.positive
+		arrow.text = "▲" if good else "▼"
+		arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		arrow.add_theme_font_size_override("font_size", 14)
+		arrow.add_theme_color_override("font_color", BUFF_COLOR if good else DEBUFF_COLOR)
+		column.add_child(arrow)
+		effects_row.add_child(column)
+
+
+## Оружие справа внизу: медальон со значком, имя, закалка, ступени мастерства; лук; набор II.
+func _build_weapon_panel() -> void:
+	var panel := HBoxContainer.new()
+	panel.name = "WeaponPanel"
+	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 36)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	panel.alignment = BoxContainer.ALIGNMENT_END
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_constant_override("separation", 14)
+	add_child(panel)
+	var text := VBoxContainer.new()
+	text.alignment = BoxContainer.ALIGNMENT_END
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(text)
+	_second_line = _panel_label(text, 16, Color(0.72, 0.74, 0.76, 0.75))
+	_second_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var bow_row := HBoxContainer.new()
+	bow_row.alignment = BoxContainer.ALIGNMENT_END
+	text.add_child(bow_row)
+	_bow_icon = TextureRect.new()
+	_bow_icon.custom_minimum_size = Vector2(38, 38)
+	_bow_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bow_row.add_child(_bow_icon)
+	_bow_line = _panel_label(bow_row, 17, Color(0.73, 0.76, 0.8))
+	var name_row := HBoxContainer.new()
+	name_row.alignment = BoxContainer.ALIGNMENT_END
+	text.add_child(name_row)
+	_weapon_name = _panel_label(name_row, 28, Color(0.93, 0.95, 0.97))
+	_weapon_glass = _panel_label(name_row, 22, Color(0.79, 0.73, 0.61))
+	_weapon_marks = HBoxContainer.new()
+	_weapon_marks.alignment = BoxContainer.ALIGNMENT_END
+	_weapon_marks.add_theme_constant_override("separation", 4)
+	text.add_child(_weapon_marks)
+	var medal := TextureRect.new()
+	medal.texture = MEDALLION
+	medal.custom_minimum_size = Vector2(128, 128)
+	medal.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	medal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(medal)
+	_metal.append(medal)
+	_weapon_icon = TextureRect.new()
+	_weapon_icon.position = Vector2(34, 34)
+	_weapon_icon.size = Vector2(60, 60)
+	_weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	medal.add_child(_weapon_icon)
+
+
+func _panel_label(parent: Control, size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_constant_override("outline_size", 4)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	parent.add_child(label)
+	return label
+
+
+func _refresh_weapon() -> void:
+	var weapon := _player.weapon
+	var key := "%s|%d|%d|%s|%s" % [weapon.id if weapon else &"", GameState.glass_level(weapon.id) if weapon else 0,
+		GameState.mastery_step(weapon.type) if weapon else 0, GameState.bow_id if GameState.has_flag(&"has_bow") else &"",
+		GameState.second_weapon_id]
+	if key == _weapon_key:
+		return
+	_weapon_key = key
+	(_weapon_icon.get_parent() as Control).visible = weapon != null
+	_weapon_name.text = weapon.display_name if weapon else ""
+	var glass := GameState.glass_level(weapon.id) if weapon else 0
+	_weapon_glass.text = "+%d" % glass if glass > 0 else ""
+	_weapon_icon.texture = ItemCatalog.icon(weapon.id) if weapon else null
+	for child in _weapon_marks.get_children():
+		_weapon_marks.remove_child(child)
+		child.queue_free()
+	if weapon:
+		var step := GameState.mastery_step(weapon.type)
+		for i in weapon.step_names.size():
+			var mark := TextureRect.new()
+			mark.texture = MARK if i < step else MARK_EMPTY
+			mark.custom_minimum_size = Vector2(11, 15)
+			mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			_weapon_marks.add_child(mark)
+	var bow_id := GameState.bow_id if GameState.bow_id != &"" else &"has_bow"
+	var has_bow := GameState.has_flag(&"has_bow")
+	_bow_icon.visible = has_bow
+	_bow_line.visible = has_bow
+	_bow_icon.texture = ItemCatalog.icon(bow_id)
+	_bow_line.text = ItemCatalog.display_name(bow_id).to_lower()
+	var second := GameState.second_weapon_id
+	_second_line.visible = second != &""
+	_second_line.text = "II  %s" % ItemCatalog.display_name(second) if second != &"" else ""
+
+
+## У осколка меню закрывает экран: полосы, оружие и подсказки управления прячутся.
+func show_gameplay(on: bool) -> void:
+	for path in ["TopLeft", "TopRight", "WeaponPanel", "Controls"]:
+		(get_node(path) as CanvasItem).visible = on
+
+
+## 1240 → «1 240».
+static func _grouped(value: int) -> String:
+	var digits := str(absi(value))
+	var out := ""
+	while digits.length() > 3:
+		out = " " + digits.right(3) + out
+		digits = digits.left(digits.length() - 3)
+	return ("-" if value < 0 else "") + digits + out
 
 
 ## Здоровье босса внизу экрана, пока он жив и комната та же.
@@ -250,7 +432,8 @@ func _flash_stamina() -> void:
 
 
 func _on_flasks_changed(current: int, maximum: int) -> void:
-	flasks_label.text = "Зелье: %s%s" % ["◆".repeat(current), "◇".repeat(maxi(maximum - current, 0))]
+	flasks_label.text = str(current)
+	flask_icon.modulate = Color(1, 1, 1, 1.0 if current > 0 else 0.35)
 
 
 func _on_reality_changed(reality: StringName) -> void:

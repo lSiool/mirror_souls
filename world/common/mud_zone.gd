@@ -37,8 +37,10 @@ func _ready() -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if body is Player:
 		body.mud_zones += 1
+		body.add_effect(&"mud")
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body is Player:
 		body.mud_zones = maxi(body.mud_zones - 1, 0)
+		body.remove_effect(&"mud")

@@ -12,7 +12,19 @@ const AGE_MAX := 22
 const YEARS_PER_LEVEL := 0.25
 const AGING_LEVELS := 120
 
-enum Param { HEALTH, STAMINA, STRENGTH, DEXTERITY }
+## Семь характеристик (§8.6). Числа — ключи сохранения: первые четыре совпадают с прежними
+## «здоровье, выносливость, сила, меткость», поэтому старые сейвы читаются как есть.
+enum Param { VIGOR, ENDURANCE, STRENGTH, DEXTERITY, VITALITY, INTELLIGENCE, LUCK }
+## Порядок в меню и id для скалирования оружия (WeaponData.scaling).
+const PARAM_ORDER: Array[Param] = [Param.VIGOR, Param.ENDURANCE, Param.VITALITY, Param.STRENGTH,
+	Param.DEXTERITY, Param.INTELLIGENCE, Param.LUCK]
+const PARAM_IDS := {Param.VIGOR: &"vigor", Param.ENDURANCE: &"endurance", Param.VITALITY: &"vitality",
+	Param.STRENGTH: &"strength", Param.DEXTERITY: &"dexterity", Param.INTELLIGENCE: &"intelligence", Param.LUCK: &"luck"}
+## Виды защиты и сопротивлений (§8.6): пока числа в меню, броня и стихии придут позже.
+const DEFENSES: Array[StringName] = [&"physical", &"glass", &"fire", &"cold"]
+const RESISTANCES: Array[StringName] = [&"bleed", &"blind", &"cold", &"heat"]
+## Лук скалируется от ловкости с этой оценкой (луки — не WeaponData).
+const BOW_GRADE := "B"
 
 ## Здоровье за очки — ступенями, как Vigor в Dark Souls: щедро вначале, потом всё меньше.
 ## [сколько очков, по сколько здоровья]. После последней ступени очки здоровья не дают.
@@ -57,6 +69,32 @@ const BASE_FACET_SLOTS := 3
 @export var dexterity_bonus_cap := 1.5
 ## Сколько очков даёт около 63 % потолка.
 @export var bonus_softness := 40.0
+
+@export_group("Характеристики")
+## Стойкость к удару: удар слабее порога не сбивает героя. Пока брони нет — только от стойкости.
+@export var poise_per_point := 1.0
+## Вес снаряжения: предел от крепости. Доля веса задаёт кувырок: лёгкий, средний, тяжёлый.
+@export var equip_load_base := 20.0
+@export var equip_load_per_point := 1.5
+@export var light_load := 0.3
+@export var medium_load := 0.7
+## Защита и сопротивления: физическая растёт от крепости, остальное — от брони и предметов (позже).
+@export var defense_base := 10.0
+@export var defense_per_point := 0.8
+@export var resist_base := 10.0
+## Ловкость усиливает добивания и удары в спину — за каждое очко (как Skill в Bloodborne).
+@export var critical_per_point := 0.01
+## Удача: находчивость и накопление кровотечения в цели — за каждое очко.
+@export var discovery_per_point := 2.0
+@export var bleed_per_point := 0.02
+## Подвижность (§8.6) — навык тела от возраста, не очков: растёт до пика, потом падает до планки.
+## Что она даёт в игре — решим; пока число в меню.
+@export var mobility_young := 100.0
+@export var mobility_peak := 115.0
+@export var mobility_peak_age := 45.0
+@export var mobility_floor := 90.0
+## За сколько лет после пика подвижность спадает до планки.
+@export var mobility_fall_years := 15.0
 
 @export_group("Движение")
 @export var gravity := 32.0
@@ -188,12 +226,24 @@ var health_bonus_cap: float:
 var current_age: float:
 	get: return age_at(level)
 var max_health: float:
-	get: return (base_health + bonus_with(Param.HEALTH, 0)) * facet_mult(&"max_health")
+	get: return (base_health + bonus_with(Param.VIGOR, 0)) * facet_mult(&"max_health")
 var max_stamina: float:
-	get: return (base_stamina + bonus_with(Param.STAMINA, 0)) * facet_mult(&"max_stamina")
-## Множитель урона лука от меткости.
+	get: return (base_stamina + bonus_with(Param.ENDURANCE, 0)) * facet_mult(&"max_stamina")
+## Множитель урона лука от ловкости.
 var bow_damage_mult: float:
-	get: return (1.0 + bonus_with(Param.DEXTERITY, 0)) * facet_mult(&"bow_damage")
+	get: return (1.0 + bonus_with(Param.DEXTERITY, 0) * WeaponData.grade_mult(BOW_GRADE)) * facet_mult(&"bow_damage")
+var poise: float:
+	get: return poise_at(0)
+var equip_load: float:
+	get: return equip_load_at(0)
+var discovery: float:
+	get: return 100.0 + discovery_per_point * points_in(Param.LUCK)
+var critical_mult: float:
+	get: return critical_at(0)
+var bleed_mult: float:
+	get: return 1.0 + bleed_per_point * points_in(Param.LUCK)
+var mobility: float:
+	get: return mobility_at(current_age)
 
 var move_speed: float:
 	get: return speed_at(current_age) * facet_mult(&"move_speed")
@@ -205,8 +255,9 @@ var roll_speed: float:
 	get: return _by_age(current_age, roll_speed_young, roll_speed_old, roll_speed_limit)
 var roll_iframes: float:
 	get: return iframes_at(current_age) * facet_mult(&"roll_iframes")
+## Урон клинка от возраста и граней, без характеристик: их прибавку даёт скалирование оружия.
 var sword_damage: float:
-	get: return damage_at(current_age) * (1.0 + bonus_with(Param.STRENGTH, 0)) * facet_mult(&"damage")
+	get: return damage_at(current_age) * facet_mult(&"damage")
 
 
 ## Возраст на таком уровне: стартовый плюс прожитое, после AGING_LEVELS не растёт.
@@ -228,6 +279,51 @@ func iframes_at(at_age: float) -> float:
 
 func damage_at(at_age: float) -> float:
 	return _by_age(at_age, sword_damage_young, sword_damage_old, sword_damage_limit)
+
+
+## Прибавка к урону оружия от характеристик по его скалированию; extra — набранные очки.
+func attribute_bonus(scaling: Dictionary, extra := {}) -> float:
+	var total := 0.0
+	for param: Param in PARAM_IDS:
+		var grade: String = scaling.get(PARAM_IDS[param], "")
+		if grade != "":
+			total += bonus_with(param, extra.get(param, 0)) * WeaponData.grade_mult(grade)
+	return total
+
+
+func critical_at(extra: int) -> float:
+	return 1.0 + critical_per_point * (points_in(Param.DEXTERITY) + extra)
+
+
+func poise_at(extra: int) -> float:
+	return poise_per_point * (points_in(Param.ENDURANCE) + extra)
+
+
+func equip_load_at(extra: int) -> float:
+	return equip_load_base + equip_load_per_point * (points_in(Param.VITALITY) + extra)
+
+
+## Защита этого вида; extra — набранные очки крепости.
+func defense(kind: StringName, extra := 0) -> float:
+	if kind == &"physical":
+		return defense_base + defense_per_point * (points_in(Param.VITALITY) + extra)
+	return defense_base
+
+
+func resistance(_kind: StringName) -> float:
+	return resist_base
+
+
+## Кувырок по доле веса: 0 — лёгкий, 1 — средний, 2 — тяжёлый.
+func roll_class(weight: float, load: float) -> int:
+	var ratio := weight / maxf(load, 0.001)
+	return 0 if ratio < light_load else (1 if ratio < medium_load else 2)
+
+
+func mobility_at(at_age: float) -> float:
+	if at_age <= mobility_peak_age:
+		return lerpf(mobility_young, mobility_peak, (at_age - AGE_MIN) / (mobility_peak_age - AGE_MIN))
+	return maxf(lerpf(mobility_peak, mobility_floor, (at_age - mobility_peak_age) / mobility_fall_years), mobility_floor)
 
 
 ## Цена следующего уровня в отзвуках.
@@ -354,11 +450,11 @@ func reset_progress() -> void:
 
 ## Прибавка параметра, если вложить ещё extra очков: быстро вначале, у потолка — едва заметно.
 func bonus_with(param: Param, extra: int) -> float:
-	if param == Param.HEALTH:
+	if param == Param.VIGOR:
 		return health_bonus(points_in(param) + extra)
 	var cap: float
 	match param:
-		Param.STAMINA: cap = stamina_bonus_cap
+		Param.ENDURANCE: cap = stamina_bonus_cap
 		Param.STRENGTH: cap = strength_bonus_cap
 		_: cap = dexterity_bonus_cap
 	return cap * (1.0 - exp(-float(points_in(param) + extra) / bonus_softness))

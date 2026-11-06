@@ -12,6 +12,8 @@ const STEP_COUNTER := 4
 ## Последняя ступень — спецэффект вида оружия: у меча и копья кровотечение, у топора раскол брони,
 ## у молота оглушение.
 const STEP_SPECIAL := 5
+## Скалирование (§8.6): оценка → доля прибавки характеристики, которая идёт в урон.
+const GRADES := {"S": 1.0, "A": 0.85, "B": 0.7, "C": 0.55, "D": 0.4, "E": 0.25}
 
 @export var display_name := "Меч"
 ## Этот предмет: закалённое стекло вложено в него.
@@ -22,6 +24,10 @@ const STEP_SPECIAL := 5
 @export var step_names: Array[String] = []
 ## Множитель урона предмета: палка слабее меча при том же наборе ударов.
 @export var damage_mult := 1.0
+## Скалирование: id характеристики (PlayerStats.PARAM_IDS) → оценка S…E.
+@export var scaling := {}
+## Вес для веса снаряжения (крепость, §8.6).
+@export var weight := 2.0
 ## Набор ударов взять у другого оружия: палка бьёт как меч.
 @export var moves_from: WeaponData
 ## Вид заглушки: цвет (прозрачный — как у меша) и масштаб клинка.
@@ -59,6 +65,10 @@ const STEP_SPECIAL := 5
 @export var counter: AttackStep
 ## Спецэффект последней ступени: сколько кровотечения копит обычный удар; сильнее удар — больше.
 @export var bleed_buildup := 0.0
+
+
+static func grade_mult(grade: String) -> float:
+	return GRADES.get(grade, 0.0)
 
 
 ## Оружие по id: файл data/weapons/<id>.tres, с ударами родителя, если свои не заданы.

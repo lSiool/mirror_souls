@@ -12,6 +12,8 @@ signal arrow_fired(arrow: Arrow)
 signal flasks_changed(current: int, maximum: int)
 ## Кувырку не хватило выносливости.
 signal stamina_short
+## Баффы и дебаффы изменились (§8.12): HUD перерисовывает значки.
+signal effects_changed
 
 enum State {
 	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
@@ -36,6 +38,11 @@ const FLASK_POTENCY_STEP := 0.15
 const PLUNGE_LAND_TIME := 0.15
 ## Блок щитом дешевле блока оружием (§6.2).
 const SHIELD_BLOCK_MULT := 0.6
+## Вес щита и лука для веса снаряжения (§8.6).
+const SHIELD_WEIGHT := 3.0
+const BOW_WEIGHT := 1.5
+## Удар выдержан стойкостью: короткая неуязвимость, чтобы тот же замах не бил дважды.
+const POISE_IFRAMES := 0.2
 const HURT_TIME := 0.3
 const SLIDE_LEAN := 0.35
 ## С какой скоростью герой соскальзывает с головы врага: на врагах не стоят.
@@ -862,7 +869,7 @@ func _critical_state(delta: float) -> void:
 			Sfx.play(&"critical_release", global_position)
 		if is_instance_valid(_critical_target):
 			_critical_target.last_weapon = weapon.type
-			_critical_target.apply_critical(_blade_damage() * _step.damage_multiplier,
+			_critical_target.apply_critical(_blade_damage() * _step.damage_multiplier * stats.critical_mult,
 				_step.victim_throw, global_position.x)
 	if _state_time >= _step.duration:
 		_set_state(State.MOVE)
@@ -952,18 +959,61 @@ func _series() -> Array[AttackStep]:
 	return weapon.combo_at(_mastery_step())
 
 
-## Урон клинка: возраст, сила и грани (PlayerStats) и закалённое стекло в этом оружии.
+## Урон клинка: возраст и грани (PlayerStats), характеристики по скалированию оружия
+## и закалённое стекло в нём.
 func _blade_damage() -> float:
 	if weapon == null:
 		return stats.sword_damage
-	return stats.sword_damage * weapon.damage_mult * GameState.glass_damage_mult(weapon.id)
+	return weapon_damage(weapon, GameState.glass_level(weapon.id))
+
+
+## Урон оружия с таким шагом закалки и набранными очками (extra): для меню «было → станет».
+func weapon_damage(of: WeaponData, glass_level: int, extra := {}) -> float:
+	var glass := 1.0 + glass_level * GameState.GLASS_DAMAGE_STEP
+	return stats.sword_damage * (1.0 + stats.attribute_bonus(of.scaling, extra)) * of.damage_mult * glass
+
+
+## Эффекты на герое: id → сколько источников держат его (две лужи грязи — один эффект).
+var effects := {}
+
+
+func add_effect(id: StringName) -> void:
+	effects[id] = effects.get(id, 0) + 1
+	if effects[id] == 1:
+		effects_changed.emit()
+
+
+func remove_effect(id: StringName) -> void:
+	if not effects.has(id):
+		return
+	effects[id] -= 1
+	if effects[id] <= 0:
+		effects.erase(id)
+		effects_changed.emit()
+
+
+func has_effect(id: StringName) -> bool:
+	return effects.has(id)
+
+
+## Вес снаряжения: оружие обоих наборов, щит и лук (§8.6).
+func equip_weight() -> float:
+	var total := 0.0
+	for id: StringName in [GameState.weapon_id, GameState.second_weapon_id]:
+		if id != &"":
+			total += WeaponData.by_id(id).weight
+	if has_shield():
+		total += SHIELD_WEIGHT
+	if GameState.has_flag(&"has_bow"):
+		total += BOW_WEIGHT
+	return total
 
 
 ## Кровотечение удара: только у мастера, сильнее удар — больше.
 func _bleed_of(power: float) -> float:
 	if weapon == null or _mastery_step() < WeaponData.STEP_SPECIAL:
 		return 0.0
-	return weapon.bleed_buildup * power
+	return weapon.bleed_buildup * power * stats.bleed_mult
 
 
 func _start_charge() -> void:
@@ -1281,6 +1331,10 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	Events.camera_shake_requested.emit(0.3, 0.2)
 	if health.is_dead():
 		return
+	# Стойкость (§8.6): удар слабее порога ранит, но не сбивает; тяжёлый сбивает всегда.
+	if not hitbox.heavy and hitbox.poise_damage < stats.poise:
+		_iframes = POISE_IFRAMES
+		return
 	HitStop.stop(0.07)
 	var dir := hitbox.knockback_direction(self)
 	velocity = Vector3(dir.x * hitbox.knockback, 5.0, 0.0)
@@ -1490,6 +1544,9 @@ func remove_interactable(target: Interactable) -> void:
 
 func _try_interact() -> void:
 	if state != State.MOVE or not is_on_floor():
+		return
+	# Это нажатие — «ОК» окна находки: соседний предмет им не берём.
+	if ItemPopup.takes_interact():
 		return
 	var target := _reach.nearest(global_position)
 	if target:

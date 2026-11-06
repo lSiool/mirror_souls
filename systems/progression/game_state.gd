@@ -23,7 +23,8 @@ const WEAPONS: Array[StringName] = [&"stick", &"sword", &"candlestick"]
 const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
-	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id"]
+	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
+	"second_weapon_id"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -31,6 +32,9 @@ var echoes := 0
 var flags := {}
 ## Оружие в руке; пусто — герой пока безоружен.
 var weapon_id: StringName
+## Второй набор оружия «с собой» (§8.12): пока место под него — меняется у осколка,
+## смена наборов в бою придёт позже. Пусто — второго набора нет.
+var second_weapon_id: StringName
 ## Лук в руке (BOWS); пусто — обычный, без множителей.
 var bow_id: StringName
 ## Сохранять ли на диск (тесты отключают) и куда.
