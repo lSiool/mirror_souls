@@ -156,13 +156,27 @@ MARK_EMPTY = """<svg xmlns="http://www.w3.org/2000/svg" width="16" height="22" v
 """
 
 
+def button(top, bottom, border, border_alpha):
+    """Плашка кнопки в рамке (как «Подтвердить» в макете): вертикальный градиент, тонкая рамка
+    и едва заметный блик по верхнему краю. Тянется девятью частями (StyleBoxTexture, поля 3 px)."""
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bottom}"/></linearGradient></defs>
+<rect x="0.5" y="0.5" width="63" height="63" fill="url(#g)" stroke="{border}" stroke-opacity="{border_alpha}" stroke-width="1"/>
+<path d="M2 2 H 62" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>
+</svg>
+"""
+
+
 def main():
     ICONS.mkdir(parents=True, exist_ok=True)
     HUD.mkdir(parents=True, exist_ok=True)
     for name, (fill, art) in {**ITEMS, **FACETS}.items():
         (ICONS / f"{name}.svg").write_text(icon(fill, art), encoding="utf-8")
     files = {"medallion": MEDALLION, "badge": BADGE, "flask": FLASK_BIG, "bar_long": bar(620, 34, 70),
-             "bar_short": bar(470, 26, 54), "popup_frame": POPUP, "divider": DIVIDER, "mark": MARK, "mark_empty": MARK_EMPTY}
+             "bar_short": bar(470, 26, 54), "popup_frame": POPUP, "divider": DIVIDER, "mark": MARK, "mark_empty": MARK_EMPTY,
+             "button": button("#1f2329", "#0c0e11", "#8f8a82", 0.9),
+             "button_lit": button("#2a2f37", "#12151a", "#e6eaee", 1.0),
+             "button_off": button("#15181c", "#0a0b0d", "#8f8a82", 0.35)}
     for name, text in files.items():
         (HUD / f"{name}.svg").write_text(text, encoding="utf-8")
     print("icons:", len(ITEMS) + len(FACETS), "hud:", len(files))

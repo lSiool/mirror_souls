@@ -46,7 +46,12 @@ const WARN := Color(0.88, 0.47, 0.42)
 const DIVIDER := preload("res://assets/ui/hud/divider.svg")
 const MARK := preload("res://assets/ui/hud/mark.svg")
 const MARK_EMPTY := preload("res://assets/ui/hud/mark_empty.svg")
+const BUTTON := preload("res://assets/ui/hud/button.svg")
+const BUTTON_LIT := preload("res://assets/ui/hud/button_lit.svg")
+const BUTTON_OFF := preload("res://assets/ui/hud/button_off.svg")
 
+## Шрифт с засечками из системы, пока в проекте нет своего (OFL-шрифт — позже).
+var _serif_font := _serif()
 var is_open := false
 ## Можно ли отсюда перенестись к главному осколку: выставляет RoomManager перед open().
 var hub_available := false
@@ -144,7 +149,8 @@ func _ready() -> void:
 	column.add_theme_constant_override("separation", 14)
 	margin.add_child(column)
 	_caption = _label(column, "Осколок Главного Зеркала", 16, MUTED)
-	_title = _label(column, "", 46, TEXT)
+	_title = _label(column, "", 50, TEXT)
+	_title.add_theme_font_override("font", _serif_font)
 	var divider := TextureRect.new()
 	divider.texture = DIVIDER
 	divider.stretch_mode = TextureRect.STRETCH_KEEP
@@ -158,8 +164,16 @@ func _ready() -> void:
 	_build_facets(_page_box(pages, Page.FACETS))
 	_build_weapon(_page_box(pages, Page.WEAPON))
 	_build_items(_page_box(pages, Page.ITEMS))
-	_hint = _label(column, "", 18, MUTED)
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var footer := HBoxContainer.new()
+	footer.alignment = BoxContainer.ALIGNMENT_END
+	footer.add_theme_constant_override("separation", 36)
+	column.add_child(footer)
+	_hint = _label(footer, "", 18, MUTED)
+	_hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# «Подтвердить» — справа внизу, как в макете; видна только на «Поднять уровень».
+	_confirm = _frame_button(footer, "Подтвердить", 30)
+	_confirm.custom_minimum_size.x = 280
+	_confirm.pressed.connect(confirm)
 	_build_dialog()
 
 
@@ -241,8 +255,6 @@ func _build_level(page: VBoxContainer) -> void:
 		plus.pressed.connect(func() -> void: choose(param))
 		_buttons[param] = plus
 	stats.add_child(_spacer(10))
-	_confirm = _menu_button(stats, "", 24)
-	_confirm.pressed.connect(confirm)
 	_respec = _menu_button(stats, "", 20)
 	_respec.pressed.connect(use_clear_glass)
 	var hero := VBoxContainer.new()
@@ -396,12 +408,6 @@ func _refresh_level() -> void:
 		(_minus[param] as Button).disabled = _animating or picked == 0
 	var total := pending_total()
 	_confirm.disabled = _animating or total == 0 or GameState.echoes < pending_cost()
-	if total == 0:
-		_confirm.text = "Подтвердить — сначала выберите, что улучшить"
-	elif levels > 0:
-		_confirm.text = "Подтвердить: уровней %d, отзвуков %d" % [levels, pending_cost()]
-	else:
-		_confirm.text = "Подтвердить: очков %d" % total
 	_respec.visible = GameState.item_count(CLEAR_GLASS) > 0
 	_respec.text = "Чистое стекло (%d): перераспределить очки" % GameState.item_count(CLEAR_GLASS)
 	_respec.disabled = _animating
@@ -1006,6 +1012,7 @@ func _refresh() -> void:
 	# Корень — полупрозрачная полоса слева, чтобы видеть отражение; страницы — почти весь экран.
 	_backdrop.anchor_right = 0.62
 	_veil.visible = _page != Page.ROOT
+	_confirm.visible = _page == Page.LEVEL
 	var room := get_tree().get_first_node_in_group(&"room") as Room
 	_caption.text = "Осколок Главного Зеркала" if _page == Page.ROOT else "Осколок · %s" % _place_name(room)
 	_title.text = _place_name(room) if _page == Page.ROOT else PAGE_TITLES[_page]
@@ -1119,6 +1126,37 @@ func _menu_button(parent: Control, text: String, size: int) -> Button:
 	return button
 
 
+## Кнопка в рамке, как «Подтвердить» в макете: тёмная плашка с вертикальным градиентом в тонкой
+## серой рамке, светлый текст с засечками по центру; выбранная — рамка светлее; недоступная — бледная.
+func _frame_button(parent: Control, text: String, size: int) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	button.custom_minimum_size.y = 60
+	button.add_theme_font_override("font", _serif_font)
+	button.add_theme_font_size_override("font_size", size)
+	for state in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
+		button.add_theme_color_override(state, Color(0.95, 0.95, 0.94))
+	button.add_theme_color_override("font_disabled_color", Color(0.95, 0.95, 0.94, 0.35))
+	button.add_theme_stylebox_override("normal", _plate(BUTTON))
+	for state in ["hover", "focus", "pressed"]:
+		button.add_theme_stylebox_override(state, _plate(BUTTON_LIT))
+	button.add_theme_stylebox_override("disabled", _plate(BUTTON_OFF))
+	parent.add_child(button)
+	return button
+
+
+func _plate(texture: Texture2D) -> StyleBoxTexture:
+	var plate := StyleBoxTexture.new()
+	plate.texture = texture
+	plate.set_texture_margin_all(3)
+	plate.content_margin_left = 40
+	plate.content_margin_right = 40
+	plate.content_margin_top = 6
+	plate.content_margin_bottom = 8
+	return plate
+
+
 func _small_button(parent: Control, text: String) -> Button:
 	var button := Button.new()
 	button.text = text
@@ -1160,6 +1198,13 @@ func _icon_button(parent: Control, icon: Texture2D, size: int) -> Button:
 		button.add_theme_stylebox_override(state, lit)
 	parent.add_child(button)
 	return button
+
+
+static func _serif() -> SystemFont:
+	var font := SystemFont.new()
+	font.font_names = PackedStringArray(["Cormorant Garamond", "EB Garamond", "Georgia", "Times New Roman", "serif"])
+	font.font_weight = 600
+	return font
 
 
 func _spacer(height: int) -> Control:
