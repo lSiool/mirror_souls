@@ -18,11 +18,13 @@ const POLL_TIME := 0.25
 ## Свет комнаты → яркость HUD: тёмная комната не гасит интерфейс совсем.
 const LIGHT_GAIN := 3.0
 const DIM_MIN := 0.62
-const BUFF_COLOR := Color(0.56, 0.64, 0.5)
-const DEBUFF_COLOR := Color(0.75, 0.22, 0.17)
 const MARK := preload("res://assets/ui/hud/mark.svg")
 const MARK_EMPTY := preload("res://assets/ui/hud/mark_empty.svg")
-const MEDALLION := preload("res://assets/ui/hud/medallion.svg")
+const MEDALLION := preload("res://assets/ui/hud/painted/medallion.png")
+## Нарисованные рамка значка эффекта и треугольники бафф/дебафф (лист автора, tools/ui/cut_hud_sheet.py).
+const BUFF_FRAME := preload("res://assets/ui/hud/painted/buff_frame.png")
+const BUFF_UP := preload("res://assets/ui/hud/painted/tri_up_green.png")
+const DEBUFF_DOWN := preload("res://assets/ui/hud/painted/tri_down_red.png")
 
 @export var player_path: NodePath
 
@@ -51,8 +53,8 @@ var _bow_icon: TextureRect
 var _second_line: Label
 var _metal: Array[CanvasItem] = []
 
-@onready var health_bar: ProgressBar = %HealthBar
-@onready var stamina_bar: ProgressBar = %StaminaBar
+@onready var health_bar: TextureProgressBar = %HealthBar
+@onready var stamina_bar: TextureProgressBar = %StaminaBar
 @onready var currency_label: Label = %Currency
 @onready var flasks_label: Label = %Flasks
 @onready var flask_icon: TextureRect = %Flask
@@ -177,18 +179,29 @@ func _refresh_effects() -> void:
 		column.name = String(id)
 		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		column.add_theme_constant_override("separation", 0)
+		var cell := Control.new()
+		cell.custom_minimum_size = Vector2(52, 52)
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.tooltip_text = effect.display_name if effect else String(id)
+		column.add_child(cell)
 		var icon := TextureRect.new()
 		icon.texture = ItemCatalog.icon(id)
-		icon.custom_minimum_size = Vector2(46, 46)
+		# Сначала режим растяжения, потом размер: иначе TextureRect берёт размер текстуры.
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.tooltip_text = effect.display_name if effect else String(id)
-		column.add_child(icon)
-		var arrow := Label.new()
+		icon.position = Vector2(7, 7)
+		icon.size = Vector2(38, 38)
+		cell.add_child(icon)
+		var frame := TextureRect.new()
+		frame.texture = BUFF_FRAME
+		frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		frame.size = Vector2(52, 52)
+		cell.add_child(frame)
 		var good := effect != null and effect.positive
-		arrow.text = "▲" if good else "▼"
-		arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		arrow.add_theme_font_size_override("font_size", 14)
-		arrow.add_theme_color_override("font_color", BUFF_COLOR if good else DEBUFF_COLOR)
+		var arrow := TextureRect.new()
+		arrow.texture = BUFF_UP if good else DEBUFF_DOWN
+		arrow.custom_minimum_size = Vector2(18, 14)
+		arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		arrow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		column.add_child(arrow)
 		effects_row.add_child(column)
 
@@ -235,9 +248,9 @@ func _build_weapon_panel() -> void:
 	panel.add_child(medal)
 	_metal.append(medal)
 	_weapon_icon = TextureRect.new()
-	_weapon_icon.position = Vector2(34, 34)
-	_weapon_icon.size = Vector2(60, 60)
 	_weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_weapon_icon.position = Vector2(36, 37)
+	_weapon_icon.size = Vector2(56, 56)
 	_weapon_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	medal.add_child(_weapon_icon)
 

@@ -1,11 +1,14 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://ui/hud.gd" id="1_hud"]
-[ext_resource type="Texture2D" path="res://assets/ui/hud/medallion.svg" id="2_medallion"]
-[ext_resource type="Texture2D" path="res://assets/ui/hud/flask.svg" id="3_flask"]
-[ext_resource type="Texture2D" path="res://assets/ui/hud/badge.svg" id="4_badge"]
-[ext_resource type="Texture2D" path="res://assets/ui/hud/bar_long.svg" id="5_bar_long"]
-[ext_resource type="Texture2D" path="res://assets/ui/hud/bar_short.svg" id="6_bar_short"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/medallion.png" id="2_medallion"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/flask.png" id="3_flask"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/badge.png" id="4_badge"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/hp_frame.png" id="5_bar_long"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/stamina_frame.png" id="6_bar_short"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/hp_fill.png" id="8_hp_fill"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/st_fill.png" id="9_st_fill"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/groove.png" id="10_groove"]
 [ext_resource type="Shader" path="res://ui/glint.gdshader" id="7_glint"]
 
 [sub_resource type="StyleBoxFlat" id="Style_bg"]
@@ -60,32 +63,83 @@ offset_right = 800.0
 offset_bottom = 200.0
 mouse_filter = 2
 
+[node name="HealthBar" type="TextureProgressBar" parent="TopLeft"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 194.0
+offset_top = 53.0
+offset_right = 740.0
+offset_bottom = 71.0
+mouse_filter = 2
+value = 100.0
+nine_patch_stretch = true
+texture_under = ExtResource("10_groove")
+texture_progress = ExtResource("8_hp_fill")
+
+[node name="HealthFrame" type="TextureRect" parent="TopLeft"]
+layout_mode = 0
+offset_left = 150.0
+offset_top = 36.0
+offset_right = 781.0
+offset_bottom = 89.0
+mouse_filter = 2
+texture = ExtResource("5_bar_long")
+expand_mode = 1
+
+[node name="StaminaBar" type="TextureProgressBar" parent="TopLeft"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 167.0
+offset_top = 88.0
+offset_right = 510.0
+offset_bottom = 101.0
+mouse_filter = 2
+value = 100.0
+nine_patch_stretch = true
+texture_under = ExtResource("10_groove")
+texture_progress = ExtResource("9_st_fill")
+
+[node name="StaminaFrame" type="TextureRect" parent="TopLeft"]
+layout_mode = 0
+offset_left = 160.0
+offset_top = 82.0
+offset_right = 552.0
+offset_bottom = 108.0
+mouse_filter = 2
+texture = ExtResource("6_bar_short")
+expand_mode = 1
+
 [node name="Medallion" type="TextureRect" parent="TopLeft"]
 layout_mode = 0
-offset_right = 160.0
-offset_bottom = 160.0
+offset_left = -8.0
+offset_top = -6.0
+offset_right = 184.0
+offset_bottom = 192.0
 mouse_filter = 2
 texture = ExtResource("2_medallion")
+expand_mode = 1
 
 [node name="Flask" type="TextureRect" parent="TopLeft"]
 unique_name_in_owner = true
 material = SubResource("Glint")
 layout_mode = 0
-offset_left = 40.0
-offset_top = 14.0
-offset_right = 120.0
-offset_bottom = 114.0
+offset_left = 53.0
+offset_top = 40.0
+offset_right = 123.0
+offset_bottom = 142.0
 mouse_filter = 2
 texture = ExtResource("3_flask")
+expand_mode = 1
 
 [node name="Badge" type="TextureRect" parent="TopLeft"]
 layout_mode = 0
-offset_left = 108.0
-offset_top = 112.0
-offset_right = 156.0
-offset_bottom = 160.0
+offset_left = 118.0
+offset_top = 126.0
+offset_right = 168.0
+offset_bottom = 175.0
 mouse_filter = 2
 texture = ExtResource("4_badge")
+expand_mode = 1
 
 [node name="Flasks" type="Label" parent="TopLeft/Badge"]
 unique_name_in_owner = true
@@ -98,55 +152,11 @@ horizontal_alignment = 1
 vertical_alignment = 1
 text = "1"
 
-[node name="HealthBar" type="ProgressBar" parent="TopLeft"]
-unique_name_in_owner = true
-layout_mode = 0
-offset_left = 156.0
-offset_top = 52.0
-offset_right = 702.0
-offset_bottom = 72.0
-mouse_filter = 2
-theme_override_styles/background = SubResource("Style_bg")
-theme_override_styles/fill = SubResource("Style_health")
-value = 100.0
-show_percentage = false
-
-[node name="HealthFrame" type="TextureRect" parent="TopLeft"]
-layout_mode = 0
-offset_left = 152.0
-offset_top = 45.0
-offset_right = 772.0
-offset_bottom = 79.0
-mouse_filter = 2
-texture = ExtResource("5_bar_long")
-
-[node name="StaminaBar" type="ProgressBar" parent="TopLeft"]
-unique_name_in_owner = true
-layout_mode = 0
-offset_left = 156.0
-offset_top = 93.0
-offset_right = 568.0
-offset_bottom = 105.0
-mouse_filter = 2
-theme_override_styles/background = SubResource("Style_bg")
-theme_override_styles/fill = SubResource("Style_stamina")
-value = 100.0
-show_percentage = false
-
-[node name="StaminaFrame" type="TextureRect" parent="TopLeft"]
-layout_mode = 0
-offset_left = 152.0
-offset_top = 86.0
-offset_right = 622.0
-offset_bottom = 112.0
-mouse_filter = 2
-texture = ExtResource("6_bar_short")
-
 [node name="Effects" type="HBoxContainer" parent="TopLeft"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 172.0
-offset_top = 120.0
+offset_left = 180.0
+offset_top = 118.0
 offset_right = 600.0
 offset_bottom = 186.0
 mouse_filter = 2
