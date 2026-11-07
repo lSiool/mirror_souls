@@ -47,6 +47,7 @@ const DIVIDER := preload("res://assets/ui/hud/divider.svg")
 const MARK := preload("res://assets/ui/hud/mark.svg")
 const MARK_EMPTY := preload("res://assets/ui/hud/mark_empty.svg")
 const BUTTON := preload("res://assets/ui/hud/button.svg")
+const SECTION := preload("res://assets/ui/hud/section.svg")
 const BUTTON_LIT := preload("res://assets/ui/hud/button_lit.svg")
 const BUTTON_OFF := preload("res://assets/ui/hud/button_off.svg")
 
@@ -233,7 +234,7 @@ func _build_level(page: VBoxContainer) -> void:
 	stats.custom_minimum_size.x = 500
 	stats.add_theme_constant_override("separation", 4)
 	row.add_child(stats)
-	_label(stats, "ХАРАКТЕРИСТИКИ", 15, MUTED)
+	_section(stats, "Характеристики")
 	for param: PlayerStats.Param in PlayerStats.PARAM_ORDER:
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 10)
@@ -260,17 +261,17 @@ func _build_level(page: VBoxContainer) -> void:
 	var hero := VBoxContainer.new()
 	hero.custom_minimum_size.x = 380
 	row.add_child(hero)
-	_label(hero, "ГЕРОЙ", 15, MUTED)
+	_section(hero, "Герой")
 	_hero_rows = VBoxContainer.new()
 	hero.add_child(_hero_rows)
 	var side := VBoxContainer.new()
 	side.custom_minimum_size.x = 380
 	row.add_child(side)
-	_label(side, "ЗАЩИТА И СОПРОТИВЛЕНИЯ", 15, MUTED)
+	_section(side, "Защита и сопротивления")
 	_defense_rows = VBoxContainer.new()
 	side.add_child(_defense_rows)
 	side.add_child(_spacer(8))
-	_label(side, "ТЕЛО И ВОЗРАСТ", 15, MUTED)
+	_section(side, "Тело и возраст")
 	_body_rows = VBoxContainer.new()
 	side.add_child(_body_rows)
 
@@ -656,7 +657,7 @@ func _build_weapon(page: VBoxContainer) -> void:
 	sets.custom_minimum_size.x = 300
 	sets.add_theme_constant_override("separation", 6)
 	row.add_child(sets)
-	_label(sets, "С СОБОЙ", 15, MUTED)
+	_section(sets, "С собой")
 	_set_rows = VBoxContainer.new()
 	sets.add_child(_set_rows)
 	sets.add_child(_spacer(6))
@@ -681,15 +682,15 @@ func _build_weapon(page: VBoxContainer) -> void:
 	head.add_child(names)
 	_card_name = _label(names, "", 42, TEXT)
 	_card_info = _label(names, "", 19, MUTED)
-	_label(card, "СКАЛИРОВАНИЕ", 15, MUTED)
+	_section(card, "Скалирование")
 	_scaling_row = HBoxContainer.new()
 	_scaling_row.add_theme_constant_override("separation", 10)
 	card.add_child(_scaling_row)
-	_label(card, "ЗАКАЛКА СТЕКЛОМ", 15, MUTED)
+	_section(card, "Закалка стеклом")
 	_glass_row = HBoxContainer.new()
 	_glass_row.add_theme_constant_override("separation", 8)
 	card.add_child(_glass_row)
-	_temper = _menu_button(card, "", 21)
+	_temper = _frame_button(card, "", 24)
 	_temper.pressed.connect(temper)
 	_temper_cost = _label(card, "", 17, MUTED)
 	var mastery := VBoxContainer.new()
@@ -700,7 +701,7 @@ func _build_weapon(page: VBoxContainer) -> void:
 	_mastery_rows.add_theme_constant_override("separation", 6)
 	mastery.add_child(_mastery_rows)
 	mastery.add_child(_spacer(6))
-	_label(mastery, "ПРИЁМЫ", 15, MUTED)
+	_section(mastery, "Приёмы")
 	_moves_label = _label(mastery, "", 18, Color(0.76, 0.79, 0.82))
 	_moves_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
@@ -817,7 +818,7 @@ func _refresh_weapon() -> void:
 			GameState.GLASS_ECHOES[level], Hud._grouped(GameState.echoes)]
 	var step := GameState.mastery_step(weapon.type)
 	var progress := GameState.mastery_progress(weapon.type)
-	_label(_mastery_rows, "МАСТЕРСТВО: %s" % TYPE_NAMES.get(weapon.type, String(weapon.type)).to_upper(), 15, MUTED)
+	_section(_mastery_rows, "Мастерство: %s" % TYPE_NAMES.get(weapon.type, String(weapon.type)).to_lower())
 	for i in weapon.step_names.size():
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 10)
@@ -1155,6 +1156,28 @@ func _plate(texture: Texture2D) -> StyleBoxTexture:
 	plate.content_margin_top = 6
 	plate.content_margin_bottom = 8
 	return plate
+
+
+## Заголовок раздела в рамке — как «Характеристики» и «Статус игрока» в Dark Souls: плашка
+## тёмного металла с ромбом слева, текст с засечками.
+func _section(parent: Control, text: String) -> PanelContainer:
+	var plate := StyleBoxTexture.new()
+	plate.texture = SECTION
+	plate.texture_margin_left = 24
+	plate.texture_margin_right = 4
+	plate.texture_margin_top = 4
+	plate.texture_margin_bottom = 4
+	plate.content_margin_left = 28
+	plate.content_margin_right = 12
+	plate.content_margin_top = 3
+	plate.content_margin_bottom = 4
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", plate)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(panel)
+	var label := _label(panel, text, 21, Color(0.9, 0.88, 0.84))
+	label.add_theme_font_override("font", _serif_font)
+	return panel
 
 
 func _small_button(parent: Control, text: String) -> Button:

@@ -167,6 +167,20 @@ def button(top, bottom, border, border_alpha):
 """
 
 
+# Плашка заголовка раздела (как «Характеристики» и «Статус игрока» в Dark Souls): тёмный металл
+# с отливом слева, светлая кромка сверху, тёмная снизу, тонкая рамка, ромб у левого края.
+SECTION = """<svg xmlns="http://www.w3.org/2000/svg" width="96" height="40" viewBox="0 0 96 40">
+<defs><linearGradient id="h" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a4250"/><stop offset="0.35" stop-color="#232830"/><stop offset="1" stop-color="#14171c"/></linearGradient>
+<linearGradient id="v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity="0.35"/></linearGradient></defs>
+<rect x="0.5" y="0.5" width="95" height="39" fill="url(#h)" stroke="#5e5a54" stroke-width="1"/>
+<rect x="1" y="1" width="94" height="38" fill="url(#v)"/>
+<path d="M1 1.5 H 95" stroke="#a39d94" stroke-opacity="0.7" stroke-width="1"/>
+<path d="M1 38.5 H 95" stroke="#000000" stroke-opacity="0.6" stroke-width="1"/>
+<path d="M10 14 l 6 6 l -6 6 l -6 -6 z" fill="#c9b99c" fill-opacity="0.85"/>
+</svg>
+"""
+
+
 def main():
     ICONS.mkdir(parents=True, exist_ok=True)
     HUD.mkdir(parents=True, exist_ok=True)
@@ -176,7 +190,8 @@ def main():
              "bar_short": bar(470, 26, 54), "popup_frame": POPUP, "divider": DIVIDER, "mark": MARK, "mark_empty": MARK_EMPTY,
              "button": button("#1f2329", "#0c0e11", "#8f8a82", 0.9),
              "button_lit": button("#2a2f37", "#12151a", "#e6eaee", 1.0),
-             "button_off": button("#15181c", "#0a0b0d", "#8f8a82", 0.35)}
+             "button_off": button("#15181c", "#0a0b0d", "#8f8a82", 0.35),
+             "section": SECTION}
     for name, text in files.items():
         (HUD / f"{name}.svg").write_text(text, encoding="utf-8")
     print("icons:", len(ITEMS) + len(FACETS), "hud:", len(files))
