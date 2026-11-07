@@ -76,7 +76,7 @@ def cemetery_gate():
                "crumble_time = 0.35", 'look = SubResource("Mat_rotten")'])
     s.instance("PitSpikes", "Objects", "spikes", ["position = Vector3(1.0, 3.1, 0)", "width = 1.4", "spike_height = 0.5",
                "trap_damage = 18.0", "non_lethal = true"])
-    s.chest("PostChest", (3.2, 4.4, -0.8), 120, "cem_gate_chest", ("tempered_glass",))
+    s.chest("PostChest", (3.2, 4.4, -0.8), 120, "cem_gate_chest", ("tempered_glass",) + ("throwing_knife",) * 5)
     # Справа мёртвые деревья и стена тумана.
     s.dead_tree(D, "TreeA", 13.0, -3.5, 9.0)
     s.dead_tree(D, "TreeB", 18.5, -5.0, 10.0)
@@ -293,7 +293,7 @@ def root_maze():
     s.box(D, "HollowArchL", (3.6, 4.4, -1.6), (0.6, 3.2, 0.8), "root", rot=(0, 0, 0.15))
     s.box(D, "HollowArchR", (7.4, 4.4, -1.6), (0.6, 3.2, 0.8), "root", rot=(0, 0, -0.15))
     s.box(D, "HollowTop", (5.5, 6.1, -1.6), (4.6, 0.6, 0.8), "root")
-    s.chest("RootCache", (5.5, 3.0, -1.0), 200, "root_cache", ("flask_vessel",))
+    s.chest("RootCache", (5.5, 3.0, -1.0), 200, "root_cache", ("flask_vessel",) + ("throwing_axe",) * 3)
     s.candles(D, "CacheCandles", 4.2, 3.0, -1.5)
     # Верхний ярус 1: над туманом, прыжок через разрыв, припасы охотника.
     s.ladder("UpLadderA", -8.0, 8.0, 5.0, 1.0)

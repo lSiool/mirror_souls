@@ -25,6 +25,8 @@ const DEFENSES: Array[StringName] = [&"physical", &"glass", &"fire", &"cold"]
 const RESISTANCES: Array[StringName] = [&"bleed", &"blind", &"cold", &"heat"]
 ## Лук скалируется от ловкости с этой оценкой (луки — не WeaponData).
 const BOW_GRADE := "B"
+## Броски (ножи, топорики, склянки) тоже скалируются от ловкости, слабее лука.
+const THROW_GRADE := "C"
 
 ## Здоровье за очки — ступенями, как Vigor в Dark Souls: щедро вначале, потом всё меньше.
 ## [сколько очков, по сколько здоровья]. После последней ступени очки здоровья не дают.
@@ -232,6 +234,9 @@ var max_stamina: float:
 ## Множитель урона лука от ловкости.
 var bow_damage_mult: float:
 	get: return (1.0 + bonus_with(Param.DEXTERITY, 0) * WeaponData.grade_mult(BOW_GRADE)) * facet_mult(&"bow_damage")
+## Множитель урона бросков от ловкости.
+var throw_damage_mult: float:
+	get: return 1.0 + bonus_with(Param.DEXTERITY, 0) * WeaponData.grade_mult(THROW_GRADE)
 var poise: float:
 	get: return poise_at(0)
 var equip_load: float:

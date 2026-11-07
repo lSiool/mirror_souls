@@ -28,6 +28,24 @@ MUD = '<path d="M14 42 q 6 -5 12 0 t 12 0 t 12 0 V 52 H 14 Z" fill="#3b2a18"/><p
 REGEN = '<path d="M32 12 C 40 24 46 31 46 38 A 14 14 0 0 1 18 38 C 18 31 24 24 32 12 Z" fill="#5f9e84"/><path d="M32 30 V 46 M24 38 H 40" stroke="#e6f4ee" stroke-width="3" stroke-linecap="round"/>'
 UNKNOWN = '<circle cx="32" cy="32" r="12" fill="none" stroke="#8a847c" stroke-width="2" stroke-dasharray="4 3"/>'
 
+# Боевые расходники (§6.2): без квадратной рамки — лежат в ромбе крестовины HUD.
+KNIFE = '<path d="M47 13 L 30 36 L 34 39 Z" fill="#d9dde2" stroke="#f2f4f6" stroke-width="0.8"/><path d="M30 36 L 34 39" stroke="#6b6f75" stroke-width="2.4"/><path d="M31 38 L 20 51" stroke="#5e4530" stroke-width="4" stroke-linecap="round"/><circle cx="19" cy="52" r="2.4" fill="#8a7b6a"/>'
+AXE = '<path d="M22 54 L 40 18" stroke="#7a5a3a" stroke-width="4.5" stroke-linecap="round"/><path d="M34 16 Q 50 14 52 30 Q 44 26 38 30 Z" fill="#a9adb3" stroke="#e5e7ea" stroke-width="1"/>'
+FIRE = ('<rect x="28" y="12" width="8" height="8" rx="1.5" fill="#7a5638"/><path d="M32 6 q 4 3 0 7 q -3 -3 0 -7" fill="#ffb040"/>'
+        '<path d="M29 20 h6 v6 a13 13 0 1 1 -6 0 z" fill="#c8d3d9" fill-opacity="0.2" stroke="#c7d2d8" stroke-opacity="0.6" stroke-width="1.4"/>'
+        '<path d="M20 40 q 6 -3 12 0 t 12 0 a 12 12 0 0 1 -24 0 z" fill="#d0601e"/><path d="M26 44 q 6 -6 12 0" stroke="#ffd27a" stroke-width="1.6" fill="none"/>')
+CONSUMABLES = {"throwing_knife": KNIFE, "throwing_axe": AXE, "fire_flask": FIRE}
+
+
+def loose(art):
+    """Значок без рамки: прозрачный фон и мягкая тень, чтобы рисунок читался на тёмном ромбе."""
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<defs><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="1" dy="2" stdDeviation="1.4" flood-color="#000000" flood-opacity="0.8"/></filter></defs>
+<g filter="url(#s)">{art}</g>
+</svg>
+"""
+
+
 FACETS = {
     "facet_youth": ("#2a2416", '<path d="M20 50 Q 32 12 44 50 M25 38 H 39" fill="none" stroke="#d9b870" stroke-width="3" stroke-linecap="round"/>'),
     "facet_experience": ("#2a2416", '<path d="M18 18 H 46 L 32 50 Z" fill="none" stroke="#d9b870" stroke-width="3" stroke-linejoin="round"/>'),
@@ -186,6 +204,8 @@ def main():
     HUD.mkdir(parents=True, exist_ok=True)
     for name, (fill, art) in {**ITEMS, **FACETS}.items():
         (ICONS / f"{name}.svg").write_text(icon(fill, art), encoding="utf-8")
+    for name, art in CONSUMABLES.items():
+        (ICONS / f"{name}.svg").write_text(loose(art), encoding="utf-8")
     files = {"medallion": MEDALLION, "badge": BADGE, "flask": FLASK_BIG, "bar_long": bar(620, 34, 70),
              "bar_short": bar(470, 26, 54), "popup_frame": POPUP, "divider": DIVIDER, "mark": MARK, "mark_empty": MARK_EMPTY,
              "button": button("#1f2329", "#0c0e11", "#8f8a82", 0.9),
@@ -194,7 +214,7 @@ def main():
              "section": SECTION}
     for name, text in files.items():
         (HUD / f"{name}.svg").write_text(text, encoding="utf-8")
-    print("icons:", len(ITEMS) + len(FACETS), "hud:", len(files))
+    print("icons:", len(ITEMS) + len(FACETS) + len(CONSUMABLES), "hud:", len(files))
 
 
 if __name__ == "__main__":

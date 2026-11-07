@@ -311,7 +311,7 @@ material = SubResource("Mat_root")
 position = Vector3(5.5, 3.0, -1.0)
 reward = 200
 flag_id = &"root_cache"
-items = Array[StringName]([&"flask_vessel"])
+items = Array[StringName]([&"flask_vessel", &"throwing_axe", &"throwing_axe", &"throwing_axe"])
 
 [node name="CacheCandles0" type="CSGBox3D" parent="Decor"]
 position = Vector3(4.2, 3.12, -1.5)

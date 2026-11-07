@@ -16,6 +16,8 @@ signal echoes_changed(total: int)
 signal enemy_killed(enemy: Dummy)
 ## Найден редкий предмет: HUD коротко показывает название.
 signal item_found(id: StringName)
+## Расходники изменились: что лежит в ячейках крестовины или сколько чего осталось (HUD).
+signal quick_items_changed
 ## Тип оружия достиг новой ступени мастерства.
 signal mastery_step_reached(type: StringName, step: int)
 ## Стекло разбилось: менеджер комнаты запоминает его по виду (GlassSurface.memory).

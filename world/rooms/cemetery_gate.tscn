@@ -861,7 +861,7 @@ non_lethal = true
 position = Vector3(3.2, 4.4, -0.8)
 reward = 120
 flag_id = &"cem_gate_chest"
-items = Array[StringName]([&"tempered_glass"])
+items = Array[StringName]([&"tempered_glass", &"throwing_knife", &"throwing_knife", &"throwing_knife", &"throwing_knife", &"throwing_knife"])
 
 [node name="TreeATrunk" type="CSGCylinder3D" parent="Decor"]
 position = Vector3(13.0, 4.5, -3.5)

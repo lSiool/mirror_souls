@@ -641,7 +641,7 @@ ci.box(d, "BalconyRailTop", (10.5, BAL + 1.0, -1.5), (6.8, 0.08, 0.08), "wood_da
 ci.used.add("rotten")
 ci.nodes.append(f'[node name="StashFloor" parent="Objects" instance=ExtResource("glass")]\nposition = Vector3(10.5, {BAL - 0.15}, 0)\nsize = Vector3(2, 0.3, 4)\nlook = SubResource("Mat_rotten")')
 ci.node("StashLadder", 'type="Area3D"', "Objects", ["position = Vector3(10.5, 0, 0)", 'script = ExtResource("ladder")', f"height = {BAL}", "exit_dir = 1.0"])
-ci.nodes.append('[node name="StashChest" parent="Objects" instance=ExtResource("chest")]\nposition = Vector3(12.6, 0, -1.2)\nreward = 150\nitems = Array[StringName]([&"tempered_glass"])\nflag_id = &"chapel_stash"')
+ci.nodes.append('[node name="StashChest" parent="Objects" instance=ExtResource("chest")]\nposition = Vector3(12.6, 0, -1.2)\nreward = 150\nitems = Array[StringName]([&"tempered_glass", &"fire_flask", &"fire_flask"])\nflag_id = &"chapel_stash"')
 ci.box(d, "StashCrate", (9.4, 0.4, -1.4), (0.9, 0.8, 0.9), "wood")
 ci.light(d, "StashLight", (12.0, 2.4, -0.4), (1.0, 0.6, 0.3), 0.8, 5.0)
 ci.marker("FromYard", (-11.5, 0.1, 0))

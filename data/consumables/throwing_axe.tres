@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ConsumableData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://combat/consumables/consumable_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"throwing_axe"
+speed = 13.0
+angle = 20.0
+gravity = 12.0
+damage = 26.0
+poise_damage = 30.0
+knockback = 4.0
+stamina_cost = 14.0
+release_at = 0.18
+duration = 0.44
+spin = 2.5
+look_size = Vector3(0.36, 0.18, 0.05)
+look_color = Color(0.62, 0.6, 0.58, 1)

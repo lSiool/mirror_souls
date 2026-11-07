@@ -1142,6 +1142,58 @@ func run() -> void:
 	check(last_arrow_speed > quick_speed * 1.5, "натянутая стрела быстрее (%.1f против %.1f)" % [last_arrow_speed, quick_speed])
 	await seconds(0.6)
 
+	print("== Расходники: крестовина и броски (§8.12)")
+	# Солдат стоит на месте: бросок проверяет полёт, а не погоню. В конце всё возвращаем.
+	var soldier_home := soldier.global_position
+	var soldier_look := soldier.facing
+	var soldier_patrol := soldier.patrol_speed
+	var soldier_chase := soldier.chase_speed
+	soldier.patrol_speed = 0.0
+	soldier.chase_speed = 0.0
+	player.restore()
+	game_state.add_item(&"throwing_knife", 3)
+	check(game_state.quick_item(0) == &"throwing_knife", "нож сам лёг в верхнюю ячейку крестовины")
+	var cross := rooms.hud.get_node("QuickCross") as Control
+	check(cross != null and cross.visible, "крестовина расходников в HUD")
+	var thrown_items: Array[Thrown] = []
+	var on_throw := func(t: Thrown) -> void: thrown_items.append(t)
+	player.item_thrown.connect(on_throw)
+	await face_enemy(soldier, 4.0)
+	var hp_knife := soldier.health.current
+	await tap("quick_1")
+	await seconds(0.5)
+	check(thrown_items.size() == 1 and game_state.item_count(&"throwing_knife") == 2,
+		"клавиша 1 — бросок ножа, осталось %d" % game_state.item_count(&"throwing_knife"))
+	check(soldier.health.current < hp_knife, "нож попал (%.0f → %.0f)" % [hp_knife, soldier.health.current])
+	game_state.add_item(&"fire_flask")
+	check(game_state.quick_item(1) == &"fire_flask", "склянка легла в левую ячейку")
+	await face_enemy(soldier, 5.5)
+	var hp_fire := soldier.health.current
+	await tap("quick_2")
+	await seconds(1.0)
+	check(soldier.health.current < hp_fire, "склянка разбилась вспышкой (%.0f → %.0f)" % [hp_fire, soldier.health.current])
+	check(game_state.item_count(&"fire_flask") == 0, "склянок не осталось")
+	await tap("quick_2")
+	await frames(3)
+	check(player.state != Player.State.THROW and thrown_items.size() == 2, "кончились — броска нет")
+	game_state.set_quick_slot(3, &"throwing_knife")
+	check(game_state.quick_item(3) == &"throwing_knife" and game_state.quick_item(0) == &"",
+		"нож переложен вниз: предмет лежит в одной ячейке")
+	player.item_thrown.disconnect(on_throw)
+	game_state.items.erase(&"throwing_knife")
+	game_state.items.erase(&"fire_flask")
+	game_state.quick_slots = [&"", &"", &"", &""]
+	Events.quick_items_changed.emit()
+	soldier.patrol_speed = soldier_patrol
+	soldier.chase_speed = soldier_chase
+	soldier.health.heal_full()
+	soldier.global_position = soldier_home
+	soldier.facing = soldier_look
+	soldier.velocity = Vector3.ZERO
+	soldier._set_state(Dummy.State.PATROL)
+	player.restore()
+	await seconds(0.3)
+
 	print("== Стрела не ломает стекло — отскакивает")
 	await put(Vector3(-8.0, 0.1, 0), -1.0)
 	sfx.history.clear()

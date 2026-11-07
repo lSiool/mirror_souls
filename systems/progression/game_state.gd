@@ -24,7 +24,7 @@ const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id"]
+	"second_weapon_id", "quick_slots"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -37,6 +37,10 @@ var weapon_id: StringName
 var second_weapon_id: StringName
 ## Лук в руке (BOWS); пусто — обычный, без множителей.
 var bow_id: StringName
+## Крестовина расходников (§8.12): id в ячейках по порядку верх, лево, право, низ (клавиши 1–4).
+## Пусто — ячейка пуста. Предмет лежит не больше чем в одной ячейке; кончился — ячейка его помнит.
+const QUICK_SLOTS := 4
+var quick_slots := [&"", &"", &"", &""]
 ## Сохранять ли на диск (тесты отключают) и куда.
 var saves_enabled := true
 var save_path := "user://save.sav"
@@ -93,6 +97,7 @@ func load_game() -> Dictionary:
 		if data.has(key):
 			set(key, data[key])
 	Events.echoes_changed.emit(echoes)
+	Events.quick_items_changed.emit()
 	return data.get("extra", {})
 
 
@@ -176,12 +181,38 @@ func temper(weapon_id: StringName) -> bool:
 	return true
 
 
-func add_item(id: StringName) -> void:
-	items[id] = item_count(id) + 1
+func add_item(id: StringName, count := 1) -> void:
+	items[id] = item_count(id) + count
 	if BOWS.has(id):
 		bow_id = id
 		set_flag(&"has_bow")
+	if is_consumable(id):
+		# Новый расходник сам ложится в первую пустую ячейку, как в кармане Elden Ring.
+		if not quick_slots.has(id) and quick_slots.has(&""):
+			quick_slots[quick_slots.find(&"")] = id
+		Events.quick_items_changed.emit()
 	Events.item_found.emit(id)
+
+
+## Боевой расходник (data/consumables): его можно положить в крестовину и бросить.
+func is_consumable(id: StringName) -> bool:
+	return ConsumableData.by_id(id) != null
+
+
+## Положить расходник в ячейку 0…3; из прежней ячейки он уходит. Пустой id — очистить ячейку.
+func set_quick_slot(slot: int, id: StringName) -> void:
+	if slot < 0 or slot >= QUICK_SLOTS:
+		return
+	if id != &"":
+		var was := quick_slots.find(id)
+		if was >= 0:
+			quick_slots[was] = &""
+	quick_slots[slot] = id
+	Events.quick_items_changed.emit()
+
+
+func quick_item(slot: int) -> StringName:
+	return quick_slots[slot] if slot >= 0 and slot < QUICK_SLOTS else &""
 
 
 func item_count(id: StringName) -> int:
@@ -223,6 +254,8 @@ func take_item(id: StringName) -> bool:
 	if item_count(id) <= 0:
 		return false
 	items[id] = item_count(id) - 1
+	if quick_slots.has(id):
+		Events.quick_items_changed.emit()
 	return true
 
 

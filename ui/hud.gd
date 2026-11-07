@@ -1,7 +1,8 @@
 class_name Hud
 extends Control
 ## Интерфейс (§8.12): слева вверху медальон с зельем, полосы здоровья и выносливости в металлической
-## раме, под ними баффы и дебаффы; справа вверху отзвуки, справа внизу оружие обоих наборов.
+## раме, под ними баффы и дебаффы; слева внизу крестовина расходников из четырёх ромбов;
+## справа вверху отзвуки, справа внизу оружие обоих наборов.
 ## Стекло и металл тускнеют в тёмной комнате и бликуют на светлой. Ещё — подсказка взаимодействия,
 ## окно находки (ItemPopup), экран смерти и затемнение.
 ## Отладка возраста (§1.3): F1/F2 меняют стартовый возраст на лету, F3 показывает числа тела.
@@ -25,6 +26,16 @@ const MEDALLION := preload("res://assets/ui/hud/painted/medallion.png")
 const BUFF_FRAME := preload("res://assets/ui/hud/painted/buff_frame.png")
 const BUFF_UP := preload("res://assets/ui/hud/painted/tri_up_green.png")
 const DEBUFF_DOWN := preload("res://assets/ui/hud/painted/tri_down_red.png")
+## Ромб ячейки расходника (заглушка из референса автора, tools/ui/cut_quick_cross.py).
+const QUICK_CELL := preload("res://assets/ui/hud/painted/quick_cell.png")
+## Крестовина: размер ромба и сдвиг ячеек от середины — по референсу ромбы заходят друг на друга.
+const QUICK_SIZE := 96.0
+const QUICK_STEP := Vector2(55.0, 47.0)
+## Ячейки по порядку GameState.quick_slots: верх, лево, право, низ. Рисуются снизу вверх.
+const QUICK_AT: Array[Vector2] = [Vector2(0, -1), Vector2(-1, 0), Vector2(1, 0), Vector2(0, 1)]
+const QUICK_DRAW_ORDER: Array[int] = [3, 1, 2, 0]
+## Кончились — значок тускнеет, ячейка остаётся на месте.
+const QUICK_EMPTY_ALPHA := 0.32
 
 @export var player_path: NodePath
 
@@ -52,6 +63,8 @@ var _bow_line: Label
 var _bow_icon: TextureRect
 var _second_line: Label
 var _metal: Array[CanvasItem] = []
+var _quick_icons: Array[TextureRect] = []
+var _quick_counts: Array[Label] = []
 
 @onready var health_bar: TextureProgressBar = %HealthBar
 @onready var stamina_bar: TextureProgressBar = %StaminaBar
@@ -93,6 +106,8 @@ func _ready() -> void:
 	_player.stamina_short.connect(_flash_stamina)
 	currency_label.pivot_offset = Vector2(320.0, 18.0)
 	_build_weapon_panel()
+	_build_quick_cross()
+	Events.quick_items_changed.connect(_refresh_quick)
 	for path in ["TopLeft/Medallion", "TopLeft/Badge", "TopLeft/HealthFrame", "TopLeft/StaminaFrame"]:
 		_metal.append(get_node(path))
 	_refresh_age()
@@ -300,9 +315,65 @@ func _refresh_weapon() -> void:
 	_second_line.text = "II  %s" % ItemCatalog.display_name(second) if second != &"" else ""
 
 
+## Крестовина расходников (§8.12) слева внизу: четыре ромба, в каждом значок и число.
+## Клавиши 1–4 — верх, лево, право, низ; на геймпаде — держать правый курок и нажать крестовину.
+func _build_quick_cross() -> void:
+	var cross := Control.new()
+	cross.name = "QuickCross"
+	var area := Vector2(QUICK_SIZE, QUICK_SIZE) + QUICK_STEP * 2.0
+	cross.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	cross.offset_left = 30.0
+	cross.offset_right = 30.0 + area.x
+	cross.offset_bottom = -64.0
+	cross.offset_top = -64.0 - area.y
+	cross.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(cross)
+	_quick_icons.resize(GameState.QUICK_SLOTS)
+	_quick_counts.resize(GameState.QUICK_SLOTS)
+	for slot in QUICK_DRAW_ORDER:
+		var cell := Control.new()
+		cell.name = "Slot%d" % (slot + 1)
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.position = area * 0.5 + QUICK_AT[slot] * QUICK_STEP - Vector2(QUICK_SIZE, QUICK_SIZE) * 0.5
+		cell.size = Vector2(QUICK_SIZE, QUICK_SIZE)
+		cross.add_child(cell)
+		var frame := TextureRect.new()
+		frame.texture = QUICK_CELL
+		frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		frame.size = cell.size
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(frame)
+		_metal.append(frame)
+		var icon := TextureRect.new()
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size = cell.size * 0.5
+		icon.position = cell.size * 0.25
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(icon)
+		_quick_icons[slot] = icon
+		var count := _panel_label(cell, 22, Color(0.93, 0.92, 0.88))
+		count.position = cell.size * Vector2(0.56, 0.5)
+		_quick_counts[slot] = count
+	_refresh_quick()
+
+
+func _refresh_quick() -> void:
+	for slot in GameState.QUICK_SLOTS:
+		var id := GameState.quick_item(slot)
+		var icon := _quick_icons[slot]
+		var count := _quick_counts[slot]
+		icon.texture = ItemCatalog.icon(id) if id != &"" else null
+		var left := GameState.item_count(id) if id != &"" else 0
+		icon.modulate.a = 1.0 if left > 0 else QUICK_EMPTY_ALPHA
+		count.text = str(left) if id != &"" else ""
+		count.modulate.a = 1.0 if left > 0 else 0.5
+
+
 ## У осколка меню закрывает экран: полосы, оружие и подсказки управления прячутся.
 func show_gameplay(on: bool) -> void:
-	for path in ["TopLeft", "TopRight", "WeaponPanel", "Controls"]:
+	for path in ["TopLeft", "TopRight", "WeaponPanel", "QuickCross", "Controls"]:
 		(get_node(path) as CanvasItem).visible = on
 
 

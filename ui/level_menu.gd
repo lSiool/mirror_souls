@@ -43,6 +43,8 @@ const MUTED := Color(0.6, 0.63, 0.67)
 const ACCENT := Color(0.72, 0.86, 1.0)
 const BRONZE := Color(0.79, 0.73, 0.61)
 const WARN := Color(0.88, 0.47, 0.42)
+## Ячейки крестовины расходников (§8.12) по порядку GameState.quick_slots.
+const QUICK_SLOT_NAMES: Array[String] = ["Верх · 1", "Лево · 2", "Право · 3", "Низ · 4"]
 const DIVIDER := preload("res://assets/ui/hud/divider.svg")
 const MARK := preload("res://assets/ui/hud/mark.svg")
 const MARK_EMPTY := preload("res://assets/ui/hud/mark_empty.svg")
@@ -112,6 +114,10 @@ var _item_tabs: HBoxContainer
 var _item_grid: GridContainer
 var _item_name: Label
 var _item_text: Label
+## Расходник — в какую ячейку крестовины его положить.
+var _slot_row: HBoxContainer
+var _slot_buttons: Array[Button] = []
+var _item_shown: StringName
 
 
 func _ready() -> void:
@@ -895,6 +901,15 @@ func _build_items(page: VBoxContainer) -> void:
 	_item_text = _label(text, "", 21, Color(0.83, 0.85, 0.87))
 	_item_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_item_text.custom_minimum_size.x = 480
+	_slot_row = HBoxContainer.new()
+	_slot_row.add_theme_constant_override("separation", 4)
+	text.add_child(_slot_row)
+	_label(_slot_row, "В крестовину:", 21, MUTED)
+	for slot in GameState.QUICK_SLOTS:
+		var button := _menu_button(_slot_row, QUICK_SLOT_NAMES[slot], 20)
+		button.toggle_mode = true
+		button.pressed.connect(_put_in_slot.bind(slot))
+		_slot_buttons.append(button)
 
 
 ## Что в разделе: оружие — носимое, щит и луки; расходники — зелье; остальное — по каталогу.
@@ -908,6 +923,10 @@ func _items_of(kind: ItemCatalog.Kind) -> Array[StringName]:
 		return result
 	if kind == ItemCatalog.Kind.CONSUMABLE:
 		result.append(ItemCatalog.FLASK)
+		# Кончившийся расходник виден, пока лежит в крестовине: его ячейку можно переложить.
+		for id: StringName in ItemCatalog.ITEMS:
+			if ItemCatalog.kind(id) == kind and (GameState.item_count(id) > 0 or GameState.quick_slots.has(id)):
+				result.append(id)
 		return result
 	return ItemCatalog.owned(kind)
 
@@ -930,6 +949,7 @@ func _refresh_items() -> void:
 		button.mouse_entered.connect(_describe_item.bind(id))
 	if list.is_empty():
 		_item_name.text = ""
+		_slot_row.visible = false
 		_item_text.text = "Пока пусто. Записки, письма и надписи из мира будут здесь — их можно перечитать." \
 			if _item_kind == ItemCatalog.Kind.NOTE else "Пока пусто."
 	else:
@@ -937,12 +957,27 @@ func _refresh_items() -> void:
 
 
 func _describe_item(id: StringName) -> void:
+	_item_shown = id
+	_slot_row.visible = GameState.is_consumable(id)
+	if _slot_row.visible:
+		for slot in GameState.QUICK_SLOTS:
+			_slot_buttons[slot].set_pressed_no_signal(GameState.quick_item(slot) == id)
 	if id == ItemCatalog.FLASK:
 		_item_name.text = "Лечебное зелье"
 		_item_text.text = "Глоток лечит часть здоровья. Пополняется при отдыхе у осколка. Ударили, пока пьёшь, — пролил.\n\nГлотков: %d" % _player.max_flasks()
 		return
 	_item_name.text = ItemCatalog.display_name(id)
 	_item_text.text = ItemCatalog.description(id)
+	if GameState.is_consumable(id):
+		_item_text.text += "\n\nОсталось: %d" % GameState.item_count(id)
+
+
+## Положить показанный расходник в ячейку; он уже там — вынуть.
+func _put_in_slot(slot: int) -> void:
+	if not GameState.is_consumable(_item_shown):
+		return
+	GameState.set_quick_slot(slot, &"" if GameState.quick_item(slot) == _item_shown else _item_shown)
+	_describe_item(_item_shown)
 
 
 # ---------------------------------------------------------------- Открыть, закрыть, страницы

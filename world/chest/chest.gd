@@ -4,7 +4,7 @@ extends Interactable
 ## мир постоянен (§8.5).
 
 @export var reward := 50
-## Редкие предметы в сундуке (GameState.add_item); пусто — только отзвуки.
+## Редкие предметы в сундуке (GameState.add_item); пусто — только отзвуки. Повтор id — несколько штук.
 @export var items: Array[StringName] = []
 ## Уникальный флаг мира. Пусто — сундук закрывается снова при перезагрузке комнаты.
 @export var flag_id: StringName
@@ -28,8 +28,12 @@ func interact(_by: Player) -> void:
 	Sfx.play(&"chest_open", global_position)
 	Sfx.play(&"chest_loot", global_position, -4.0)
 	GameState.add_echoes(reward)
+	# Одинаковые предметы — одной находкой: «Метательный нож ×5», а не пять окон подряд.
+	var counts := {}
 	for item in items:
-		GameState.add_item(item)
+		counts[item] = counts.get(item, 0) + 1
+	for item: StringName in counts:
+		GameState.add_item(item, counts[item])
 	if flag_id != &"":
 		GameState.set_flag(flag_id)
 	HitSpark.spawn(get_parent(), global_position + Vector3(0, 0.8, 0.3), Color(1.0, 0.85, 0.35), 24)

@@ -1,7 +1,7 @@
 class_name Player
 extends CharacterBody3D
 ## Герой: движение в плоскости XY, перекат, меч, удар вниз, скольжение и лазание по стеклу,
-## блок и парирование, добивание и удар в спину, лук.
+## блок и парирование, добивание и удар в спину, лук, броски расходников из крестовины (§8.12).
 ## Все числа скорости и урона берутся из PlayerStats, который зависит от возраста (§1.3).
 
 signal died
@@ -9,6 +9,7 @@ signal health_changed(current: float, maximum: float)
 signal stamina_changed(current: float, maximum: float)
 signal attack_step_started(step: AttackStep, index: int, total: int)
 signal arrow_fired(arrow: Arrow)
+signal item_thrown(thrown: Thrown)
 signal flasks_changed(current: int, maximum: int)
 ## Кувырку не хватило выносливости.
 signal stamina_short
@@ -17,7 +18,7 @@ signal effects_changed
 
 enum State {
 	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
-	LEDGE_HANG, LEDGE_CLIMB, DRINK, CHARGE, LADDER,
+	LEDGE_HANG, LEDGE_CLIMB, DRINK, CHARGE, LADDER, THROW,
 }
 
 ## С какой скоростью выдавливает из босса, если перекат сорвали внутри него.
@@ -59,6 +60,14 @@ const EFFORT_STAMINA := 0.3
 ## Лук — на высоте плеча; стрела появляется на этом расстоянии от плеча по линии прицела.
 const BOW_HEIGHT := 1.3
 const BOW_REACH := 0.55
+## Бросок (§6.2): с плеча, на ходу медленнее; с «вверх» — круче на столько градусов.
+const THROW_HEIGHT := 1.35
+const THROW_REACH := 0.45
+const THROW_MOVE_MULT := 0.5
+const THROW_UP_ANGLE := 20.0
+## Геймпад: держать кнопку расходников и нажать крестовину — кнопка крестовины → ячейка
+## (верх, лево, право, низ — как клавиши 1–4).
+const QUICK_PAD := {JOY_BUTTON_DPAD_UP: 0, JOY_BUTTON_DPAD_LEFT: 1, JOY_BUTTON_DPAD_RIGHT: 2, JOY_BUTTON_DPAD_DOWN: 3}
 
 @export var stats: PlayerStats
 ## Оружие и его набор атак (§6.2).
@@ -106,6 +115,13 @@ var _death_landed := false
 var _death_dir := 1.0
 var _shoot_buffer := 0.0
 var _heal_buffer := 0.0
+## Нажата ячейка крестовины: буфер и номер ячейки 0…3.
+var _quick_buffer := 0.0
+var _quick_slot := -1
+## Что бросаем сейчас, вылетело ли уже и заглушка в руке.
+var _throw_item: ConsumableData
+var _thrown := false
+var _throw_hand: MeshInstance3D
 ## Сколько ещё можно ответить контрударом после блока.
 var _counter_t := 0.0
 var _charge_ready := false
@@ -218,6 +234,7 @@ func _physics_process(delta: float) -> void:
 		State.DRINK: _drink_state(delta)
 		State.CHARGE: _charge_state(delta)
 		State.LADDER: _ladder_state(delta)
+		State.THROW: _throw_state(delta)
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
@@ -249,6 +266,7 @@ func _tick(delta: float) -> void:
 	_ledge_cooldown = maxf(_ledge_cooldown - delta, 0.0)
 	_shoot_buffer = maxf(_shoot_buffer - delta, 0.0)
 	_heal_buffer = maxf(_heal_buffer - delta, 0.0)
+	_quick_buffer = maxf(_quick_buffer - delta, 0.0)
 	_counter_t = maxf(_counter_t - delta, 0.0)
 	_since_slide += delta
 	_since_roll += delta
@@ -268,6 +286,9 @@ func _tick(delta: float) -> void:
 			_shoot_buffer = stats.input_buffer
 		if Input.is_action_just_pressed("heal"):
 			_heal_buffer = stats.input_buffer
+		for slot in GameState.QUICK_SLOTS:
+			if Input.is_action_just_pressed("quick_%d" % (slot + 1)):
+				_queue_quick(slot)
 		if Input.is_action_just_pressed("interact"):
 			_try_interact()
 
@@ -282,7 +303,16 @@ func _tick(delta: float) -> void:
 func _input_x() -> float:
 	if _input_lock > 0.0:
 		return 0.0
+	if Input.is_action_pressed("quick_hold"):
+		# Держит кнопку расходников: крестовина выбирает ячейку, идти можно только стиком.
+		var stick := Input.get_joy_axis(0, JOY_AXIS_LEFT_X)
+		return stick if absf(stick) > 0.3 else 0.0
 	return Input.get_axis("move_left", "move_right")
+
+
+func _queue_quick(slot: int) -> void:
+	_quick_slot = slot
+	_quick_buffer = stats.input_buffer
 
 
 func _spend_stamina(amount: float) -> void:
@@ -310,6 +340,9 @@ func _set_state(new_state: State) -> void:
 		_since_slide = 0.0
 	if state == State.ROLL:
 		_since_roll = 0.0
+	if state == State.THROW and is_instance_valid(_throw_hand):
+		_throw_hand.queue_free()
+		_throw_hand = null
 	state = new_state
 	_state_time = 0.0
 	if state == State.BLOCK:
@@ -362,6 +395,8 @@ func _move_state(delta: float) -> void:
 			_start_plunge()
 		else:
 			_start_attack()
+	elif _quick_buffer > 0.0:
+		_start_throw()
 	elif _shoot_buffer > 0.0:
 		_start_draw()
 	elif _heal_buffer > 0.0 and on_floor:
@@ -1075,6 +1110,67 @@ func _drink_state(delta: float) -> void:
 		_set_state(State.MOVE)
 
 
+# --- Броски расходников ----------------------------------------------------
+
+## Ячейка крестовины нажата: в ней расходник и он ещё есть — бросок. Пустая или кончилась — ничего.
+func _start_throw() -> void:
+	_quick_buffer = 0.0
+	var id := GameState.quick_item(_quick_slot)
+	var item := ConsumableData.by_id(id)
+	if item == null or GameState.item_count(id) <= 0:
+		return
+	if stamina <= 0.0:
+		stamina_short.emit()
+		return
+	_throw_item = item
+	_thrown = false
+	_set_state(State.THROW)
+	# Заглушка в руке: отведена за плечо и идёт вперёд до выпуска.
+	_throw_hand = Thrown.make_look(item)
+	visual.add_child(_throw_hand)
+	_throw_hand.position = Vector3(-0.25, 1.6, 0.25)
+
+
+## Замах и выпуск: на ходу медленнее, в воздухе — по инерции. После выпуска кувырок отменяет бросок.
+func _throw_state(delta: float) -> void:
+	var x := _input_x()
+	var accel := stats.acceleration if is_on_floor() else stats.air_acceleration
+	velocity.x = move_toward(velocity.x, x * stats.move_speed * THROW_MOVE_MULT, accel * delta)
+	_apply_gravity(delta)
+	var item := _throw_item
+	if not _thrown:
+		var k := clampf(_state_time / item.release_at, 0.0, 1.0)
+		if is_instance_valid(_throw_hand):
+			_throw_hand.position = Vector3(-0.25, 1.6, 0.25).lerp(Vector3(0.5, 1.4, 0.25), k)
+			_throw_hand.rotation.z = lerpf(1.2, -0.3, k)
+		if _state_time >= item.release_at:
+			_release_throw(item)
+	elif _roll_buffer > 0.0 and is_on_floor() and not roll_cooling():
+		_start_roll()
+		return
+	if _state_time >= item.duration:
+		_set_state(State.MOVE)
+
+
+func _release_throw(item: ConsumableData) -> void:
+	_thrown = true
+	if is_instance_valid(_throw_hand):
+		_throw_hand.queue_free()
+		_throw_hand = null
+	# Предмет тратится на выпуске: сбили на замахе — нож остался.
+	if not GameState.take_item(item.id):
+		return
+	# «Вверх» — круче; на геймпаде верх крестовины выбирает ячейку, а не угол.
+	var up := Input.is_action_pressed("move_up") and not Input.is_action_pressed("quick_hold")
+	var angle := deg_to_rad(item.angle + (THROW_UP_ANGLE if up else 0.0))
+	var dir := Vector3(cos(angle) * facing, sin(angle), 0.0)
+	var at := global_position + Vector3(0.0, THROW_HEIGHT, 0.0) + Vector3(facing * THROW_REACH, 0.0, 0.0)
+	var thrown := Thrown.spawn(get_parent(), at, dir * item.speed, item, stats.throw_damage_mult)
+	_spend_stamina(item.stamina_cost)
+	Sfx.play(&"sword_swing", at, -6.0)
+	item_thrown.emit(thrown)
+
+
 # --- Лук --------------------------------------------------------------------
 
 func _start_draw() -> void:
@@ -1169,6 +1265,11 @@ func _mouse_aim_point() -> void:
 ## Мышь двинулась — целимся ею; нажали «вверх»/«вниз» с клавиатуры или крестовины — по-старому.
 ## Стик включается сам в _bow_state, когда его наклоняют.
 func _unhandled_input(event: InputEvent) -> void:
+	var pad := event as InputEventJoypadButton
+	if pad and pad.pressed and QUICK_PAD.has(pad.button_index) and Input.is_action_pressed("quick_hold") \
+			and state != State.DEAD and not frozen:
+		_queue_quick(QUICK_PAD[pad.button_index])
+		return
 	if event is InputEventMouseMotion:
 		aim_source = Aim.MOUSE
 	elif event.is_action_pressed("move_up") or event.is_action_pressed("move_down"):
