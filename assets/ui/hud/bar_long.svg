@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="34" viewBox="0 0 620 34">
+<defs><linearGradient id="m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8d877f"/><stop offset="0.45" stop-color="#4a4641"/><stop offset="1" stop-color="#1e1c1a"/></linearGradient><linearGradient id="mh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a847c"/><stop offset="0.5" stop-color="#3e3a36"/><stop offset="1" stop-color="#1a1816"/></linearGradient></defs>
+<path d="M0 4 H 550 M0 30 H 550" stroke="url(#mh)" stroke-width="5"/>
+<path d="M0 6.5 H 550 M0 27.5 H 550" stroke="#0a0908" stroke-width="1"/>
+<path d="M2 4 V 30" stroke="url(#mh)" stroke-width="4"/>
+<path d="M60 4 l 5 -4 l 5 4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/><path d="M110 30 l 5 4 l 5 -4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/><path d="M170 4 l 5 -4 l 5 4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/><path d="M220 30 l 5 4 l 5 -4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/><path d="M280 4 l 5 -4 l 5 4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/><path d="M330 30 l 5 4 l 5 -4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/><path d="M390 4 l 5 -4 l 5 4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/><path d="M440 30 l 5 4 l 5 -4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/><path d="M500 4 l 5 -4 l 5 4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/><path d="M550 30 l 5 4 l 5 -4" fill="#3e3a36" stroke="#8a847c" stroke-width="0.8"/>
+<polygon points="546,0 572,17.0 546,34 554,17.0" fill="url(#m)" stroke="#9a948b" stroke-width="0.8"/>
+<polygon points="568,13.0 620,17.0 568,21.0" fill="url(#m)"/>
+</svg>

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Facet" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://systems/progression/facet.gd" id="1_facet"]
+
+[resource]
+script = ExtResource("1_facet")
+id = &"facet_blood"
+display_name = "Кровь стекла"
+description = "Меч режет намного сильнее, но здоровья меньше."
+cost = 3
+age_curve = 0
+modifiers = {&"damage": 1.35, &"max_health": 0.8}

@@ -1,0 +1,52 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://world/chest/chest.gd" id="1_chest"]
+
+[sub_resource type="BoxShape3D" id="Shape_area"]
+size = Vector3(1.8, 1.4, 4.0)
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.45, 0.28, 0.14, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="Mesh_base"]
+material = SubResource("Mat_wood")
+size = Vector3(1.0, 0.6, 0.7)
+
+[sub_resource type="BoxMesh" id="Mesh_lid"]
+material = SubResource("Mat_wood")
+size = Vector3(1.0, 0.22, 0.7)
+
+[sub_resource type="StandardMaterial3D" id="Mat_lock"]
+albedo_color = Color(0.95, 0.75, 0.3, 1)
+metallic = 1.0
+roughness = 0.3
+emission_enabled = true
+emission = Color(1, 0.75, 0.3, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="BoxMesh" id="Mesh_lock"]
+material = SubResource("Mat_lock")
+size = Vector3(0.16, 0.2, 0.06)
+
+[node name="Chest" type="Area3D"]
+script = ExtResource("1_chest")
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+shape = SubResource("Shape_area")
+
+[node name="Base" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+mesh = SubResource("Mesh_base")
+
+[node name="Lock" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0.37)
+mesh = SubResource("Mesh_lock")
+
+[node name="Lid" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, -0.35)
+
+[node name="Mesh" type="MeshInstance3D" parent="Lid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.11, 0.35)
+mesh = SubResource("Mesh_lid")

@@ -1,0 +1,2008 @@
+[gd_scene load_steps=44 format=3]
+
+[ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
+
+[ext_resource type="Script" path="res://world/common/room_door.gd" id="door"]
+
+[ext_resource type="Script" path="res://world/common/item_pickup.gd" id="pickup"]
+
+[ext_resource type="Script" path="res://world/common/ladder.gd" id="ladder"]
+
+[ext_resource type="Script" path="res://world/rooms/hut_intro.gd" id="intro"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/rat.tscn" id="rat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bat.tscn" id="bat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/blacksmith.tscn" id="smith"]
+
+[ext_resource type="PackedScene" path="res://world/checkpoints/mirror_shard.tscn" id="shard"]
+
+[ext_resource type="Script" path="res://world/common/fire_spot.gd" id="fire"]
+
+[ext_resource type="Script" path="res://world/common/background_scene.gd" id="bgscene"]
+
+[ext_resource type="Script" path="res://world/common/burning_ambience.gd" id="ambience"]
+
+[ext_resource type="Script" path="res://world/common/npc.gd" id="npc"]
+
+[ext_resource type="Script" path="res://world/common/say_line.gd" id="sayline"]
+
+[ext_resource type="Script" path="res://world/common/main_mirror.gd" id="mainmirror"]
+
+[ext_resource type="Script" path="res://world/rooms/square_event.gd" id="squareevent"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/werewolf.tscn" id="wolf"]
+
+[ext_resource type="PackedScene" path="res://world/glass/glass_surface.tscn" id="glass"]
+
+[ext_resource type="PackedScene" path="res://world/chest/chest.tscn" id="chest"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_char"]
+albedo_color = Color(0.035, 0.03, 0.03, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_cloth"]
+albedo_color = Color(0.1, 0.09, 0.12, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_earth_dark"]
+albedo_color = Color(0.05, 0.045, 0.05, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_fir"]
+albedo_color = Color(0.07, 0.09, 0.11, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_garlic"]
+albedo_color = Color(0.72, 0.68, 0.58, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_iron"]
+albedo_color = Color(0.09, 0.09, 0.1, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_mud"]
+albedo_color = Color(0.2, 0.17, 0.15, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_plaster"]
+albedo_color = Color(0.3, 0.27, 0.23, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.27, 0.27, 0.29, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone_dark"]
+albedo_color = Color(0.15, 0.15, 0.17, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_thatch"]
+albedo_color = Color(0.2, 0.16, 0.13, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_window"]
+albedo_color = Color(1.0, 0.6, 0.25, 1)
+emission_enabled = true
+emission = Color(1.0, 0.6, 0.25, 1)
+emission_energy_multiplier = 2.6
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.25, 0.17, 0.11, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood_dark"]
+albedo_color = Color(0.12, 0.09, 0.07, 1)
+roughness = 0.95
+
+[sub_resource type="Environment" id="Env_room"]
+background_mode = 1
+background_color = Color(0.045, 0.055, 0.095, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.34, 0.4, 0.58, 1)
+ambient_light_energy = 0.42
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.06
+fog_enabled = true
+fog_light_color = Color(0.16, 0.19, 0.3, 1)
+fog_density = 0.022
+
+[sub_resource type="Environment" id="Env_burn"]
+background_mode = 1
+background_color = Color(0.07, 0.022, 0.012, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.62, 0.36, 0.26, 1)
+ambient_light_energy = 0.3
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.06
+fog_enabled = true
+fog_light_color = Color(0.26, 0.085, 0.035, 1)
+fog_density = 0.015
+
+[sub_resource type="PrismMesh" id="Roof_1"]
+material = SubResource("Mat_thatch")
+size = Vector3(9.2, 3.4, 3.6)
+
+[sub_resource type="PrismMesh" id="Roof_2"]
+material = SubResource("Mat_thatch")
+size = Vector3(8.2, 3.8, 3.6)
+
+[sub_resource type="PrismMesh" id="Roof_3"]
+material = SubResource("Mat_thatch")
+size = Vector3(9.2, 4.0, 3.6)
+
+[sub_resource type="PrismMesh" id="Roof_4"]
+material = SubResource("Mat_thatch")
+size = Vector3(9.2, 4.0, 3.6)
+
+[sub_resource type="PrismMesh" id="Roof_5"]
+material = SubResource("Mat_thatch")
+size = Vector3(8.2, 3.6, 3.6)
+
+[sub_resource type="PrismMesh" id="Roof_6"]
+material = SubResource("Mat_thatch")
+size = Vector3(10.2, 4.5, 3.6)
+
+[sub_resource type="PrismMesh" id="Roof_7"]
+material = SubResource("Mat_thatch")
+size = Vector3(11.2, 5.0, 3.6)
+
+[sub_resource type="PrismMesh" id="Roof_8"]
+material = SubResource("Mat_thatch")
+size = Vector3(10.2, 4.6, 3.6)
+
+[node name="VillageStreet" type="Node3D"]
+script = ExtResource("room")
+room_id = &"village_street"
+center_x = 0.0
+width = 64.0
+mood = SubResource("Env_room")
+sun_color = Color(0.55, 0.65, 0.9, 1)
+sun_energy = 0.35
+burning_until = &"fire_out"
+burning_mood = SubResource("Env_burn")
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="Decor" type="Node3D" parent="."]
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="Burning" type="Node3D" parent="."]
+
+[node name="AfterFire" type="Node3D" parent="."]
+
+[node name="GroundHigh" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-23.5, -1.3, 0)
+use_collision = true
+size = Vector3(19, 5, 4.4)
+material = SubResource("Mat_mud")
+
+[node name="Ramp" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-11.0, 0.1, 0)
+rotation = Vector3(0, 0, -0.1974)
+use_collision = true
+size = Vector3(6.2, 1.0, 4.4)
+material = SubResource("Mat_mud")
+
+[node name="GroundLow" type="CSGBox3D" parent="Geometry"]
+position = Vector3(11.5, -2, 0)
+use_collision = true
+size = Vector3(43, 4, 4.4)
+material = SubResource("Mat_mud")
+
+[node name="RampBase" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.0, -2, 0)
+size = Vector3(5.0, 4, 4.4)
+material = SubResource("Mat_mud")
+
+[node name="WallLeft" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-33.5, 6, 0)
+use_collision = true
+size = Vector3(1, 20, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="WallRight" type="CSGBox3D" parent="Geometry"]
+position = Vector3(33.5, 6, 0)
+use_collision = true
+size = Vector3(1, 20, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="Cart" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-4.0, 0.55, 0)
+use_collision = true
+size = Vector3(2.6, 1.1, 1.4)
+material = SubResource("Mat_wood")
+
+[node name="CartWheel0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-4.9, 0.5, 0.8)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.5
+height = 0.1
+sides = 12
+material = SubResource("Mat_wood_dark")
+
+[node name="CartWheel1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-3.1, 0.5, 0.8)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.5
+height = 0.1
+sides = 12
+material = SubResource("Mat_wood_dark")
+
+[node name="CartLoad" type="CSGBox3D" parent="Decor"]
+position = Vector3(-4.0, 1.35, 0)
+size = Vector3(2.0, 0.5, 1.1)
+material = SubResource("Mat_cloth")
+
+[node name="HeroHutWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(-28.0, 3.3, -2.5)
+size = Vector3(8, 4.2, 3)
+material = SubResource("Mat_plaster")
+
+[node name="HeroHutRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(-28.0, 7.1000000000000005, -2.5)
+mesh = SubResource("Roof_1")
+
+[node name="HeroHutPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-31.85, 3.3, -0.95)
+size = Vector3(0.25, 4.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HeroHutPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-24.15, 3.3, -0.95)
+size = Vector3(0.25, 4.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HeroHutBeam" type="CSGBox3D" parent="Decor"]
+position = Vector3(-28.0, 3.5100000000000007, -0.95)
+size = Vector3(8, 0.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HeroHutWindow0" type="CSGBox3D" parent="Burning"]
+position = Vector3(-30.2, 3.4000000000000004, -0.97)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="HeroHutWindow0" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(-30.2, 3.4000000000000004, -0.97)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="HouseAWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(-18.0, 3.45, -6.5)
+size = Vector3(7, 4.5, 3)
+material = SubResource("Mat_plaster")
+
+[node name="HouseARoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(-18.0, 7.6, -6.5)
+mesh = SubResource("Roof_2")
+
+[node name="HouseAPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-21.35, 3.45, -4.95)
+size = Vector3(0.25, 4.5, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseAPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-14.65, 3.45, -4.95)
+size = Vector3(0.25, 4.5, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseABeam" type="CSGBox3D" parent="Decor"]
+position = Vector3(-18.0, 3.675, -4.95)
+size = Vector3(7, 0.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseAWindow0" type="CSGBox3D" parent="Burning"]
+position = Vector3(-16.5, 4.2, -4.97)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="HouseAWindow0" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(-16.5, 4.2, -4.97)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="HouseBWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.0, 2.5, -8.0)
+size = Vector3(8, 5.0, 3)
+material = SubResource("Mat_plaster")
+
+[node name="HouseBRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(-6.0, 7.0, -8.0)
+mesh = SubResource("Roof_3")
+
+[node name="HouseBPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.85, 2.5, -6.45)
+size = Vector3(0.25, 5.0, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseBPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.15, 2.5, -6.45)
+size = Vector3(0.25, 5.0, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseBBeam" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.0, 2.75, -6.45)
+size = Vector3(8, 0.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseBWindow0" type="CSGBox3D" parent="Burning"]
+position = Vector3(-8.0, 3.0, -6.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="HouseBWindow0" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(-8.0, 3.0, -6.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="HouseBWindow1" type="CSGBox3D" parent="Burning"]
+position = Vector3(-4.0, 1.8, -6.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="HouseBWindow1" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(-4.0, 1.8, -6.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="HouseCWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(8.0, 2.25, -11.0)
+size = Vector3(8, 4.5, 3)
+material = SubResource("Mat_plaster")
+
+[node name="HouseCRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(8.0, 6.5, -11.0)
+mesh = SubResource("Roof_4")
+
+[node name="HouseCPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(4.15, 2.25, -9.45)
+size = Vector3(0.25, 4.5, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseCPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(11.85, 2.25, -9.45)
+size = Vector3(0.25, 4.5, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseCBeam" type="CSGBox3D" parent="Decor"]
+position = Vector3(8.0, 2.475, -9.45)
+size = Vector3(8, 0.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseCWindow0" type="CSGBox3D" parent="Burning"]
+position = Vector3(8.0, 2.8, -9.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="HouseCWindow0" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(8.0, 2.8, -9.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="HouseDWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.0, 2.1, -9.0)
+size = Vector3(7, 4.2, 3)
+material = SubResource("Mat_plaster")
+
+[node name="HouseDRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(19.0, 6.0, -9.0)
+mesh = SubResource("Roof_5")
+
+[node name="HouseDPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(15.65, 2.1, -7.45)
+size = Vector3(0.25, 4.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseDPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(22.35, 2.1, -7.45)
+size = Vector3(0.25, 4.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseDBeam" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.0, 2.3100000000000005, -7.45)
+size = Vector3(7, 0.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseDWindow0" type="CSGBox3D" parent="Burning"]
+position = Vector3(17.5, 2.2, -7.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="HouseDWindow0" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(17.5, 2.2, -7.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="HouseFarWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(-14.0, 2.5, -18.0)
+size = Vector3(9, 5.0, 3)
+material = SubResource("Mat_plaster")
+
+[node name="HouseFarRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(-14.0, 7.25, -18.0)
+mesh = SubResource("Roof_6")
+
+[node name="HouseFarPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-18.35, 2.5, -16.45)
+size = Vector3(0.25, 5.0, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseFarPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.65, 2.5, -16.45)
+size = Vector3(0.25, 5.0, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseFarBeam" type="CSGBox3D" parent="Decor"]
+position = Vector3(-14.0, 2.75, -16.45)
+size = Vector3(9, 0.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseFarWindow0" type="CSGBox3D" parent="Burning"]
+position = Vector3(-14.0, 3.0, -16.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="HouseFarWindow0" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(-14.0, 3.0, -16.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="HouseFar2Wall" type="CSGBox3D" parent="Decor"]
+position = Vector3(14.0, 2.5, -20.0)
+size = Vector3(10, 5.0, 3)
+material = SubResource("Mat_plaster")
+
+[node name="HouseFar2Roof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(14.0, 7.5, -20.0)
+mesh = SubResource("Roof_7")
+
+[node name="HouseFar2Post0" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.15, 2.5, -18.45)
+size = Vector3(0.25, 5.0, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseFar2Post1" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.85, 2.5, -18.45)
+size = Vector3(0.25, 5.0, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseFar2Beam" type="CSGBox3D" parent="Decor"]
+position = Vector3(14.0, 2.75, -18.45)
+size = Vector3(10, 0.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseFar2Window0" type="CSGBox3D" parent="Burning"]
+position = Vector3(17.0, 3.0, -18.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="HouseFar2Window0" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(17.0, 3.0, -18.47)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="ScreamHouseWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(26.5, 2.6, -2.5)
+size = Vector3(9, 5.2, 3)
+material = SubResource("Mat_stone")
+
+[node name="ScreamHouseRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(26.5, 7.5, -2.5)
+mesh = SubResource("Roof_8")
+
+[node name="ScreamHousePost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(22.15, 2.6, -0.95)
+size = Vector3(0.25, 5.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="ScreamHousePost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(30.85, 2.6, -0.95)
+size = Vector3(0.25, 5.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="ScreamHouseBeam" type="CSGBox3D" parent="Decor"]
+position = Vector3(26.5, 2.8600000000000003, -0.95)
+size = Vector3(9, 0.2, 0.15)
+material = SubResource("Mat_wood_dark")
+
+[node name="ScreamHouseWindow0" type="CSGBox3D" parent="Burning"]
+position = Vector3(23.7, 3.6, -0.97)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="ScreamHouseWindow0" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(23.7, 3.6, -0.97)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="ScreamHouseWindow1" type="CSGBox3D" parent="Burning"]
+position = Vector3(29.1, 3.6, -0.97)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="ScreamHouseWindow1" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(29.1, 3.6, -0.97)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_char")
+
+[node name="ScreamLantern" type="CSGBox3D" parent="Decor"]
+position = Vector3(24.6, 2.9, -0.8)
+size = Vector3(0.25, 0.4, 0.25)
+material = SubResource("Mat_window")
+
+[node name="ScreamLight" type="OmniLight3D" parent="Decor"]
+position = Vector3(24.6, 2.6, 0.2)
+light_color = Color(1.0, 0.6, 0.28, 1)
+light_energy = 2.0
+omni_range = 7.0
+
+[node name="HutWindowLight" type="OmniLight3D" parent="Decor"]
+position = Vector3(-30.2, 3.4, 0.2)
+light_color = Color(1.0, 0.6, 0.28, 1)
+light_energy = 1.0
+omni_range = 5.0
+
+[node name="SignPost" type="CSGBox3D" parent="Decor"]
+position = Vector3(-13.0, 3.0, -1.5)
+size = Vector3(0.25, 4.0, 0.25)
+material = SubResource("Mat_wood_dark")
+
+[node name="SignArm" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.2, 4.9, -1.5)
+size = Vector3(1.9, 0.18, 0.18)
+material = SubResource("Mat_wood_dark")
+
+[node name="SignWheel" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-11.5, 4.0, -1.5)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.6
+height = 0.08
+sides = 10
+material = SubResource("Mat_wood")
+
+[node name="FenceBackRail" type="CSGBox3D" parent="Decor"]
+position = Vector3(-19.0, 1.95, -1.8)
+size = Vector3(10, 0.12, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-24.0, 1.85, -1.8)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-23.3, 1.85, -1.8)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-22.6, 1.85, -1.8)
+rotation = Vector3(0, 0, 0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-21.9, 1.85, -1.8)
+rotation = Vector3(0, 0, -0.035)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-21.2, 1.85, -1.8)
+rotation = Vector3(0, 0, 0.035)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-20.5, 1.85, -1.8)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-19.8, 1.85, -1.8)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack7" type="CSGBox3D" parent="Decor"]
+position = Vector3(-19.1, 1.85, -1.8)
+rotation = Vector3(0, 0, 0.07)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack8" type="CSGBox3D" parent="Decor"]
+position = Vector3(-18.4, 1.85, -1.8)
+rotation = Vector3(0, 0, -0.035)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack9" type="CSGBox3D" parent="Decor"]
+position = Vector3(-17.7, 1.85, -1.8)
+rotation = Vector3(0, 0, 0.035)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-17.0, 1.85, -1.8)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack11" type="CSGBox3D" parent="Decor"]
+position = Vector3(-16.3, 1.85, -1.8)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack12" type="CSGBox3D" parent="Decor"]
+position = Vector3(-15.6, 1.85, -1.8)
+rotation = Vector3(0, 0, 0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack13" type="CSGBox3D" parent="Decor"]
+position = Vector3(-14.9, 1.85, -1.8)
+rotation = Vector3(0, 0, -0.035)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack14" type="CSGBox3D" parent="Decor"]
+position = Vector3(-14.2, 1.85, -1.8)
+rotation = Vector3(0, 0, 0.035)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack2Rail" type="CSGBox3D" parent="Decor"]
+position = Vector3(-3.5, 0.75, -1.9)
+size = Vector3(9, 0.12, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack20" type="CSGBox3D" parent="Decor"]
+position = Vector3(-8.0, 0.65, -1.9)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack21" type="CSGBox3D" parent="Decor"]
+position = Vector3(-7.3, 0.65, -1.9)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack22" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 0.65, -1.9)
+rotation = Vector3(0, 0, 0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack23" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.9, 0.65, -1.9)
+rotation = Vector3(0, 0, -0.035)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack24" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.2, 0.65, -1.9)
+rotation = Vector3(0, 0, 0.035)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack25" type="CSGBox3D" parent="Decor"]
+position = Vector3(-4.5, 0.65, -1.9)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack26" type="CSGBox3D" parent="Decor"]
+position = Vector3(-3.8, 0.65, -1.9)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack27" type="CSGBox3D" parent="Decor"]
+position = Vector3(-3.1, 0.65, -1.9)
+rotation = Vector3(0, 0, 0.07)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack28" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.4, 0.65, -1.9)
+rotation = Vector3(0, 0, -0.035)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack29" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.7, 0.65, -1.9)
+rotation = Vector3(0, 0, 0.035)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack210" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.0, 0.65, -1.9)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack211" type="CSGBox3D" parent="Decor"]
+position = Vector3(-0.3, 0.65, -1.9)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceBack212" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.4, 0.65, -1.9)
+rotation = Vector3(0, 0, 0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFrontRail" type="CSGBox3D" parent="Decor"]
+position = Vector3(-18.0, 1.95, 2.4)
+size = Vector3(6, 0.12, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-21.0, 1.85, 2.4)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-20.0, 1.85, 2.4)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-19.0, 1.85, 2.4)
+rotation = Vector3(0, 0, 0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-18.0, 1.85, 2.4)
+rotation = Vector3(0, 0, -0.035)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-17.0, 1.85, 2.4)
+rotation = Vector3(0, 0, 0.035)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-16.0, 1.85, 2.4)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-15.0, 1.85, 2.4)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront2Rail" type="CSGBox3D" parent="Decor"]
+position = Vector3(17.5, 0.75, 2.4)
+size = Vector3(7, 0.12, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront20" type="CSGBox3D" parent="Decor"]
+position = Vector3(14.0, 0.65, 2.4)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront21" type="CSGBox3D" parent="Decor"]
+position = Vector3(15.0, 0.65, 2.4)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront22" type="CSGBox3D" parent="Decor"]
+position = Vector3(16.0, 0.65, 2.4)
+rotation = Vector3(0, 0, 0.07)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront23" type="CSGBox3D" parent="Decor"]
+position = Vector3(17.0, 0.65, 2.4)
+rotation = Vector3(0, 0, -0.035)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront24" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.0, 0.65, 2.4)
+rotation = Vector3(0, 0, 0.035)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront25" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.0, 0.65, 2.4)
+rotation = Vector3(0, 0, -0.07)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront26" type="CSGBox3D" parent="Decor"]
+position = Vector3(20.0, 0.65, 2.4)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.16, 1.3, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="FenceFront27" type="CSGBox3D" parent="Decor"]
+position = Vector3(21.0, 0.65, 2.4)
+rotation = Vector3(0, 0, 0.07)
+size = Vector3(0.16, 1.45, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="EndGate" type="CSGBox3D" parent="Decor"]
+position = Vector3(31.8, 2.0, 0)
+size = Vector3(0.5, 4.0, 3.5)
+material = SubResource("Mat_wood_dark")
+
+[node name="Fir0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-36.0, 4.0, -30)
+radius = 2.0
+height = 9
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-32.4, 5.0, -33)
+radius = 2.0
+height = 11
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir2" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-28.8, 6.0, -36)
+radius = 2.0
+height = 13
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir3" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-25.2, 4.5, -30)
+radius = 2.0
+height = 10
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir4" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-21.6, 5.5, -33)
+radius = 2.0
+height = 12
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir5" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-18.0, 4.0, -36)
+radius = 2.0
+height = 9
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir6" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-14.399999999999999, 5.0, -30)
+radius = 2.0
+height = 11
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir7" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-10.8, 6.0, -33)
+radius = 2.0
+height = 13
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir8" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-7.199999999999999, 4.5, -36)
+radius = 2.0
+height = 10
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir9" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-3.6000000000000014, 5.5, -30)
+radius = 2.0
+height = 12
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir10" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(0.0, 4.0, -33)
+radius = 2.0
+height = 9
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir11" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(3.6000000000000014, 5.0, -36)
+radius = 2.0
+height = 11
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir12" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(7.200000000000003, 6.0, -30)
+radius = 2.0
+height = 13
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir13" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(10.800000000000004, 4.5, -33)
+radius = 2.0
+height = 10
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir14" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(14.399999999999999, 5.5, -36)
+radius = 2.0
+height = 12
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir15" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(18.0, 4.0, -30)
+radius = 2.0
+height = 9
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir16" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(21.6, 5.0, -33)
+radius = 2.0
+height = 11
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir17" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(25.200000000000003, 6.0, -36)
+radius = 2.0
+height = 13
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir18" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(28.799999999999997, 4.5, -30)
+radius = 2.0
+height = 10
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir19" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(32.400000000000006, 5.5, -33)
+radius = 2.0
+height = 12
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir20" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(36.0, 4.0, -36)
+radius = 2.0
+height = 9
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="Fir21" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(39.60000000000001, 5.0, -30)
+radius = 2.0
+height = 11
+sides = 6
+cone = true
+material = SubResource("Mat_fir")
+
+[node name="FromHut" type="Marker3D" parent="Spawns"]
+position = Vector3(-28.0, 1.3, 0)
+
+[node name="FromHouse" type="Marker3D" parent="Spawns"]
+position = Vector3(26.5, 0.1, 0)
+
+[node name="DoorToHut" type="Area3D" parent="Objects"]
+position = Vector3(-28.0, 1.2, 0)
+script = ExtResource("door")
+target_room = &"village_hut"
+target_spawn = NodePath("Spawns/FromStreet")
+open_prompt = "Войти в хижину"
+
+[node name="DoorToHouse" type="Area3D" parent="Objects"]
+position = Vector3(26.5, 0, 0)
+script = ExtResource("door")
+target_room = &"village_house"
+target_spawn = NodePath("Spawns/FromStreet")
+open_prompt = "Войти в дом"
+required_flag = &"got_stick"
+locked_text = "С голыми руками туда лучше не соваться. У хижины была поленница…"
+
+[node name="Woodpile0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-25.3, 1.3199999999999998, -0.85)
+rotation = Vector3(0, 0, 1.5708)
+radius = 0.12
+height = 1.6
+sides = 8
+material = SubResource("Mat_wood")
+
+[node name="Woodpile1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-25.3, 1.3199999999999998, -0.61)
+rotation = Vector3(0, 0, 1.5708)
+radius = 0.12
+height = 1.6
+sides = 8
+material = SubResource("Mat_wood")
+
+[node name="Woodpile2" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-25.3, 1.53, -0.73)
+rotation = Vector3(0, 0, 1.5708)
+radius = 0.12
+height = 1.5
+sides = 8
+material = SubResource("Mat_wood")
+
+[node name="Woodpile3" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-25.3, 1.53, -0.49)
+rotation = Vector3(0, 0, 1.5708)
+radius = 0.12
+height = 1.4
+sides = 8
+material = SubResource("Mat_wood")
+
+[node name="Woodpile4" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-25.3, 1.74, -0.67)
+rotation = Vector3(0, 0, 1.5708)
+radius = 0.12
+height = 1.2
+sides = 8
+material = SubResource("Mat_wood")
+
+[node name="Stick" type="Area3D" parent="Objects"]
+position = Vector3(-24.9, 1.2, 0)
+script = ExtResource("pickup")
+weapon_id = &"stick"
+flag = &"got_stick"
+pickup_prompt = "Взять брусок"
+pickup_line = "«Всё равно сгорит. А так мне будет спокойнее.»"
+look_size = Vector3(0.14, 1.3, 0.14)
+look_color = Color(0.36, 0.25, 0.15, 1)
+look_rotation = Vector3(-0.3, 0, 0.12)
+look_offset = Vector3(0, 0, -0.25)
+
+[node name="NeedWeapon" type="Area3D" parent="Objects"]
+position = Vector3(-28.0, 1.2, 0)
+script = ExtResource("sayline")
+text = "«Голыми руками не помочь…»"
+until_flag = &"got_stick"
+
+[node name="RoofFire0" type="Node3D" parent="Burning"]
+position = Vector3(-28.0, 6.5, -2.6)
+script = ExtResource("fire")
+size = Vector3(5, 4, 1)
+light_energy = 3.0
+light_range = 11.0
+
+[node name="RoofFire1" type="Node3D" parent="Burning"]
+position = Vector3(-18.0, 7.0, -6.5)
+script = ExtResource("fire")
+size = Vector3(4, 4, 1)
+light_energy = 3.0
+light_range = 11.0
+
+[node name="RoofFire2" type="Node3D" parent="Burning"]
+position = Vector3(-6.0, 7.0, -8.0)
+script = ExtResource("fire")
+size = Vector3(5, 5, 1)
+light_energy = 3.0
+light_range = 11.0
+
+[node name="RoofFire3" type="Node3D" parent="Burning"]
+position = Vector3(8.0, 6.5, -11.0)
+script = ExtResource("fire")
+size = Vector3(5, 5, 1)
+light_energy = 3.0
+light_range = 11.0
+
+[node name="RoofFire4" type="Node3D" parent="Burning"]
+position = Vector3(19.0, 6.0, -9.0)
+script = ExtResource("fire")
+size = Vector3(4, 4, 1)
+light_energy = 3.0
+light_range = 11.0
+
+[node name="RoofFire5" type="Node3D" parent="Burning"]
+position = Vector3(-14.0, 7.0, -18.0)
+script = ExtResource("fire")
+size = Vector3(6, 5, 1)
+light_energy = 3.0
+light_range = 11.0
+
+[node name="RoofFire6" type="Node3D" parent="Burning"]
+position = Vector3(14.0, 7.0, -20.0)
+script = ExtResource("fire")
+size = Vector3(6, 5, 1)
+light_energy = 3.0
+light_range = 11.0
+
+[node name="GroundFire0" type="Node3D" parent="Burning"]
+position = Vector3(-24.0, 1.2, -3.2)
+script = ExtResource("fire")
+size = Vector3(2.0, 2.0, 0.6)
+light_energy = 2.0
+light_range = 7.0
+
+[node name="GroundFire1" type="Node3D" parent="Burning"]
+position = Vector3(-9.5, 0.0, -2.8)
+script = ExtResource("fire")
+size = Vector3(2.0, 2.0, 0.6)
+light_energy = 2.0
+light_range = 7.0
+
+[node name="GroundFire2" type="Node3D" parent="Burning"]
+position = Vector3(3.0, 0.0, -2.6)
+script = ExtResource("fire")
+size = Vector3(2.0, 2.0, 0.6)
+light_energy = 2.0
+light_range = 7.0
+
+[node name="GroundFire3" type="Node3D" parent="Burning"]
+position = Vector3(11.0, 0.0, -3.2)
+script = ExtResource("fire")
+size = Vector3(2.0, 2.0, 0.6)
+light_energy = 2.0
+light_range = 7.0
+
+[node name="GroundFire4" type="Node3D" parent="Burning"]
+position = Vector3(21.0, 0.0, -2.8)
+script = ExtResource("fire")
+size = Vector3(2.0, 2.0, 0.6)
+light_energy = 2.0
+light_range = 7.0
+
+[node name="FightA" type="Node3D" parent="Burning"]
+position = Vector3(-15.5, 1.2, -5.2)
+script = ExtResource("bgscene")
+kind = 0
+trigger_range = 15.0
+
+[node name="FightB" type="Node3D" parent="Burning"]
+position = Vector3(6.0, 0.0, -6.2)
+script = ExtResource("bgscene")
+kind = 0
+trigger_range = 15.0
+
+[node name="FightC" type="Node3D" parent="Burning"]
+position = Vector3(17.5, 0.0, -6.5)
+script = ExtResource("bgscene")
+kind = 0
+trigger_range = 15.0
+
+[node name="Turning" type="Node3D" parent="Burning"]
+position = Vector3(-2.5, 0.0, -3.0)
+script = ExtResource("bgscene")
+kind = 1
+trigger_range = 11.0
+
+[node name="TurningFire" type="Node3D" parent="Burning"]
+position = Vector3(-2.5, 0.0, -4.4)
+script = ExtResource("fire")
+size = Vector3(4.5, 4.0, 0.6)
+light_energy = 1.2
+light_range = 7.0
+
+[node name="Crawl" type="Node3D" parent="Burning"]
+position = Vector3(13.5, 0.0, -3.0)
+script = ExtResource("bgscene")
+kind = 2
+trigger_range = 11.0
+
+[node name="CrawlFire" type="Node3D" parent="Burning"]
+position = Vector3(15.0, 0.0, -4.4)
+script = ExtResource("fire")
+size = Vector3(7.0, 3.5, 0.6)
+light_energy = 1.2
+light_range = 7.0
+
+[node name="Ambience" type="Node" parent="Burning"]
+script = ExtResource("ambience")
+calls = PackedStringArray("…помогите!..", "…кто-нибудь!..", "…сюда, в дом!..")
+every = 11.0
+
+[node name="AshA" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(-9.5, 0.1, -2.8)
+size = Vector3(2.4, 0.2, 1.2)
+material = SubResource("Mat_char")
+
+[node name="AshB" type="CSGBox3D" parent="AfterFire"]
+position = Vector3(11.0, 0.1, -3.2)
+size = Vector3(2.2, 0.2, 1.2)
+material = SubResource("Mat_char")
+
+[node name="FarGround" type="CSGBox3D" parent="Decor"]
+position = Vector3(0, -2, -20)
+size = Vector3(90, 4, 35.6)
+material = SubResource("Mat_mud")
+
+[node name="FarHill" type="CSGBox3D" parent="Decor"]
+position = Vector3(-24, -0.9, -8.1)
+size = Vector3(20, 4.2, 11.8)
+material = SubResource("Mat_mud")
+
+[node name="HutWoodLog0_0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-31.7, 1.38, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog0_1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-31.32, 1.38, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog0_2" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-30.94, 1.38, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog0_3" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-30.56, 1.38, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog0_4" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-30.18, 1.38, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog1_0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-31.51, 1.71, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog1_1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-31.13, 1.71, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog1_2" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-30.75, 1.71, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog1_3" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-30.37, 1.71, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog2_0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-31.32, 2.04, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog2_1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-30.94, 2.04, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutWoodLog2_2" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-30.56, 2.04, -0.6)
+rotation = Vector3(1.5707963267948966, 0, 0)
+radius = 0.18
+height = 1.0
+sides = 7
+material = SubResource("Mat_wood")
+
+[node name="HutBarrel" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-25.2, 1.7, -0.6)
+radius = 0.42
+height = 1.0
+sides = 12
+material = SubResource("Mat_wood")
+
+[node name="HutGarlic0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-31.3, 4.1, -0.85)
+radius = 0.13
+material = SubResource("Mat_garlic")
+
+[node name="HutGarlic1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-31.14, 3.9, -0.85)
+radius = 0.13
+material = SubResource("Mat_garlic")
+
+[node name="HutGarlic2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-31.3, 3.7, -0.85)
+radius = 0.13
+material = SubResource("Mat_garlic")
+
+[node name="HutGarlic3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-31.14, 3.5, -0.85)
+radius = 0.13
+material = SubResource("Mat_garlic")
+
+[node name="PathLampPost" type="CSGBox3D" parent="Decor"]
+position = Vector3(-22.5, 3.3, -1.2)
+size = Vector3(0.2, 4.2, 0.2)
+material = SubResource("Mat_wood_dark")
+
+[node name="PathLampArm" type="CSGBox3D" parent="Decor"]
+position = Vector3(-21.8, 5.2, -1.2)
+size = Vector3(1.6, 0.14, 0.14)
+material = SubResource("Mat_wood_dark")
+
+[node name="PathLampLamp" type="CSGBox3D" parent="Decor"]
+position = Vector3(-21.2, 4.6, -1.2)
+size = Vector3(0.28, 0.48, 0.28)
+material = SubResource("Mat_window")
+
+[node name="PathLampLight" type="OmniLight3D" parent="Decor"]
+position = Vector3(-21.2, 4.4, -0.19999999999999996)
+light_color = Color(1.0, 0.6, 0.28, 1)
+light_energy = 1.3
+omni_range = 6.5
+
+[node name="TreeHillTrunk" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-18.0, 5.2, -3.6)
+radius = 0.3
+height = 8.0
+sides = 7
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeHillBranch0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-16.859, 6.223, -3.6)
+rotation = Vector3(0, 0, 0.5)
+size = Vector3(2.6, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeHillBranch1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-18.841, 7.349, -3.6)
+rotation = Vector3(0, 0, -0.7)
+size = Vector3(2.2, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeHillBranch2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-17.472, 8.426, -3.6)
+rotation = Vector3(0, 0, 0.9)
+size = Vector3(1.7, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeHillBranch3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-18.658, 8.92, -3.6)
+rotation = Vector3(0, 0, -0.5)
+size = Vector3(1.5, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeHillBranch4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-17.783, 9.759, -3.6)
+rotation = Vector3(0, 0, 1.2)
+size = Vector3(1.2, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="Hay" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-12.0, 1.1, -3.2)
+radius = 1.3
+height = 2.2
+sides = 9
+cone = true
+material = SubResource("Mat_thatch")
+
+[node name="WashPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.0, 1.7, -3.6)
+size = Vector3(0.14, 3.4, 0.14)
+material = SubResource("Mat_wood_dark")
+
+[node name="WashPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.5, 1.7, -3.6)
+size = Vector3(0.14, 3.4, 0.14)
+material = SubResource("Mat_wood_dark")
+
+[node name="WashRope" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.75, 3.2, -3.6)
+size = Vector3(6.5, 0.04, 0.04)
+material = SubResource("Mat_iron")
+
+[node name="WashCloth0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-8.2, 2.6, -3.6)
+size = Vector3(0.8, 1.2, 0.04)
+material = SubResource("Mat_cloth")
+
+[node name="WashCloth1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.9, 2.7, -3.6)
+size = Vector3(0.8, 1.0, 0.04)
+material = SubResource("Mat_cloth")
+
+[node name="WashCloth2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.6, 2.8, -3.6)
+size = Vector3(0.8, 0.7999999999999999, 0.04)
+material = SubResource("Mat_cloth")
+
+[node name="WashCloth3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-4.3, 2.6, -3.6)
+size = Vector3(0.8, 1.2, 0.04)
+material = SubResource("Mat_cloth")
+
+[node name="WashCloth4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-3.0, 2.7, -3.6)
+size = Vector3(0.8, 1.0, 0.04)
+material = SubResource("Mat_cloth")
+
+[node name="TreeWellTrunk" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-0.5, 4.5, -4.8)
+radius = 0.3
+height = 9.0
+sides = 7
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeWellBranch0" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.641, 5.573, -4.8)
+rotation = Vector3(0, 0, 0.5)
+size = Vector3(2.6, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeWellBranch1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.341, 6.829, -4.8)
+rotation = Vector3(0, 0, -0.7)
+size = Vector3(2.2, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeWellBranch2" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.028, 8.046, -4.8)
+rotation = Vector3(0, 0, 0.9)
+size = Vector3(1.7, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeWellBranch3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.158, 8.64, -4.8)
+rotation = Vector3(0, 0, -0.5)
+size = Vector3(1.5, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeWellBranch4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-0.283, 9.559, -4.8)
+rotation = Vector3(0, 0, 1.2)
+size = Vector3(1.2, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="SquareLampPost" type="CSGBox3D" parent="Decor"]
+position = Vector3(15.3, 2.1, -0.9)
+size = Vector3(0.2, 4.2, 0.2)
+material = SubResource("Mat_wood_dark")
+
+[node name="SquareLampArm" type="CSGBox3D" parent="Decor"]
+position = Vector3(14.600000000000001, 4.0, -0.9)
+size = Vector3(1.6, 0.14, 0.14)
+material = SubResource("Mat_wood_dark")
+
+[node name="SquareLampLamp" type="CSGBox3D" parent="Decor"]
+position = Vector3(14.0, 3.4, -0.9)
+size = Vector3(0.28, 0.48, 0.28)
+material = SubResource("Mat_window")
+
+[node name="SquareLampLight" type="OmniLight3D" parent="Decor"]
+position = Vector3(14.0, 3.2, 0.09999999999999998)
+light_color = Color(1.0, 0.6, 0.28, 1)
+light_energy = 1.3
+omni_range = 6.5
+
+[node name="TreeFarTrunk" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(20.8, 4.0, -5.0)
+radius = 0.3
+height = 8.0
+sides = 7
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeFarBranch0" type="CSGBox3D" parent="Decor"]
+position = Vector3(21.941, 5.023, -5.0)
+rotation = Vector3(0, 0, 0.5)
+size = Vector3(2.6, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeFarBranch1" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.959, 6.149, -5.0)
+rotation = Vector3(0, 0, -0.7)
+size = Vector3(2.2, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeFarBranch2" type="CSGBox3D" parent="Decor"]
+position = Vector3(21.328, 7.226, -5.0)
+rotation = Vector3(0, 0, 0.9)
+size = Vector3(1.7, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeFarBranch3" type="CSGBox3D" parent="Decor"]
+position = Vector3(20.142, 7.72, -5.0)
+rotation = Vector3(0, 0, -0.5)
+size = Vector3(1.5, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="TreeFarBranch4" type="CSGBox3D" parent="Decor"]
+position = Vector3(21.017, 8.559, -5.0)
+rotation = Vector3(0, 0, 1.2)
+size = Vector3(1.2, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="HouseBarrelA" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(22.7, 0.5, -0.6)
+radius = 0.42
+height = 1.0
+sides = 12
+material = SubResource("Mat_wood")
+
+[node name="HouseBarrelB" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(23.6, 0.5, -0.7)
+radius = 0.42
+height = 1.0
+sides = 12
+material = SubResource("Mat_wood")
+
+[node name="CrowBody" type="CSGBox3D" parent="Decor"]
+position = Vector3(22.7, 1.13, -0.6)
+rotation = Vector3(0, 0, 0.35)
+size = Vector3(0.3, 0.2, 0.14)
+material = SubResource("Mat_iron")
+
+[node name="CrowHead" type="CSGBox3D" parent="Decor"]
+position = Vector3(22.86, 1.28, -0.6)
+size = Vector3(0.12, 0.12, 0.11)
+material = SubResource("Mat_iron")
+
+[node name="HouseGarlic0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(22.6, 4.3, -0.85)
+radius = 0.13
+material = SubResource("Mat_garlic")
+
+[node name="HouseGarlic1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(22.76, 4.1, -0.85)
+radius = 0.13
+material = SubResource("Mat_garlic")
+
+[node name="HouseGarlic2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(22.6, 3.9, -0.85)
+radius = 0.13
+material = SubResource("Mat_garlic")
+
+[node name="HouseGarlic3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(22.76, 3.7, -0.85)
+radius = 0.13
+material = SubResource("Mat_garlic")
+
+[node name="BankHigh" type="CSGBox3D" parent="Decor"]
+position = Vector3(-23.5, -1.25, 3.7)
+size = Vector3(19, 4, 3.0)
+material = SubResource("Mat_earth_dark")
+
+[node name="BankLow" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.5, -2.2, 3.7)
+size = Vector3(47, 4, 3.0)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontWheelHillRim0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-26.2, 1.55, 3.1)
+rotation = Vector3(0, 0, 1.5708)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillRim1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-26.353, 2.02, 3.1)
+rotation = Vector3(0, 0, 2.1991)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillRim2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-26.753, 2.311, 3.1)
+rotation = Vector3(0, 0, 2.8274)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillRim3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-27.247, 2.311, 3.1)
+rotation = Vector3(0, 0, 3.4558)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillRim4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-27.647, 2.02, 3.1)
+rotation = Vector3(0, 0, 4.0841)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillRim5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-27.8, 1.55, 3.1)
+rotation = Vector3(0, 0, 4.7124)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillRim6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-27.647, 1.08, 3.1)
+rotation = Vector3(0, 0, 5.3407)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillRim7" type="CSGBox3D" parent="Decor"]
+position = Vector3(-27.247, 0.789, 3.1)
+rotation = Vector3(0, 0, 5.969)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillRim8" type="CSGBox3D" parent="Decor"]
+position = Vector3(-26.753, 0.789, 3.1)
+rotation = Vector3(0, 0, 6.5973)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillRim9" type="CSGBox3D" parent="Decor"]
+position = Vector3(-26.353, 1.08, 3.1)
+rotation = Vector3(0, 0, 7.2257)
+size = Vector3(0.544, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillSpoke0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-27.0, 1.55, 3.1)
+rotation = Vector3(0, 0, 0.3)
+size = Vector3(1.6, 0.08, 0.07)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillSpoke1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-27.0, 1.55, 3.1)
+rotation = Vector3(0, 0, 1.3472)
+size = Vector3(1.6, 0.08, 0.07)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelHillSpoke2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-27.0, 1.55, 3.1)
+rotation = Vector3(0, 0, 2.3944)
+size = Vector3(1.6, 0.08, 0.07)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontRocksHill0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-31.0, 0.99, 3.4)
+rotation = Vector3(0.2, 0.3, 0.15)
+size = Vector3(1.1199999999999999, 0.8, 0.8800000000000001)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontRocksHill1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-30.2, 0.9, 3.4)
+rotation = Vector3(0.2, -0.4, -0.2)
+size = Vector3(0.7, 0.5, 0.55)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontRocksHill2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-31.7, 0.89, 3.4)
+rotation = Vector3(0.2, 0.6, 0.3)
+size = Vector3(0.63, 0.45, 0.49500000000000005)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontTuftHill0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-23.74, 1.1, 3.2)
+rotation = Vector3(0, 0, 0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuftHill1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-23.62, 1.1, 3.2)
+rotation = Vector3(0, 0, 0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuftHill2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-23.5, 1.1, 3.2)
+rotation = Vector3(0, 0, -0.0)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuftHill3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-23.38, 1.1, 3.2)
+rotation = Vector3(0, 0, -0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuftHill4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-23.26, 1.1, 3.2)
+rotation = Vector3(0, 0, -0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuftRamp0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.74, 0.55, 3.0)
+rotation = Vector3(0, 0, 0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuftRamp1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.62, 0.55, 3.0)
+rotation = Vector3(0, 0, 0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuftRamp2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.5, 0.55, 3.0)
+rotation = Vector3(0, 0, -0.0)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuftRamp3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.38, 0.55, 3.0)
+rotation = Vector3(0, 0, -0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuftRamp4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.26, 0.55, 3.0)
+rotation = Vector3(0, 0, -0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.55, 0.75, 3.3)
+rotation = Vector3(0, 0, 1.5708)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.731, 1.308, 3.3)
+rotation = Vector3(0, 0, 2.1991)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.206, 1.654, 3.3)
+rotation = Vector3(0, 0, 2.8274)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.794, 1.654, 3.3)
+rotation = Vector3(0, 0, 3.4558)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-7.269, 1.308, 3.3)
+rotation = Vector3(0, 0, 4.0841)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-7.45, 0.75, 3.3)
+rotation = Vector3(0, 0, 4.7124)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-7.269, 0.192, 3.3)
+rotation = Vector3(0, 0, 5.3407)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim7" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.794, -0.154, 3.3)
+rotation = Vector3(0, 0, 5.969)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim8" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.206, -0.154, 3.3)
+rotation = Vector3(0, 0, 6.5973)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelRim9" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.731, 0.192, 3.3)
+rotation = Vector3(0, 0, 7.2257)
+size = Vector3(0.646, 0.13, 0.1)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelSpoke0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.5, 0.75, 3.3)
+rotation = Vector3(0, 0, 0.3)
+size = Vector3(1.9, 0.08, 0.07)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelSpoke1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.5, 0.75, 3.3)
+rotation = Vector3(0, 0, 1.3472)
+size = Vector3(1.9, 0.08, 0.07)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontWheelSpoke2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.5, 0.75, 3.3)
+rotation = Vector3(0, 0, 2.3944)
+size = Vector3(1.9, 0.08, 0.07)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontBarrel" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(3.5, 0.3, 3.1)
+radius = 0.45
+height = 1.0
+sides = 12
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft0" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.76, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, 0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft1" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.88, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, 0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft2" type="CSGBox3D" parent="Decor"]
+position = Vector3(1.0, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, -0.0)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft3" type="CSGBox3D" parent="Decor"]
+position = Vector3(1.12, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, -0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft4" type="CSGBox3D" parent="Decor"]
+position = Vector3(1.24, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, -0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontRocks0" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.5, 0.04, 3.4)
+rotation = Vector3(0.2, 0.3, 0.15)
+size = Vector3(1.1199999999999999, 0.8, 0.8800000000000001)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontRocks1" type="CSGBox3D" parent="Decor"]
+position = Vector3(10.3, -0.05, 3.4)
+rotation = Vector3(0.2, -0.4, -0.2)
+size = Vector3(0.7, 0.5, 0.55)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontRocks2" type="CSGBox3D" parent="Decor"]
+position = Vector3(8.8, -0.07, 3.4)
+rotation = Vector3(0.2, 0.6, 0.3)
+size = Vector3(0.63, 0.45, 0.49500000000000005)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontTuft20" type="CSGBox3D" parent="Decor"]
+position = Vector3(11.26, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, 0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft21" type="CSGBox3D" parent="Decor"]
+position = Vector3(11.38, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, 0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft22" type="CSGBox3D" parent="Decor"]
+position = Vector3(11.5, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, -0.0)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft23" type="CSGBox3D" parent="Decor"]
+position = Vector3(11.62, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, -0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft24" type="CSGBox3D" parent="Decor"]
+position = Vector3(11.74, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, -0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontRocks20" type="CSGBox3D" parent="Decor"]
+position = Vector3(24.0, 0.04, 3.4)
+rotation = Vector3(0.2, 0.3, 0.15)
+size = Vector3(1.1199999999999999, 0.8, 0.8800000000000001)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontRocks21" type="CSGBox3D" parent="Decor"]
+position = Vector3(24.8, -0.05, 3.4)
+rotation = Vector3(0.2, -0.4, -0.2)
+size = Vector3(0.7, 0.5, 0.55)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontRocks22" type="CSGBox3D" parent="Decor"]
+position = Vector3(23.3, -0.07, 3.4)
+rotation = Vector3(0.2, 0.6, 0.3)
+size = Vector3(0.63, 0.45, 0.49500000000000005)
+material = SubResource("Mat_earth_dark")
+
+[node name="FrontTuft30" type="CSGBox3D" parent="Decor"]
+position = Vector3(27.76, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, 0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft31" type="CSGBox3D" parent="Decor"]
+position = Vector3(27.88, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, 0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft32" type="CSGBox3D" parent="Decor"]
+position = Vector3(28.0, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, -0.0)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft33" type="CSGBox3D" parent="Decor"]
+position = Vector3(28.12, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, -0.28)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")
+
+[node name="FrontTuft34" type="CSGBox3D" parent="Decor"]
+position = Vector3(28.24, 0.14999999999999997, 3.2)
+rotation = Vector3(0, 0, -0.56)
+size = Vector3(0.04, 0.7, 0.04)
+material = SubResource("Mat_wood_dark")

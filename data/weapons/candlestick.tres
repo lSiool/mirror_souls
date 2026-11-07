@@ -1,0 +1,267 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://combat/weapons/weapon_data.gd" id="1_weapon"]
+[ext_resource type="Script" path="res://combat/weapons/attack_step.gd" id="2_step"]
+
+[sub_resource type="Resource" id="Step_diagonal"]
+script = ExtResource("2_step")
+display_name = "с плеча наискось"
+duration = 0.75
+active_from = 0.22
+active_to = 0.36
+chain_from = 0.58
+damage_multiplier = 1.3
+poise_damage = 30.0
+knockback = 6.0
+lunge_speed = 2.0
+hitstop = 0.09
+hitbox_offset = Vector2(1.15, 0.8)
+hitbox_size = Vector2(1.8, 1.7)
+hit_sound = &"sword_hit_finisher"
+stamina_mult = 1.4
+recover_from = 0.5
+blade_from = 0.4
+blade_to = -2.5
+grip_from = Vector2(-0.05, 0.2)
+grip_to = Vector2(0.3, -0.25)
+
+[sub_resource type="Resource" id="Step_rise"]
+script = ExtResource("2_step")
+display_name = "подхват"
+duration = 0.7
+active_from = 0.12
+active_to = 0.3
+chain_from = 0.52
+damage_multiplier = 1.2
+poise_damage = 28.0
+knockback = 5.0
+lunge_speed = 1.5
+hitstop = 0.08
+hitbox_offset = Vector2(1.0, 1.3)
+hitbox_size = Vector2(1.8, 2.0)
+stamina_mult = 1.3
+recover_from = 0.45
+blade_from = -2.5
+blade_to = 0.2
+grip_from = Vector2(0.3, -0.25)
+grip_to = Vector2(0.0, 0.3)
+
+[sub_resource type="Resource" id="Step_overhead"]
+script = ExtResource("2_step")
+display_name = "удар сверху"
+duration = 1.1
+active_from = 0.32
+active_to = 0.44
+chain_from = 0.95
+damage_multiplier = 2.0
+poise_damage = 55.0
+knockback = 9.0
+heavy = true
+lunge_speed = 1.5
+hitstop = 0.12
+hitbox_offset = Vector2(1.3, 0.7)
+hitbox_size = Vector2(2.0, 1.6)
+hit_sound = &"sword_hit_finisher"
+stamina_mult = 1.8
+ground_impact = true
+recover_from = 0.8
+blade_from = 0.9
+blade_to = -2.7
+grip_from = Vector2(0.0, 0.35)
+grip_to = Vector2(0.35, -0.35)
+
+[sub_resource type="Resource" id="Step_spin_slam"]
+script = ExtResource("2_step")
+display_name = "раскрутка: удар сверху"
+duration = 1.0
+active_from = 0.2
+active_to = 0.32
+chain_from = 0.9
+damage_multiplier = 2.6
+poise_damage = 80.0
+knockback = 11.0
+heavy = true
+lunge_speed = 2.0
+hitstop = 0.14
+hitbox_offset = Vector2(1.3, 0.7)
+hitbox_size = Vector2(2.2, 1.7)
+hit_sound = &"sword_hit_finisher"
+stamina_mult = 0.0
+ground_impact = true
+recover_from = 0.7
+blade_from = 0.9
+blade_to = -2.7
+grip_from = Vector2(0.0, 0.35)
+grip_to = Vector2(0.35, -0.35)
+
+[sub_resource type="Resource" id="Step_spin"]
+script = ExtResource("2_step")
+display_name = "раскрутка"
+duration = 0.6
+active_from = 0.05
+active_to = 0.5
+chain_from = 0.6
+damage_multiplier = 1.2
+poise_damage = 30.0
+knockback = 5.0
+heavy = true
+lunge_speed = 1.0
+hitstop = 0.07
+hitbox_offset = Vector2(0, 1.0)
+hitbox_size = Vector2(3.4, 1.4)
+stamina_mult = 2.5
+follow_up = SubResource("Step_spin_slam")
+blade_from = -1.5708
+blade_to = -1.5708
+grip_from = Vector2(0.0, -0.1)
+grip_to = Vector2(0.0, -0.1)
+blade_yaw_from = 0.0
+blade_yaw_to = -6.2832
+
+[sub_resource type="Resource" id="Step_sweep"]
+script = ExtResource("2_step")
+display_name = "широкий мах"
+duration = 0.6
+active_from = 0.1
+active_to = 0.28
+chain_from = 0.5
+damage_multiplier = 1.3
+poise_damage = 30.0
+knockback = 6.0
+lunge_speed = 3.0
+hitstop = 0.08
+hitbox_offset = Vector2(0.7, 0.9)
+hitbox_size = Vector2(2.8, 1.2)
+stamina_mult = 0.0
+recover_from = 0.4
+blade_from = -1.5708
+blade_to = -1.5708
+grip_from = Vector2(-0.1, -0.15)
+grip_to = Vector2(0.25, -0.15)
+blade_yaw_from = -3.1416
+blade_yaw_to = 0.0
+
+[sub_resource type="Resource" id="Step_trip"]
+script = ExtResource("2_step")
+display_name = "подсечка"
+duration = 0.55
+active_from = 0.08
+active_to = 0.24
+chain_from = 0.45
+damage_multiplier = 1.1
+poise_damage = 34.0
+knockback = 5.0
+lunge_speed = 3.0
+hitstop = 0.07
+hitbox_offset = Vector2(0.9, 0.5)
+hitbox_size = Vector2(2.4, 0.9)
+recover_from = 0.36
+blade_from = -1.5708
+blade_to = -1.5708
+grip_from = Vector2(-0.1, -0.45)
+grip_to = Vector2(0.25, -0.45)
+blade_yaw_from = -3.1416
+blade_yaw_to = 0.0
+
+[sub_resource type="Resource" id="Step_air"]
+script = ExtResource("2_step")
+display_name = "удар в прыжке"
+duration = 0.7
+active_from = 0.15
+active_to = 0.3
+chain_from = 0.6
+damage_multiplier = 1.6
+poise_damage = 45.0
+knockback = 7.0
+heavy = true
+lunge_speed = 1.5
+hitstop = 0.1
+hitbox_offset = Vector2(1.1, 0.6)
+hitbox_size = Vector2(1.8, 1.8)
+hit_sound = &"sword_hit_finisher"
+stamina_mult = 1.5
+air_hover = 0.25
+ground_impact = true
+recover_from = 0.5
+blade_from = 0.9
+blade_to = -2.7
+grip_from = Vector2(0.0, 0.35)
+grip_to = Vector2(0.35, -0.35)
+
+[sub_resource type="Resource" id="Step_riposte"]
+script = ExtResource("2_step")
+display_name = "добивание молотом"
+duration = 1.1
+active_from = 0.35
+active_to = 0.45
+chain_from = 1.0
+damage_multiplier = 3.0
+poise_damage = 0.0
+knockback = 0.0
+heavy = true
+invulnerable = true
+lunge_speed = 0.0
+hitstop = 0.16
+hitbox_offset = Vector2(1.0, 0.8)
+hitbox_size = Vector2(1.6, 1.6)
+hit_sound = &"sword_hit_finisher"
+stamina_mult = 0.0
+recover_from = 0.8
+blade_from = 0.9
+blade_to = -2.7
+grip_from = Vector2(0.0, 0.35)
+grip_to = Vector2(0.35, -0.35)
+victim_throw = Vector2(5, 1)
+
+[sub_resource type="Resource" id="Step_backstab"]
+script = ExtResource("2_step")
+display_name = "удар в спину молотом"
+duration = 1.1
+active_from = 0.35
+active_to = 0.45
+chain_from = 1.0
+damage_multiplier = 3.5
+poise_damage = 0.0
+knockback = 0.0
+heavy = true
+invulnerable = true
+lunge_speed = 0.0
+hitstop = 0.18
+hitbox_offset = Vector2(1.0, 0.8)
+hitbox_size = Vector2(1.6, 1.6)
+hit_sound = &"sword_hit_finisher"
+stamina_mult = 0.0
+recover_from = 0.8
+blade_from = 0.9
+blade_to = -2.7
+grip_from = Vector2(0.0, 0.35)
+grip_to = Vector2(0.35, -0.35)
+victim_throw = Vector2(6, 1.5)
+
+[resource]
+script = ExtResource("1_weapon")
+display_name = "Подсвечник"
+id = &"candlestick"
+type = &"hammer"
+step_names = Array[String](["Парирование", "Удар сверху — третий удар серии", "Удар в прыжке с приземлением", "Волна от удара о пол", "Оглушение"])
+damage_mult = 0.75
+scaling = {&"strength": "C"}
+weight = 6.0
+look_color = Color(0.7, 0.7, 0.74, 1)
+look_scale = Vector3(1.2, 1.0, 2.0)
+head_size = Vector3(0.36, 0.14, 0.14)
+two_handed = true
+rest_blade = 0.25
+rest_grip = Vector2(-0.05, 0.2)
+guard_blade = -1.45
+guard_grip = Vector2(0.15, -0.35)
+charge_blade = 1.6
+charge_grip = Vector2(-0.25, 0.25)
+combo = Array[ExtResource("2_step")]([SubResource("Step_diagonal"), SubResource("Step_rise")])
+slide_attack = SubResource("Step_trip")
+roll_attack = SubResource("Step_sweep")
+riposte = SubResource("Step_riposte")
+backstab = SubResource("Step_backstab")
+charged = SubResource("Step_spin")
+extra_hit = SubResource("Step_overhead")
+air_attack = SubResource("Step_air")

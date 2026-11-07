@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+<defs><linearGradient id="m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8d877f"/><stop offset="0.45" stop-color="#4a4641"/><stop offset="1" stop-color="#1e1c1a"/></linearGradient><radialGradient id="w" cx="0.45" cy="0.4" r="0.7"><stop offset="0" stop-color="#1d1718"/><stop offset="1" stop-color="#050404"/></radialGradient></defs>
+<circle cx="80" cy="80" r="56" fill="url(#w)"/>
+<polygon points="80,2 90,30 80,40 70,30" fill="url(#m)" stroke="#a39d94" stroke-width="0.8"/>
+<polygon points="80,158 90,130 80,120 70,130" fill="url(#m)" stroke="#a39d94" stroke-width="0.8"/>
+<polygon points="2,80 30,70 40,80 30,90" fill="url(#m)" stroke="#a39d94" stroke-width="0.8"/>
+<polygon points="158,80 130,70 120,80 130,90" fill="url(#m)" stroke="#a39d94" stroke-width="0.8"/>
+<polygon points="22,22 40,30 44,40 34,36" fill="url(#m)"/><polygon points="138,22 120,30 116,40 126,36" fill="url(#m)"/>
+<polygon points="22,138 40,130 44,120 34,124" fill="url(#m)"/><polygon points="138,138 120,130 116,120 126,124" fill="url(#m)"/>
+<circle cx="80" cy="80" r="62" fill="none" stroke="url(#m)" stroke-width="12"/>
+<circle cx="80" cy="80" r="69" fill="none" stroke="#9a948b" stroke-opacity="0.55" stroke-width="1"/>
+<circle cx="80" cy="80" r="56" fill="none" stroke="#0a0908" stroke-width="2"/>
+<path d="M22 54 l -7 -3 M24 108 l -7 4 M50 20 l -2 -7 M110 20 l 2 -7 M138 54 l 7 -3 M136 108 l 7 4" stroke="#8a847c" stroke-width="2" stroke-linecap="round"/>
+</svg>

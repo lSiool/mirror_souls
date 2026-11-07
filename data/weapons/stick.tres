@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://combat/weapons/weapon_data.gd" id="1_weapon"]
+[ext_resource type="Resource" path="res://data/weapons/sword.tres" id="2_sword"]
+
+[resource]
+script = ExtResource("1_weapon")
+display_name = "Палка"
+id = &"stick"
+type = &"sword"
+damage_mult = 0.6
+scaling = {&"strength": "E"}
+weight = 1.0
+moves_from = ExtResource("2_sword")
+look_color = Color(0.36, 0.25, 0.15, 1)
+look_scale = Vector3(1.3, 0.85, 1.3)
