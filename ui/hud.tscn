@@ -4,8 +4,8 @@
 [ext_resource type="Texture2D" path="res://assets/ui/hud/painted/medallion.png" id="2_medallion"]
 [ext_resource type="Texture2D" path="res://assets/ui/hud/painted/flask.png" id="3_flask"]
 [ext_resource type="Texture2D" path="res://assets/ui/hud/painted/badge.png" id="4_badge"]
-[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/hp_frame.png" id="5_bar_long"]
-[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/stamina_frame.png" id="6_bar_short"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/hp_frame_v2.png" id="5_bar_long"]
+[ext_resource type="Texture2D" path="res://assets/ui/hud/painted/stamina_frame_v2.png" id="6_bar_short"]
 [ext_resource type="Texture2D" path="res://assets/ui/hud/painted/hp_fill.png" id="8_hp_fill"]
 [ext_resource type="Texture2D" path="res://assets/ui/hud/painted/st_fill.png" id="9_st_fill"]
 [ext_resource type="Texture2D" path="res://assets/ui/hud/painted/groove.png" id="10_groove"]
@@ -78,10 +78,10 @@ texture_progress = ExtResource("8_hp_fill")
 
 [node name="HealthFrame" type="TextureRect" parent="TopLeft"]
 layout_mode = 0
-offset_left = 150.0
-offset_top = 36.0
-offset_right = 781.0
-offset_bottom = 89.0
+offset_left = 142.0
+offset_top = 31.0
+offset_right = 810.0
+offset_bottom = 96.0
 mouse_filter = 2
 texture = ExtResource("5_bar_long")
 expand_mode = 1
@@ -101,10 +101,10 @@ texture_progress = ExtResource("9_st_fill")
 
 [node name="StaminaFrame" type="TextureRect" parent="TopLeft"]
 layout_mode = 0
-offset_left = 160.0
-offset_top = 82.0
-offset_right = 552.0
-offset_bottom = 108.0
+offset_left = 158.0
+offset_top = 79.0
+offset_right = 560.0
+offset_bottom = 112.0
 mouse_filter = 2
 texture = ExtResource("6_bar_short")
 expand_mode = 1
