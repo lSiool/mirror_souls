@@ -41,6 +41,8 @@ const TAR_ROLL_SPEED := 0.45
 const TAR_ROLL_COST := 2.2
 ## Бросок с задержкой (§6.2): держишь ячейку — рука отводится дальше, заряд копится столько секунд.
 const THROW_CHARGE_TIME := 0.3
+## Смена набора оружия I/II (§8.12): сколько секунд после неё нельзя ударить — оружие ещё в пути.
+const SWAP_TIME := 0.35
 ## Сколько добавляет к лечению одно улучшение зелья (Травница).
 const FLASK_POTENCY_STEP := 0.15
 const PLUNGE_LAND_TIME := 0.15
@@ -134,6 +136,10 @@ var throw_charge := 0.0
 var _charge_done := false
 ## Яд, огонь, кислота, смола на герое (§6.2); значки — в ряду эффектов HUD.
 var statuses: Statuses
+## Открыто меню паузы (§8.12): мир идёт, как в Dark Souls, но ввод — меню; герой стоит и уязвим.
+var in_menu := false
+var _swap_buffer := 0.0
+var _swap_t := 0.0
 ## Сколько ещё можно ответить контрударом после блока.
 var _counter_t := 0.0
 var _charge_ready := false
@@ -278,6 +284,8 @@ func _tick(delta: float) -> void:
 	_roll_buffer = maxf(_roll_buffer - delta, 0.0)
 	_iframes = maxf(_iframes - delta, 0.0)
 	_input_lock = maxf(_input_lock - delta, 0.0)
+	_swap_buffer = maxf(_swap_buffer - delta, 0.0)
+	_swap_t = maxf(_swap_t - delta, 0.0)
 	_parry_t = maxf(_parry_t - delta, 0.0)
 	_ledge_cooldown = maxf(_ledge_cooldown - delta, 0.0)
 	_shoot_buffer = maxf(_shoot_buffer - delta, 0.0)
@@ -289,7 +297,7 @@ func _tick(delta: float) -> void:
 	_combat_t += delta
 	hurtbox.invulnerable = _iframes > 0.0 or state == State.DEAD
 
-	if state != State.DEAD:
+	if state != State.DEAD and not in_menu:
 		if Input.is_action_just_pressed("jump"):
 			_jump_buffer = stats.jump_buffer
 		if Input.is_action_just_pressed("attack"):
@@ -307,10 +315,14 @@ func _tick(delta: float) -> void:
 				_queue_quick(slot)
 		if Input.is_action_just_pressed("interact"):
 			_try_interact()
-		if Input.is_action_just_pressed("arrow_swap") and GameState.has_flag(&"has_bow"):
+		# Крестовина геймпада — снаряжение, как в Souls; с правым курком она — расходники.
+		var quick_held := Input.is_action_pressed("quick_hold")
+		if Input.is_action_just_pressed("arrow_swap") and not quick_held and GameState.has_flag(&"has_bow"):
 			# Как в Dark Souls: гнёзда стрел I и II переключаются в бою, выбираются у осколка.
 			GameState.swap_arrows()
 			Sfx.play(&"glass_glint", global_position, -14.0)
+		if Input.is_action_just_pressed("weapon_swap") and not quick_held:
+			_swap_buffer = stats.input_buffer
 
 	if _stamina_delay > 0.0:
 		_stamina_delay -= delta
@@ -387,6 +399,9 @@ func _apply_gravity(delta: float) -> void:
 # --- Состояния --------------------------------------------------------------
 
 func _move_state(delta: float) -> void:
+	if in_menu:
+		_menu_state(delta)
+		return
 	var on_floor := is_on_floor()
 	if on_floor:
 		_coyote = stats.coyote_time
@@ -410,7 +425,7 @@ func _move_state(delta: float) -> void:
 		_peg_jump()
 	elif _roll_buffer > 0.0 and not roll_cooling() and (on_floor or _coyote > 0.0):
 		_start_roll()
-	elif _attack_buffer > 0.0:
+	elif _attack_buffer > 0.0 and _swap_t <= 0.0:
 		if not on_floor and weapon and Input.is_action_pressed("move_down"):
 			_start_plunge()
 		else:
@@ -421,6 +436,8 @@ func _move_state(delta: float) -> void:
 		_start_draw()
 	elif _heal_buffer > 0.0 and on_floor:
 		_start_drink()
+	elif _swap_buffer > 0.0:
+		swap_sets()
 	elif on_floor and weapon and Input.is_action_pressed("block"):
 		_set_state(State.BLOCK)
 	elif ladder and (Input.is_action_pressed("move_up") or (not on_floor and Input.is_action_pressed("move_down"))):
@@ -742,6 +759,9 @@ func _slide_physics(delta: float) -> Vector3:
 
 
 func _climb_state(_delta: float) -> void:
+	if in_menu:
+		_menu_state(_delta)
+		return
 	var wall := _probe_glass_wall(facing)
 	var v := 0.0 if _input_lock > 0.0 else Input.get_axis("move_down", "move_up")
 	if wall == Vector3.ZERO:
@@ -841,6 +861,9 @@ func _dead_state(delta: float) -> void:
 
 
 func _block_state(delta: float) -> void:
+	if in_menu:
+		_menu_state(delta)
+		return
 	var on_floor := is_on_floor()
 	var x := _input_x()
 	if x != 0.0:
@@ -958,6 +981,32 @@ func equip(id: StringName) -> void:
 	_refresh_shield()
 
 
+## Сменить набор оружия: II в руку, I — в запас (§8.12). Набора II нет — ничего.
+## Пока оружие в пути (SWAP_TIME), удара нет; ходить и прыгать можно.
+func swap_sets() -> void:
+	_swap_buffer = 0.0
+	var other := GameState.second_weapon_id
+	if other == &"" or other == GameState.weapon_id:
+		return
+	GameState.second_weapon_id = GameState.weapon_id
+	equip(other)
+	_swap_t = SWAP_TIME
+	_attack_buffer = 0.0
+	Sfx.play(&"weapon_drop", global_position, -10.0)
+
+
+## Меню паузы: герой стоит, но живёт — падает, его бьют; на лестнице и стене держится.
+func _menu_state(delta: float) -> void:
+	if state in [State.LADDER, State.CLIMB]:
+		velocity = Vector3.ZERO
+		return
+	if state == State.BLOCK:
+		_set_state(State.MOVE)
+	var accel := stats.friction if is_on_floor() else stats.air_drag
+	velocity.x = move_toward(velocity.x, 0.0, accel * delta)
+	_apply_gravity(delta)
+
+
 func has_shield() -> bool:
 	return GameState.item_count(GameState.SHIELD_ITEM) > 0
 
@@ -991,6 +1040,9 @@ func _ground_impact() -> void:
 
 ## Лестница: вверх-вниз без гравитации. Наверху — подтягивается на этаж; прыжок — соскочил.
 func _ladder_state(_delta: float) -> void:
+	if in_menu:
+		_menu_state(_delta)
+		return
 	if ladder == null:
 		_set_state(State.MOVE)
 		return

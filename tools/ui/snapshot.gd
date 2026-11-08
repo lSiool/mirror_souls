@@ -49,6 +49,16 @@ func _ready() -> void:
 		rooms.level_menu.show_page(page)
 		await get_tree().create_timer(0.3).timeout
 		await _shot("menu_%s" % LevelMenu.Page.keys()[page].to_lower())
+	# Меню паузы (§8.12): тот же LevelMenu в режиме паузы.
+	rooms.level_menu.close()
+	await get_tree().create_timer(0.3).timeout
+	rooms.level_menu.open_pause(player)
+	await get_tree().create_timer(0.4).timeout
+	await _shot("pause_root")
+	for page in [LevelMenu.Page.WEAPON, LevelMenu.Page.SETTINGS]:
+		rooms.level_menu.show_page(page)
+		await get_tree().create_timer(0.3).timeout
+		await _shot("pause_%s" % LevelMenu.Page.keys()[page].to_lower())
 	print("snapshots: ", ProjectSettings.globalize_path(OUT))
 	get_tree().quit()
 

@@ -6,17 +6,26 @@ extends Control
 ## уровень), потом «Подтвердить» и «Повысить уровень?». Рядом всегда видно «было → станет» и что
 ## возраст заберёт у тела. Чистое стекло освобождает очки, возраст при этом не меняется.
 ## «Грани» — надеть и снять; «Оружие» — наборы I и II, закалка, мастерство, приёмы; «Предметы».
+##
+## То же меню — меню паузы (open_pause, §8.12): мир не останавливается, как в Dark Souls и Elden Ring.
+## Корень: Снаряжение · Предметы · Статус · Настройки · Выйти в главное меню. Что требует отдыха —
+## уровень, грани, закалка, стрелы в гнёздах лука — только у осколка.
 
 signal closed
 ## Перенестись к главному осколку у часовни (хаб).
 signal hub_requested
+## «Выйти в главное меню» из меню паузы.
+signal title_requested
 
 const CLEAR_GLASS: StringName = &"clear_glass"
 const FACET_SLOT: StringName = &"facet_slot"
 const TYPE_NAMES := {&"sword": "Меч", &"bow": "Лук", &"spear": "Копьё", &"axe": "Топор", &"hammer": "Молот"}
 
-enum Page { ROOT, LEVEL, FACETS, WEAPON, ITEMS }
-const PAGE_TITLES := {Page.LEVEL: "Поднять уровень", Page.FACETS: "Грани", Page.WEAPON: "Оружие", Page.ITEMS: "Предметы"}
+enum Page { ROOT, LEVEL, FACETS, WEAPON, ITEMS, SETTINGS }
+const PAGE_TITLES := {Page.LEVEL: "Поднять уровень", Page.FACETS: "Грани", Page.WEAPON: "Оружие", Page.ITEMS: "Предметы",
+	Page.SETTINGS: "Настройки"}
+## Те же страницы в меню паузы называются по-своему: там уровень не поднять, оружие не закалить.
+const PAUSE_TITLES := {Page.LEVEL: "Статус", Page.WEAPON: "Снаряжение"}
 const PARAMS := {
 	PlayerStats.Param.VIGOR: ["Жизненная сила", "здоровье"],
 	PlayerStats.Param.ENDURANCE: ["Стойкость", "выносливость, стойкость к удару"],
@@ -56,6 +65,8 @@ const BUTTON_OFF := preload("res://assets/ui/hud/button_off.svg")
 ## Шрифт с засечками из системы, пока в проекте нет своего (OFL-шрифт — позже).
 var _serif_font := _serif()
 var is_open := false
+## Открыто у осколка (true) или как меню паузы (false).
+var at_shard := true
 ## Можно ли отсюда перенестись к главному осколку: выставляет RoomManager перед open().
 var hub_available := false
 var reflection: ShardReflection
@@ -72,6 +83,14 @@ var _pages := {}
 var _root_buttons: Array[Button] = []
 var _hub: Button
 var _leave: Button
+## Корень меню паузы и подпись у осколка, которой в паузе нет.
+var _pause_buttons: Array[Button] = []
+var _flavor: Label
+var _volume_label: Label
+var _volume_down: Button
+var _volume_up: Button
+## Под наборами оружия в паузе: что меняется только у осколка.
+var _shard_note: Label
 var _status: Label
 # Поднять уровень.
 var _buttons := {}
@@ -173,6 +192,7 @@ func _ready() -> void:
 	_build_facets(_page_box(pages, Page.FACETS))
 	_build_weapon(_page_box(pages, Page.WEAPON))
 	_build_items(_page_box(pages, Page.ITEMS))
+	_build_settings(_page_box(pages, Page.SETTINGS))
 	var footer := HBoxContainer.new()
 	footer.alignment = BoxContainer.ALIGNMENT_END
 	footer.add_theme_constant_override("separation", 36)
@@ -209,17 +229,65 @@ func _build_root(page: VBoxContainer) -> void:
 	_hub.pressed.connect(go_to_hub)
 	_leave = _menu_button(page, "Отойти", 28)
 	_leave.pressed.connect(close)
-	for button: Button in _root_buttons + [_hub, _leave]:
+	for entry in [[Page.WEAPON, "Снаряжение"], [Page.ITEMS, "Предметы"], [Page.LEVEL, "Статус"], [Page.SETTINGS, "Настройки"]]:
+		var button := _menu_button(page, entry[1], 34)
+		button.pressed.connect(show_page.bind(entry[0]))
+		_pause_buttons.append(button)
+	var to_title := _menu_button(page, "Выйти в главное меню", 28)
+	to_title.pressed.connect(leave_to_title)
+	_pause_buttons.append(to_title)
+	var resume := _menu_button(page, "Вернуться", 28)
+	resume.pressed.connect(close)
+	_pause_buttons.append(resume)
+	for button: Button in _root_buttons + _pause_buttons + [_hub, _leave]:
 		button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		button.custom_minimum_size.x = 560
 	page.add_child(_spacer(30))
-	var flavor := _label(page, "Отзвуки впитываются в отражение: оно станет старше — и ты вместе с ним.", 19, MUTED)
-	flavor.custom_minimum_size.x = 520
-	flavor.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_flavor = _label(page, "Отзвуки впитываются в отражение: оно станет старше — и ты вместе с ним.", 19, MUTED)
+	_flavor.custom_minimum_size.x = 520
+	_flavor.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var push := Control.new()
 	push.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page.add_child(push)
 	_status = _label(page, "", 21, TEXT)
+
+
+## Меню паузы: «Выйти в главное меню» — игра сохранится и откроется экран «Продолжить / Новая игра».
+func leave_to_title() -> void:
+	close()
+	title_requested.emit()
+
+
+# ---------------------------------------------------------------- Настройки
+
+func _build_settings(page: VBoxContainer) -> void:
+	_section(page, "Звук")
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 14)
+	page.add_child(line)
+	var name_label := _label(line, "Громкость", 25, TEXT)
+	name_label.custom_minimum_size.x = 260
+	_volume_down = _small_button(line, "−")
+	_volume_down.pressed.connect(func() -> void: change_volume(-Settings.VOLUME_STEP))
+	_volume_label = _label(line, "", 27, TEXT)
+	_volume_label.custom_minimum_size.x = 80
+	_volume_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_volume_up = _small_button(line, "+")
+	_volume_up.pressed.connect(func() -> void: change_volume(Settings.VOLUME_STEP))
+	page.add_child(_spacer(10))
+	_label(page, "Остальные настройки — позже.", 19, MUTED)
+
+
+func change_volume(step: float) -> void:
+	Settings.set_volume(Settings.volume + step)
+	Sfx.play_ui(&"glass_glint", -12.0)
+	_refresh()
+
+
+func _refresh_settings() -> void:
+	_volume_label.text = "%d" % roundi(Settings.volume * 10.0)
+	_volume_down.disabled = Settings.volume <= 0.0
+	_volume_up.disabled = Settings.volume >= 1.0
 
 
 ## Закрыть меню и перенестись к главному осколку.
@@ -423,6 +491,14 @@ func _refresh_level() -> void:
 	_fill_rows(_hero_rows, _hero_values())
 	_fill_rows(_defense_rows, _defense_values())
 	_fill_rows(_body_rows, _body_values(next_age))
+	# Статус из меню паузы: только смотреть, уровень поднимают у осколка.
+	for param: PlayerStats.Param in PlayerStats.PARAM_ORDER:
+		(_buttons[param] as Button).visible = at_shard
+		(_minus[param] as Button).visible = at_shard
+	_respec.visible = _respec.visible and at_shard
+	if not at_shard:
+		_level_label.text = "Уровень %d · возраст %s · отзвуки %s — поднять уровень можно у осколка" % [
+			stats.level, _age_text(stats.current_age), Hud._grouped(GameState.echoes)]
 
 
 ## Показанное число характеристики: стартовое значение плюс вложенные очки (как в Souls — не с нуля).
@@ -675,6 +751,8 @@ func _build_weapon(page: VBoxContainer) -> void:
 	_second_switch.pressed.connect(switch_second)
 	_bow_switch = _menu_button(sets, "", 19)
 	_bow_switch.pressed.connect(switch_bow)
+	_shard_note = _label(sets, "Закалка и стрелы в гнёздах лука — у осколка.", 16, MUTED)
+	_shard_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for slot in GameState.ARROW_SLOTS:
 		var arrows := _menu_button(sets, "", 19)
 		arrows.pressed.connect(switch_arrows.bind(slot))
@@ -807,12 +885,15 @@ func _refresh_weapon() -> void:
 	if bows.size() >= 2:
 		var other: StringName = bows[(bows.find(GameState.bow_id) + 1) % bows.size()]
 		_bow_switch.text = "Лук: взять %s" % GameState.BOWS[other][0]
-	var arrows_owned := GameState.has_flag(&"has_bow") and not GameState.owned_arrows().is_empty()
+	var arrows_owned := at_shard and GameState.has_flag(&"has_bow") and not GameState.owned_arrows().is_empty()
+	_shard_note.visible = not at_shard
 	for slot in _arrow_switches.size():
 		_arrow_switches[slot].visible = arrows_owned
 		_arrow_switches[slot].text = "Стрелы %s: положить другие" % ["I", "II"][slot]
 	var weapon := _player.weapon
-	_temper.visible = weapon != null
+	# Закалка — у осколка; в паузе видно, сколько шагов уже сделано (ряд стекла выше).
+	_temper.visible = weapon != null and at_shard
+	_temper_cost.visible = at_shard
 	for box in [_scaling_row, _glass_row, _mastery_rows]:
 		for child in box.get_children():
 			box.remove_child(child)
@@ -899,7 +980,7 @@ func _set_line(tag: String, text: String, held: bool) -> void:
 	line.add_theme_constant_override("separation", 12)
 	_set_rows.add_child(line)
 	var mark := _label(line, tag, 20, BRONZE)
-	mark.custom_minimum_size.x = 44
+	mark.custom_minimum_size.x = 76
 	_label(line, text, 24 if held else 21, TEXT if held else Color(0.79, 0.81, 0.84))
 
 
@@ -1016,12 +1097,28 @@ func _put_in_slot(slot: int) -> void:
 
 func open(player: Player, parent: Node3D) -> void:
 	_player = player
+	at_shard = true
 	is_open = true
 	visible = true
 	player.frozen = true
 	player.velocity = Vector3.ZERO
 	player.hurtbox.invulnerable = true
 	reflection = ShardReflection.spawn(parent, player)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_page = Page.ROOT
+	(get_parent() as Hud).prompt_label.visible = false
+	(get_parent() as Hud).show_gameplay(false)
+	_refresh()
+	_focus_first()
+
+
+## Меню паузы (§8.12): мир не останавливается, герой стоит и уязвим (Player.in_menu).
+func open_pause(player: Player) -> void:
+	_player = player
+	at_shard = false
+	is_open = true
+	visible = true
+	player.in_menu = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_page = Page.ROOT
 	(get_parent() as Hud).prompt_label.visible = false
@@ -1041,16 +1138,24 @@ func close() -> void:
 	if is_instance_valid(reflection):
 		reflection.dismiss()
 	reflection = null
-	_player.frozen = false
+	if at_shard:
+		_player.frozen = false
+	_player.in_menu = false
 	(get_parent() as Hud).prompt_label.visible = true
 	(get_parent() as Hud).show_gameplay(true)
 	closed.emit()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_open and event.is_action_pressed("ui_cancel"):
+	if not is_open:
+		return
+	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		back()
+	elif event.is_action_pressed("pause") and not at_shard:
+		# Start на геймпаде закрывает паузу с любой страницы.
+		get_viewport().set_input_as_handled()
+		close()
 
 
 ## «Назад»: окно — закрыть, страница — к списку, список — отойти от осколка.
@@ -1080,16 +1185,26 @@ func _refresh() -> void:
 	# Корень — полупрозрачная полоса слева, чтобы видеть отражение; страницы — почти весь экран.
 	_backdrop.anchor_right = 0.62
 	_veil.visible = _page != Page.ROOT
-	_confirm.visible = _page == Page.LEVEL
+	_confirm.visible = _page == Page.LEVEL and at_shard
 	var room := get_tree().get_first_node_in_group(&"room") as Room
-	_caption.text = "Осколок Главного Зеркала" if _page == Page.ROOT else "Осколок · %s" % _place_name(room)
-	_title.text = _place_name(room) if _page == Page.ROOT else PAGE_TITLES[_page]
-	_hint.text = "[E] выбрать    [Esc] %s" % ("отойти" if _page == Page.ROOT else "назад")
-	_hub.visible = hub_available
+	if at_shard:
+		_caption.text = "Осколок Главного Зеркала" if _page == Page.ROOT else "Осколок · %s" % _place_name(room)
+		_title.text = _place_name(room) if _page == Page.ROOT else PAGE_TITLES[_page]
+		_hint.text = "[E] выбрать    [Esc] %s" % ("отойти" if _page == Page.ROOT else "назад")
+	else:
+		_caption.text = "Мир не ждёт · %s" % _place_name(room)
+		_title.text = "Пауза" if _page == Page.ROOT else PAUSE_TITLES.get(_page, PAGE_TITLES[_page])
+		_hint.text = "[E] выбрать    [Esc] %s" % ("вернуться" if _page == Page.ROOT else "назад")
+	_hub.visible = hub_available and at_shard
 	_hub.disabled = _animating
+	_leave.visible = at_shard
 	_leave.disabled = _animating
+	_flavor.visible = at_shard
 	for button in _root_buttons:
+		button.visible = at_shard
 		button.disabled = _animating
+	for button in _pause_buttons:
+		button.visible = not at_shard
 	var stats := _player.stats
 	_status.text = "Отзвуки %s    Уровень %d    Возраст %s" % [Hud._grouped(GameState.echoes), stats.level, _age_text(stats.current_age)]
 	_refresh_level()
@@ -1097,6 +1212,7 @@ func _refresh() -> void:
 		Page.FACETS: _refresh_facets()
 		Page.WEAPON: _refresh_weapon()
 		Page.ITEMS: _refresh_items()
+		Page.SETTINGS: _refresh_settings()
 
 
 func _place_name(room: Room) -> String:
@@ -1108,7 +1224,9 @@ func _place_name(room: Room) -> String:
 func _focus_first() -> void:
 	match _page:
 		Page.ROOT:
-			_root_buttons[0].grab_focus()
+			(_root_buttons[0] if at_shard else _pause_buttons[0]).grab_focus()
+		Page.SETTINGS:
+			_volume_up.grab_focus() if not _volume_up.disabled else _volume_down.grab_focus()
 		Page.LEVEL:
 			if not _confirm.disabled:
 				_confirm.grab_focus()

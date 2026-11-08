@@ -71,6 +71,27 @@ var items := {&"facet_youth": 1, &"facet_experience": 1, &"facet_sole": 1, &"fac
 	&"facet_breath": 1, &"facet_eye": 1, &"facet_sip": 1}
 
 
+## Начальные значения всего, что пишется в сохранение: «Новая игра» после выхода в главное
+## меню начинает с них, а не с мира прошлой игры (автозагрузка живёт, пока открыта игра).
+var _defaults := {}
+
+
+func _ready() -> void:
+	for key: String in SAVED_FIELDS:
+		var value: Variant = get(key)
+		_defaults[key] = value.duplicate(true) if value is Array or value is Dictionary else value
+
+
+## Новая игра: всё, что пишется в сохранение, — как в начале.
+func reset() -> void:
+	for key: String in SAVED_FIELDS:
+		var value: Variant = _defaults[key]
+		set(key, value.duplicate(true) if value is Array or value is Dictionary else value)
+	Events.echoes_changed.emit(echoes)
+	Events.quick_items_changed.emit()
+	Events.arrows_changed.emit()
+
+
 func has_save() -> bool:
 	return FileAccess.file_exists(save_path)
 

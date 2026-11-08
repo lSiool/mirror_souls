@@ -70,6 +70,8 @@ func _ready() -> void:
 	level_menu = LevelMenu.new()
 	hud.add_child(level_menu)
 	level_menu.closed.connect(_on_level_menu_closed)
+	level_menu.title_requested.connect(return_to_title)
+	Settings.apply()
 	level_menu.hub_requested.connect(travel_to_hub)
 	player.died.connect(_on_player_died)
 	_sun_energy = sun.light_energy
@@ -83,6 +85,9 @@ func _ready() -> void:
 		hud.add_child(menu)
 		var resume: bool = await menu.chosen
 		menu.queue_free()
+		if not resume:
+			# После выхода в главное меню в памяти ещё прошлая игра.
+			GameState.reset()
 		_begin(resume)
 	else:
 		_begin(false)
@@ -340,6 +345,26 @@ func travel_to_hub() -> void:
 	_busy = false
 
 
+## Меню паузы (§8.12): мир не останавливается, как в Dark Souls; открыть нельзя в переходе,
+## у осколка и мёртвым.
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("pause") or level_menu.is_open or _busy:
+		return
+	if player.frozen or player.is_dead() or current_room == null:
+		return
+	get_viewport().set_input_as_handled()
+	level_menu.open_pause(player)
+
+
+## «Выйти в главное меню»: мир сохранён, игра начинается заново с экрана «Продолжить / Новая игра».
+func return_to_title() -> void:
+	save_now()
+	_busy = true
+	player.frozen = true
+	await hud.fade_to(1.0, 0.5)
+	get_tree().reload_current_scene()
+
+
 func _on_level_menu_closed() -> void:
 	_busy = false
 	save_now()
@@ -367,6 +392,9 @@ func _rest() -> void:
 func _on_player_died() -> void:
 	if current_room == null:
 		return
+	# Погиб с открытым меню паузы (мир не стоял) — меню закрывается.
+	if level_menu.is_open:
+		level_menu.close()
 	_busy = true
 	# Отзвук остаётся на последнем безопасном месте — до ловушки, что убила героя.
 	GameState.drop_echoes(_world_key(current_room_id, reality), player.safe_ground, player.death_weapon, player.facing)

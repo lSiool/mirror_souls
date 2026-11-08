@@ -45,6 +45,19 @@ func release(action: String) -> void:
 	Input.action_release(action)
 
 
+## Кнопка паузы событием: меню паузы слушает ввод, а не опрос (Input.action_press его не шлёт).
+func pause_key() -> void:
+	var event := InputEventAction.new()
+	event.action = &"pause"
+	event.pressed = true
+	Input.parse_input_event(event)
+	await frames(2)
+	var up := InputEventAction.new()
+	up.action = &"pause"
+	Input.parse_input_event(up)
+	await frames(2)
+
+
 func tap(action: String) -> void:
 	Input.action_press(action)
 	await frames(2)
@@ -1331,6 +1344,48 @@ func run() -> void:
 	soldier.facing = soldier_look
 	soldier.velocity = Vector3.ZERO
 	soldier._set_state(Dummy.State.PATROL)
+	await seconds(0.3)
+
+	print("== Меню паузы и наборы оружия I/II (§8.12)")
+	var pause_menu := rooms.level_menu
+	await put(Vector3(-20, 0.1, 0), 1.0)
+	await pause_key()
+	check(pause_menu.is_open and not pause_menu.at_shard and player.in_menu and not player.frozen,
+		"Esc — меню паузы, мир не стоит (герой не заморожен)")
+	var paused_x := player.global_position.x
+	press("move_right")
+	await seconds(0.3)
+	release("move_right")
+	check(absf(player.global_position.x - paused_x) < 0.05, "в меню герой не ходит")
+	pause_menu.show_page(LevelMenu.Page.WEAPON)
+	check(pause_menu._title.text == "Снаряжение" and not pause_menu._temper.visible and pause_menu._shard_note.visible,
+		"«Снаряжение»: закалка — только у осколка")
+	pause_menu.show_page(LevelMenu.Page.LEVEL)
+	check(pause_menu._title.text == "Статус" and not pause_menu._confirm.visible
+		and not (pause_menu._buttons[PlayerStats.Param.VIGOR] as Button).visible, "«Статус»: уровень не поднять")
+	var volume_was := Settings.volume
+	pause_menu.show_page(LevelMenu.Page.SETTINGS)
+	pause_menu.change_volume(-Settings.VOLUME_STEP)
+	check(is_equal_approx(Settings.volume, maxf(volume_was - Settings.VOLUME_STEP, 0.0)), "«Настройки»: громкость тише")
+	Settings.set_volume(volume_was)
+	await pause_key()
+	check(not pause_menu.is_open and not player.in_menu, "Start/Esc — меню закрыто")
+	# Набор II в руку и обратно; пока оружие в пути, удара нет.
+	var had_stick: bool = game_state.item_count(&"stick") > 0
+	game_state.own_weapon(&"stick")
+	game_state.second_weapon_id = &"stick"
+	await tap("weapon_swap")
+	await frames(1)
+	check(player.weapon.id == &"stick" and game_state.second_weapon_id == &"sword", "F — набор II в руке, меч в запасе")
+	await tap("attack")
+	check(player.state != Player.State.ATTACK, "сразу после смены удара нет")
+	await seconds(0.6)
+	await tap("weapon_swap")
+	await seconds(0.5)
+	check(player.weapon.id == &"sword", "смена обратно — снова меч")
+	game_state.second_weapon_id = &""
+	if not had_stick:
+		game_state.items.erase(&"stick")
 	await seconds(0.3)
 
 	print("== Стрела не ломает стекло — отскакивает")
