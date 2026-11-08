@@ -4,9 +4,11 @@ extends Control
 ## Рама полосы здоровья или выносливости (§8.12). Длина растёт с максимумом, как в Souls.
 ## Нарисованная рама режется на три куска по колонкам чистого рельса (без шипов), поэтому стыки
 ## не видны: голова (торец) [0, head_to), середина с шипами [head_to, tail_from), хвост (наконечник)
-## [tail_from, ширина). Нужно длиннее — середина повторяется, остаток добирает кусок чистого рельса
-## [plain_from, plain_to); короче полной середины — только чистый рельс.
-## Колонки — в пикселях текстуры (их печатает tools/ui/cut_hud_bars.py); рисуется в масштабе высоты.
+## [tail_from, ширина). Нужно длиннее — середина повторяется, остаток добирают целые куски чистого
+## рельса [plain_from, plain_to), чуть растянутые или сжатые (на гладком рельсе это не видно):
+## куски не обрезаются, поэтому стыки всегда в одних и тех же колонках. Около них рельс в текстуре
+## сведён к общему профилю (tools/ui/cut_hud_bars.py, SEAMS) — шва не видно.
+## Колонки — в пикселях текстуры; рисуется в масштабе высоты.
 
 @export var texture: Texture2D:
 	set(value):
@@ -79,20 +81,20 @@ func _relayout() -> void:
 	queue_redraw()
 
 
-## Куски текстуры слева направо: [от, до) в колонках.
-func _pieces() -> Array[Vector2]:
-	var result: Array[Vector2] = [Vector2(0, head_to)]
+## Куски слева направо: (от, до) в колонках текстуры и длина на раме в тех же единицах.
+func _pieces() -> Array[Vector3]:
+	var result: Array[Vector3] = [Vector3(0, head_to, head_to)]
 	var filler := _opening_src() - (head_to - opening_from) - (opening_to - tail_from)
 	var thorny := float(tail_from - head_to)
 	while filler >= thorny:
-		result.append(Vector2(head_to, tail_from))
+		result.append(Vector3(head_to, tail_from, thorny))
 		filler -= thorny
 	var plain := float(plain_to - plain_from)
-	while filler > 0.5 and plain > 0.0:
-		var piece := minf(filler, plain)
-		result.append(Vector2(plain_from, plain_from + piece))
-		filler -= piece
-	result.append(Vector2(tail_from, texture.get_width()))
+	if filler > 0.5 and plain > 0.0:
+		var count := ceili(filler / plain)
+		for i in count:
+			result.append(Vector3(plain_from, plain_to, filler / count))
+	result.append(Vector3(tail_from, texture.get_width(), texture.get_width() - tail_from))
 	return result
 
 
@@ -105,6 +107,6 @@ func _draw() -> void:
 	for piece in _pieces():
 		# Края кусков — на целых пикселях экрана: соседние стыкуются без щели.
 		var x0 := roundf(src_x * k)
-		src_x += piece.y - piece.x
+		src_x += piece.z
 		var x1 := roundf(src_x * k)
 		draw_texture_rect_region(texture, Rect2(x0, 0.0, x1 - x0, size.y), Rect2(piece.x, 0.0, piece.y - piece.x, h))

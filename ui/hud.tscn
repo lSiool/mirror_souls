@@ -88,9 +88,9 @@ script = ExtResource("11_bar_frame")
 texture = ExtResource("5_bar_long")
 opening_from = 79
 opening_to = 1060
-head_to = 258
-tail_from = 775
-plain_from = 262
+head_to = 270
+tail_from = 765
+plain_from = 280
 plain_to = 330
 opening_width = 420.0
 
@@ -118,10 +118,10 @@ script = ExtResource("11_bar_frame")
 texture = ExtResource("6_bar_short")
 opening_from = 9
 opening_to = 636
-head_to = 280
-tail_from = 500
-plain_from = 410
-plain_to = 498
+head_to = 290
+tail_from = 490
+plain_from = 415
+plain_to = 485
 opening_width = 280.0
 
 [node name="Medallion" type="TextureRect" parent="TopLeft"]
