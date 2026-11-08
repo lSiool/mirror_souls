@@ -669,7 +669,8 @@ func _attack_state(delta: float) -> void:
 		# Удар в скольжении: скат продолжает нести героя.
 		_slide_physics(delta)
 	else:
-		var lunge := facing * _step.lunge_speed if t < _step.active_to else 0.0
+		# Шаг в удар — со второй половины замаха, а не с первого кадра (§6.1).
+		var lunge := facing * _step.lunge_speed if t >= _step.active_from * 0.5 and t < _step.active_to else 0.0
 		var decel := stats.momentum_decay * 2.0 if on_floor else stats.air_acceleration * 0.5
 		velocity.x = move_toward(velocity.x, lunge, decel * delta)
 		_apply_gravity(delta)

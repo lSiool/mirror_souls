@@ -11,6 +11,17 @@ const SHIELD_RADIUS := 0.42
 const SHIELD_THICK := 0.05
 const SHIELD_DOME := 0.12
 
+## Замах и доводка взмаха (§6.1, 2026-11-09): клинок отводят дальше позы from и держат,
+## после удара он по инерции проходит дальше позы to. Замах короче WINDUP_MIN — без отвода.
+const WINDUP_MIN := 0.08
+const WINDUP_SHARE := 0.7
+const WINDUP_BLADE := 0.4
+const WINDUP_GRIP := 0.12
+const FOLLOW_BLADE := 0.25
+const FOLLOW_GRIP := 0.1
+const FOLLOW_TIME := 0.07
+const FOLLOW_HOLD := 0.05
+
 enum ShieldAt { NONE, HAND, GUARD, BACK }
 
 var sword_pivot: Node3D
@@ -36,26 +47,46 @@ func _init(visual: Node3D, sword: Node3D) -> void:
 	rest()
 
 
-## Взмах стадии удара: от позы from к позе to в активное окно стадии.
+## Взмах стадии удара в четыре фазы: замах (клинок из текущей позы отводят дальше позы from
+## и держат) → удар к позе to в активное окно → доводка по инерции → возврат в стойку.
 func swing(step: AttackStep) -> void:
 	kill()
-	sword_pivot.rotation = Vector3(0.0, step.blade_yaw_from, step.blade_from)
-	sword_pivot.position = _grip(step.grip_from)
-	var time := step.active_to - step.active_from
+	# Куда идёт взмах: «+» — клинок идёт вперёд (угол убывает). Выпад (from = to) — только рукоять.
+	var dir := signf(step.blade_from - step.blade_to)
+	var heavy_rest := step.recover_from > step.active_to and step.duration > step.recover_from
 	_tween = sword_pivot.create_tween().set_parallel()
-	var targets := {
-		"rotation:z": step.blade_to, "rotation:y": step.blade_yaw_to, "position": _grip(step.grip_to),
-	}
-	for prop: String in targets:
-		_tween.tween_property(sword_pivot, prop, targets[prop], time) \
-			.set_delay(step.active_from).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	# Тяжёлое оружие лежит в конце взмаха, потом его поднимают обратно в стойку.
-	if step.recover_from > step.active_to and step.duration > step.recover_from:
-		_tween.chain().tween_interval(step.recover_from - step.active_to)
-		var back := step.duration - step.recover_from
-		_tween.chain().tween_property(sword_pivot, "rotation:z", _rest_blade(), back).set_trans(Tween.TRANS_SINE)
-		_tween.tween_property(sword_pivot, "rotation:y", 0.0, back)
-		_tween.tween_property(sword_pivot, "position", _grip(_rest_grip()), back).set_trans(Tween.TRANS_SINE)
+	if step.active_from >= WINDUP_MIN:
+		var draw := step.active_from * WINDUP_SHARE
+		_pose(step.blade_from + dir * WINDUP_BLADE, step.blade_yaw_from,
+			step.grip_from + Vector2(-WINDUP_GRIP, 0.0), draw, Tween.TRANS_SINE)
+		_tween.chain().tween_interval(step.active_from - draw)
+	else:
+		sword_pivot.rotation = Vector3(0.0, step.blade_yaw_from, step.blade_from)
+		sword_pivot.position = _grip(step.grip_from)
+		_tween.tween_interval(step.active_from)
+	_tween.chain()
+	_pose(step.blade_to, step.blade_yaw_to, step.grip_to, step.active_to - step.active_from, Tween.TRANS_QUAD)
+	var settled := step.active_to
+	# Доводка: лёгкое оружие проходит дальше по инерции. Тяжёлое и так лежит в конце взмаха.
+	if not heavy_rest:
+		_tween.chain()
+		_pose(step.blade_to - dir * FOLLOW_BLADE, step.blade_yaw_to,
+			step.grip_to + Vector2(FOLLOW_GRIP, 0.0), FOLLOW_TIME, Tween.TRANS_SINE)
+		settled += FOLLOW_TIME
+	# Тяжёлое оружие лежит в конце взмаха до recover_from; лёгкое — миг, потом плавно в стойку.
+	var back_from := step.recover_from if heavy_rest else settled + FOLLOW_HOLD
+	var back := step.duration - back_from
+	if back > 0.04:
+		_tween.chain().tween_interval(back_from - settled)
+		_tween.chain()
+		_pose(_rest_blade(), 0.0, _rest_grip(), back, Tween.TRANS_SINE)
+
+
+## Шаг твина: клинок, поворот и рукоять — одновременно, с замедлением к концу.
+func _pose(blade: float, yaw: float, grip: Vector2, time: float, trans: Tween.TransitionType) -> void:
+	_tween.tween_property(sword_pivot, "rotation:z", blade, time).set_trans(trans).set_ease(Tween.EASE_OUT)
+	_tween.tween_property(sword_pivot, "rotation:y", yaw, time).set_trans(trans).set_ease(Tween.EASE_OUT)
+	_tween.tween_property(sword_pivot, "position", _grip(grip), time).set_trans(trans).set_ease(Tween.EASE_OUT)
 
 
 ## Заряд: клинок отведён назад, вдоль плеча.

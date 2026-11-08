@@ -958,7 +958,10 @@ func run() -> void:
 		for k in 12:
 			await frames(1)
 			staggered = staggered or soldier.state == Dummy.State.STAGGER
-	await seconds(0.3)
+	# Выпад с замахом бьёт позже нажатия (§6.1): ждём, пока он отыграет.
+	for k in 30:
+		await frames(1)
+		staggered = staggered or soldier.state == Dummy.State.STAGGER
 	check(steps_seen == [1, 2, 3], "три стадии подряд (%s)" % str(steps_seen))
 	check(player.weapon.combo[2].heavy, "выпад — тяжёлый удар")
 	check(soldier.health.current < hp0, "комбо попало по врагу")

@@ -34,6 +34,11 @@ const HEAD_SLIDE_SPEED := 5.0
 const CRITICAL_TIMEOUT := 2.0
 ## Тяжёлый удар с такой силой по стойкости, сломав её, сбивает с ног (заряд, молот сверху).
 const KNOCKDOWN_POISE := 50.0
+## Тело в атаке (§6.1, 2026-11-09): в замахе отклоняется назад и к WINDUP_PEAK замирает наверху —
+## пауза перед ударом читается; удар — рывок вперёд, в откате тело возвращается.
+const WINDUP_LEAN := 0.2
+const WINDUP_PEAK := 0.75
+const STRIKE_LEAN := -0.28
 ## Вздрог: сколько секунд тело дёргается и насколько отклоняется.
 const JOLT_TIME := 0.14
 const JOLT_TILT := 0.22
@@ -62,7 +67,8 @@ const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
 @export var windup_time := 0.55
 @export var attack_time := 0.18
 @export var recover_time := 0.8
-@export var stagger_time := 0.35
+## Ошеломлён после сломанной стойкости: окно на пару ударов (§6, по ориентиру NRFTW, 2026-11-09).
+@export var stagger_time := 0.9
 @export var gravity := 30.0
 ## Рывок вперёд в момент удара.
 @export var attack_lunge := 5.0
@@ -580,7 +586,22 @@ func _set_state(new_state: State) -> void:
 ## Поза: потерял равновесие — качается назад, сбит с ног — лежит.
 func _update_pose(delta: float) -> void:
 	var tilt := 0.0
+	var rate := 12.0
 	match state:
+		State.WINDUP:
+			# Наверху замаха тело замирает и чуть дрожит от напряжения.
+			var k := clampf(_state_time / (windup_time * WINDUP_PEAK), 0.0, 1.0)
+			tilt = WINDUP_LEAN * smoothstep(0.0, 1.0, k)
+			if k >= 1.0:
+				tilt += sin(_state_time * 60.0) * 0.012
+		State.ATTACK:
+			tilt = STRIKE_LEAN
+			rate = 40.0
+		State.RECOVER:
+			tilt = STRIKE_LEAN * (1.0 - smoothstep(0.0, 1.0, _state_time / maxf(recover_time * 0.6, 0.01)))
+		State.STAGGER:
+			# Ошеломлён: откинулся назад и шатается.
+			tilt = 0.3 + sin(_state_time * 9.0) * 0.06
 		State.OFF_BALANCE:
 			tilt = 0.35 + sin(_state_time * 14.0) * 0.08
 		State.CRITICAL_HIT:
@@ -595,7 +616,7 @@ func _update_pose(delta: float) -> void:
 		tilt += JOLT_TILT * sin(_jolt / JOLT_TIME * PI)
 		body_mesh.rotation.z = tilt
 		return
-	body_mesh.rotation.z = lerpf(body_mesh.rotation.z, tilt, 1.0 - exp(-12.0 * delta))
+	body_mesh.rotation.z = lerpf(body_mesh.rotation.z, tilt, 1.0 - exp(-rate * delta))
 
 
 func _update_material(delta: float) -> void:
