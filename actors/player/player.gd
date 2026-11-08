@@ -89,8 +89,10 @@ var stamina := 0.0
 var frozen := false
 ## Позы меча и лук.
 var arms: PlayerArms
-## Капсула: вспышки и поза смерти.
+## Капсула: вспышки и поза смерти. С моделью невидима камере, но считает позы для логики.
 var body: PlayerBody
+## Манекен-гуманоид с анимациями (§3.3): только показывает.
+var model: HeroModel
 
 var _state_time := 0.0
 var _coyote := 0.0
@@ -225,6 +227,11 @@ func _ready() -> void:
 	sword_hitbox_shape.shape = _sword_shape
 	arms = PlayerArms.new(visual, sword_pivot)
 	body = PlayerBody.new(body_mesh, body_shape.shape as CapsuleShape3D)
+	model = HeroModel.new()
+	visual.add_child(model)
+	arms.attach_hand(model.hand)
+	PlayerArms._set_layers(body_mesh, 0)
+	attack_step_started.connect(func(step: AttackStep, index: int, _total: int) -> void: model.attack(step, index))
 	stats.changed.connect(_on_stats_changed)
 	_on_stats_changed()
 	# Купленный щит сразу в руке.
@@ -1738,6 +1745,9 @@ func make_silhouette(weapon: StringName, keep_face := false) -> Node3D:
 		bow.visible = weapon == &"bow"
 	if sword:
 		sword.visible = weapon == &"sword"
+	var grip := copy.find_child("Grip", true, false) as Node3D
+	if grip:
+		grip.visible = weapon == &"sword"
 	return copy
 
 
@@ -1778,6 +1788,7 @@ func _update_visual(delta: float) -> void:
 	if visual.rotation.y != yaw:
 		visual.rotation.y = yaw
 		visual.reset_physics_interpolation()
+	model.update(self)
 	if lying:
 		body_mesh.rotation = Vector3(0.0, 0.0, PI * 0.5)
 		body_mesh.position = Vector3(0.0, 0.72, 0.0)
@@ -1818,3 +1829,4 @@ func _update_visual(delta: float) -> void:
 	var blink := _iframes > 0.0 and state not in [State.ROLL, State.CRITICAL] \
 		and fmod(_iframes, 0.12) < 0.06
 	body_mesh.visible = not blink
+	model.visible = not blink

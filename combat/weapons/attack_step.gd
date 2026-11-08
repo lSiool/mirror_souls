@@ -37,6 +37,14 @@ extends Resource
 ## Продолжение без нажатия: раскрутка молотом сама переходит в удар сверху.
 @export var follow_up: AttackStep
 
+@export_group("Анимация модели")
+## Клип манекена героя (§3.3) и его отрезок, растянутый на duration: так удар модели
+## попадает в активное окно. Пусто — клип по номеру в серии (HeroModel.COMBO_ANIMS).
+@export var anim: StringName = &""
+@export var anim_from := 0.0
+## 0 — до конца клипа.
+@export var anim_to := 0.0
+
 @export_group("Поза клинка")
 @export var blade_from := 0.9
 @export var blade_to := -2.4

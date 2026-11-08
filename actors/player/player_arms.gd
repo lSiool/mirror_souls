@@ -37,6 +37,9 @@ var _weapon: WeaponData
 var _head: MeshInstance3D
 var _shield: Node3D
 var shield_at := ShieldAt.NONE
+## Рука модели героя (HeroModel.hand): там видимая копия оружия. Сам sword_pivot тогда
+## невидим камере (слой 0) — его позы остаются для логики и тестов (§3.3, 2026-11-09).
+var hand: Node3D
 
 
 func _init(visual: Node3D, sword: Node3D) -> void:
@@ -158,7 +161,34 @@ func set_weapon(weapon: WeaponData) -> void:
 		# Навершие — на конце древка (меш клинка 1.1 по высоте, от рукояти).
 		_head.position.y = blade.position.y + 0.55 * weapon.look_scale.y - weapon.head_size.y * 0.5
 		sword_pivot.add_child(_head)
+	_sync_hand()
 	rest()
+
+
+## Оружие — в руку модели: видимая копия там, у sword_pivot — только позы.
+func attach_hand(node: Node3D) -> void:
+	hand = node
+	_sync_hand()
+
+
+func _sync_hand() -> void:
+	if hand == null:
+		return
+	for old in hand.get_children():
+		old.free()
+	for part in sword_pivot.get_children():
+		var copy := part.duplicate() as Node3D
+		hand.add_child(copy)
+		_set_layers(copy, 1)
+	_set_layers(sword_pivot, 0)
+	hand.visible = sword_pivot.visible
+
+
+static func _set_layers(node: Node, layers: int) -> void:
+	if node is VisualInstance3D:
+		(node as VisualInstance3D).layers = layers
+	for child in node.get_children():
+		_set_layers(child, layers)
 
 
 ## Где щит: в руке, выставлен в блоке, за спиной или его нет.
@@ -195,7 +225,10 @@ func drop_weapon(world: Node, facing: float) -> void:
 	restore_weapon()
 	kill()
 	_dropped = sword_pivot.duplicate() as Node3D
+	_set_layers(_dropped, 1)
 	world.add_child(_dropped)
+	if hand:
+		hand.visible = false
 	_dropped.global_transform = sword_pivot.global_transform
 	sword_pivot.visible = false
 	var box := _local_aabb(_dropped)
@@ -236,6 +269,8 @@ func restore_weapon() -> void:
 		_dropped.queue_free()
 	_dropped = null
 	sword_pivot.visible = armed
+	if hand:
+		hand.visible = armed
 	rest()
 
 
