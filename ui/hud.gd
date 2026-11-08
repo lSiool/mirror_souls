@@ -26,6 +26,15 @@ const MEDALLION := preload("res://assets/ui/hud/painted/medallion.png")
 const BUFF_FRAME := preload("res://assets/ui/hud/painted/buff_frame.png")
 const BUFF_UP := preload("res://assets/ui/hud/painted/tri_up_green.png")
 const DEBUFF_DOWN := preload("res://assets/ui/hud/painted/tri_down_red.png")
+## Длина полос растёт с максимумом, как в Souls (§8.12): с начала короче, с уровнем длиннее.
+## Ширина проёма на экране: в начале, за единицу сверх начального максимума и потолок (дальше рамы
+## упёрлись бы в отзвуки справа). Здоровье 70 → ~284 (все ступени) — 420 → 1000.
+const HP_WIDTH_START := 420.0
+const HP_WIDTH_PER_POINT := 2.7
+const HP_WIDTH_MAX := 1000.0
+const STAMINA_WIDTH_START := 280.0
+const STAMINA_WIDTH_PER_POINT := 2.7
+const STAMINA_WIDTH_MAX := 700.0
 ## Ромб ячейки расходника (заглушка из референса автора, tools/ui/cut_quick_cross.py).
 const QUICK_CELL := preload("res://assets/ui/hud/painted/quick_cell.png")
 ## Крестовина: размер ромба и сдвиг ячеек от середины — по референсу ромбы заходят друг на друга.
@@ -64,10 +73,15 @@ var _bow_icon: TextureRect
 var _second_line: Label
 var _metal: Array[CanvasItem] = []
 var _quick_icons: Array[TextureRect] = []
+## Максимумы, под которые сейчас подогнана длина полос; -1 — ещё не подгоняли.
+var _health_max_shown := -1.0
+var _stamina_max_shown := -1.0
 var _quick_counts: Array[Label] = []
 
 @onready var health_bar: TextureProgressBar = %HealthBar
 @onready var stamina_bar: TextureProgressBar = %StaminaBar
+@onready var health_frame: BarFrame = $TopLeft/HealthFrame
+@onready var stamina_frame: BarFrame = $TopLeft/StaminaFrame
 @onready var currency_label: Label = %Currency
 @onready var flasks_label: Label = %Flasks
 @onready var flask_icon: TextureRect = %Flask
@@ -103,6 +117,8 @@ func _ready() -> void:
 	fade.color.a = 1.0
 	_on_echoes_changed(GameState.echoes)
 	_on_flasks_changed(_player.flasks, _player.max_flasks())
+	_on_health_changed(_player.health.current, _player.health.max_health)
+	_on_stamina_changed(_player.stamina, _player.stats.max_stamina)
 	_player.stamina_short.connect(_flash_stamina)
 	currency_label.pivot_offset = Vector2(320.0, 18.0)
 	_build_weapon_panel()
@@ -146,13 +162,30 @@ func hide_death() -> void:
 
 
 func _on_health_changed(current: float, maximum: float) -> void:
+	if maximum != _health_max_shown:
+		_health_max_shown = maximum
+		var extra := maximum - _player.stats.base_health
+		_fit_bar(health_frame, health_bar, minf(HP_WIDTH_START + extra * HP_WIDTH_PER_POINT, HP_WIDTH_MAX))
 	health_bar.max_value = maximum
 	health_bar.value = current
 
 
 func _on_stamina_changed(current: float, maximum: float) -> void:
+	if maximum != _stamina_max_shown:
+		_stamina_max_shown = maximum
+		var extra := maximum - _player.stats.base_stamina
+		_fit_bar(stamina_frame, stamina_bar, minf(STAMINA_WIDTH_START + extra * STAMINA_WIDTH_PER_POINT, STAMINA_WIDTH_MAX))
 	stamina_bar.max_value = maximum
 	stamina_bar.value = current
+
+
+## Рама вытягивается под проём, полоса ложится в проём целиком — от торца до острия наконечника:
+## полная полоса заполняет раму до конца.
+func _fit_bar(frame: BarFrame, bar: TextureProgressBar, width: float) -> void:
+	frame.opening_width = width
+	var opening := frame.opening_rect()
+	bar.position.x = frame.position.x + opening.x
+	bar.size.x = opening.y
 
 
 ## Отзвуки: прибавились — счётчик коротко вспыхивает.

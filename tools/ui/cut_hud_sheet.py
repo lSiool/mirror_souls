@@ -1,8 +1,9 @@
 """Нарезка нарисованного листа HUD (§8.12) на текстуры для Godot.
 
 Источник — art/ui_source/hud_sheet_v1.jpg (лист автора: части на сером фоне, подписи рядом).
-Скрипт убирает серый фон и нарисованную шахматку, вырезает внутренность полос (остаётся пустая рамка),
-собирает рамки HP и выносливости целиком и кладёт PNG с прозрачностью в assets/ui/hud/painted/.
+Скрипт убирает серый фон и нарисованную шахматку и кладёт PNG с прозрачностью в assets/ui/hud/painted/:
+заливки и жёлоб полос, медальон, флакон, кружок числа, рамку баффа, треугольники. Рамки полос HP и
+выносливости теперь режет tools/ui/cut_hud_bars.py из листа с прозрачностью.
 Координаты — под этот лист; новый лист другой раскладки — поправить BOXES.
 Запуск из корня проекта: python tools/ui/cut_hud_sheet.py
 """
@@ -19,10 +20,6 @@ BG_TOL = 5
 
 # Части листа: (x0, y0, x1, y1).
 BOXES = {
-    "hp_left": (73, 76, 324, 172),
-    "hp_middle": (346, 92, 1063, 148),
-    "hp_right": (1076, 92, 1291, 146),
-    "st_middle": (350, 214, 1062, 262),
     "hp_fill": (205, 290, 655, 318),
     "groove": (690, 290, 1165, 318),
     "st_fill": (215, 354, 1040, 380),
@@ -93,18 +90,6 @@ def crop(img, box):
     return img[y0:y1, x0:x1]
 
 
-def interior(rgb, seeds, kind):
-    """Внутренность полосы: заливка (красная или серо-зелёная) и тёмный жёлоб — до металла рамки."""
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    dark = rgb.max(axis=2) < 46
-    if kind == "hp":
-        fill = (r - np.maximum(g, b)) > 22
-    else:
-        # Серо-зелёная заливка: зелёный не ниже красного; металл рамки — буроватый (красный выше).
-        fill = (g >= r - 2) & (rgb.max(axis=2) > 58)
-    return flood(fill | dark, seeds)
-
-
 def save(name, arr):
     OUT.mkdir(parents=True, exist_ok=True)
     Image.fromarray(arr).save(OUT / f"{name}.png")
@@ -113,29 +98,6 @@ def save(name, arr):
 def main():
     sheet = load()
     parts = {name: crop(sheet, box) for name, box in BOXES.items()}
-
-    # Рамка HP: лево (шипастый торец) + середина (без её скруглённого начала) + право (наконечник).
-    left = parts["hp_left"]
-    lh = left.shape[0]
-    mid = parts["hp_middle"][:, 36:]
-    right = parts["hp_right"]
-    # Ставим куски на общую высоту по рельсам: у левого куска рельсы на 26 px ниже верха.
-    rail_offset = 16
-    width = left.shape[1] + mid.shape[1] + right.shape[1]
-    canvas = np.zeros((lh, width, 3), dtype=np.int16) + BG.astype(np.int16)
-    canvas[:, :left.shape[1]] = left
-    x = left.shape[1]
-    canvas[rail_offset:rail_offset + mid.shape[0], x:x + mid.shape[1]] = mid
-    x += mid.shape[1]
-    canvas[rail_offset:rail_offset + right.shape[0], x:x + right.shape[1]] = right
-    seeds = [(lh // 2 - 2, c) for c in range(160, width - 120, 7)]
-    holes = interior(canvas, seeds, "hp")
-    save("hp_frame", cut(canvas, holes))
-
-    stam = parts["st_middle"]
-    sh, sw = stam.shape[:2]
-    seeds = [(sh // 2, c) for c in range(20, sw - 80, 7)]
-    save("stamina_frame", cut(stam, interior(stam, seeds, "st")))
 
     for name in ("hp_fill", "groove", "st_fill"):
         part = parts[name]

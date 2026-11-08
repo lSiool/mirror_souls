@@ -5,8 +5,9 @@
 замыкающие линии на стыках и уголок начала у середины HP, а на стыке куски плавно перетекают
 друг в друга на BLEND пикселей. Выносливость — средний кусок целиком (он уже
 с торцами); шипастые накладки слева и справа пока не нужны.
-Пишет assets/ui/hud/painted/hp_frame_v2.png и stamina_frame_v2.png; старые рамки (из cut_hud_sheet.py) не трогает.
-Печатает внутренний проём каждой рамки — по нему в hud.tscn ставится полоса под рамку.
+Пишет assets/ui/hud/painted/hp_frame_v2.png и stamina_frame_v2.png.
+Печатает внутренний проём каждой рамки и куски чистого рельса (без шипов) — по ним в hud.tscn
+настраивается BarFrame (ui/bar_frame.gd): opening_from/to, head_to, tail_from, plain_from/to.
 Запуск из корня проекта: python tools/ui/cut_hud_bars.py
 """
 from pathlib import Path
@@ -41,12 +42,28 @@ def inner_rows(alpha, col):
     return int(gaps[0]), int(gaps[-1])
 
 
+def plain_runs(alpha):
+    """Колонки чистого рельса: металл только в полосах рельсов, обе полосы целые. Здесь раму можно
+    резать и повторять без шва (BarFrame)."""
+    solid = alpha > 100
+    h, w = solid.shape
+    rows = np.nonzero(solid[:, w // 3: 2 * w // 3].mean(axis=1) > 0.85)[0]
+    bands = [(g[0], g[-1]) for g in np.split(rows, np.where(np.diff(rows) != 1)[0] + 1)]
+    allowed = np.zeros(h, bool)
+    for b0, b1 in bands:
+        allowed[max(b0 - 1, 0):b1 + 2] = True
+    plain = [not solid[~allowed, x].any() and all(solid[b0:b1 + 1, x].all() for b0, b1 in bands) for x in range(w)]
+    xs = np.nonzero(plain)[0]
+    runs = np.split(xs, np.where(np.diff(xs) != 1)[0] + 1)
+    return [(int(r[0]), int(r[-1])) for r in runs if len(r) >= 20]
+
+
 def report(name, img):
     alpha = img[..., 3]
     col = img.shape[1] // 2
     y0, y1 = inner_rows(alpha, col)
     x0, x1 = inner(alpha, (y0 + y1) // 2)
-    print(f"{name}: {img.shape[1]}x{img.shape[0]}, проём x {x0}..{x1}, y {y0}..{y1}")
+    print(f"{name}: {img.shape[1]}x{img.shape[0]}, проём x {x0}..{x1}, y {y0}..{y1}, чистый рельс {plain_runs(alpha)}")
 
 
 def join(a, b):

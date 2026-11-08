@@ -337,6 +337,9 @@ func run() -> void:
 	var cost := stats.level_cost()
 	var age_before := stats.current_age
 	var speed_before := stats.move_speed
+	var hud: Hud = rooms.hud
+	var hp_bar_before := hud.health_bar.size.x
+	var hp_frame_before := hud.health_frame.size.x
 	game_state.add_echoes(cost - 1 - game_state.echoes)
 	menu._refresh()
 	menu.choose(PlayerStats.Param.VIGOR)
@@ -354,6 +357,11 @@ func run() -> void:
 	await menu.answer(true)
 	check(stats.level == 1 and game_state.echoes == 0 and menu.pending_total() == 0, "«Да»: уровень куплен за %d отзвуков" % cost)
 	check(is_equal_approx(stats.max_health, stats.base_health + 6.0), "первое очко здоровья: +6 (%.0f)" % stats.max_health)
+	check(hud.health_bar.size.x > hp_bar_before and hud.health_frame.size.x > hp_frame_before,
+		"полоса здоровья и рама длиннее (%.0f → %.0f)" % [hp_bar_before, hud.health_bar.size.x])
+	var opening := hud.health_frame.opening_rect()
+	check(is_equal_approx(hud.health_bar.position.x, hud.health_frame.position.x + opening.x)
+		and is_equal_approx(hud.health_bar.size.x, opening.y), "полоса лежит в проёме рамы целиком, до наконечника")
 	check(is_equal_approx(stats.current_age, age_before + 0.25), "герой повзрослел на четверть года (%.2f)" % stats.current_age)
 	check(stats.max_health > stats.base_health and is_equal_approx(player.health.max_health, stats.max_health),
 		"здоровье выросло (%.1f)" % stats.max_health)

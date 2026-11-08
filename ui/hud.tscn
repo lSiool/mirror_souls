@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://ui/hud.gd" id="1_hud"]
 [ext_resource type="Texture2D" path="res://assets/ui/hud/painted/medallion.png" id="2_medallion"]
@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" path="res://assets/ui/hud/painted/st_fill.png" id="9_st_fill"]
 [ext_resource type="Texture2D" path="res://assets/ui/hud/painted/groove.png" id="10_groove"]
 [ext_resource type="Shader" path="res://ui/glint.gdshader" id="7_glint"]
+[ext_resource type="Script" path="res://ui/bar_frame.gd" id="11_bar_frame"]
 
 [sub_resource type="StyleBoxFlat" id="Style_bg"]
 bg_color = Color(0.047, 0.035, 0.035, 0.92)
@@ -66,9 +67,9 @@ mouse_filter = 2
 [node name="HealthBar" type="TextureProgressBar" parent="TopLeft"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 194.0
+offset_left = 189.0
 offset_top = 53.0
-offset_right = 740.0
+offset_right = 609.0
 offset_bottom = 71.0
 mouse_filter = 2
 value = 100.0
@@ -76,22 +77,29 @@ nine_patch_stretch = true
 texture_under = ExtResource("10_groove")
 texture_progress = ExtResource("8_hp_fill")
 
-[node name="HealthFrame" type="TextureRect" parent="TopLeft"]
+[node name="HealthFrame" type="Control" parent="TopLeft"]
 layout_mode = 0
 offset_left = 142.0
 offset_top = 31.0
-offset_right = 810.0
+offset_right = 650.0
 offset_bottom = 96.0
 mouse_filter = 2
+script = ExtResource("11_bar_frame")
 texture = ExtResource("5_bar_long")
-expand_mode = 1
+opening_from = 79
+opening_to = 1060
+head_to = 258
+tail_from = 775
+plain_from = 262
+plain_to = 330
+opening_width = 420.0
 
 [node name="StaminaBar" type="TextureProgressBar" parent="TopLeft"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 167.0
+offset_left = 163.0
 offset_top = 88.0
-offset_right = 510.0
+offset_right = 443.0
 offset_bottom = 101.0
 mouse_filter = 2
 value = 100.0
@@ -99,15 +107,22 @@ nine_patch_stretch = true
 texture_under = ExtResource("10_groove")
 texture_progress = ExtResource("9_st_fill")
 
-[node name="StaminaFrame" type="TextureRect" parent="TopLeft"]
+[node name="StaminaFrame" type="Control" parent="TopLeft"]
 layout_mode = 0
 offset_left = 158.0
 offset_top = 79.0
-offset_right = 560.0
+offset_right = 490.0
 offset_bottom = 112.0
 mouse_filter = 2
+script = ExtResource("11_bar_frame")
 texture = ExtResource("6_bar_short")
-expand_mode = 1
+opening_from = 9
+opening_to = 636
+head_to = 280
+tail_from = 500
+plain_from = 410
+plain_to = 498
+opening_width = 280.0
 
 [node name="Medallion" type="TextureRect" parent="TopLeft"]
 layout_mode = 0
