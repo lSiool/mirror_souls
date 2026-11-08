@@ -72,6 +72,7 @@ turn_time = 1.0
 backstab_allowed = false
 parry_allowed = false
 roll_through = true
+flinch_threshold = 999.0
 windup_tint = 0.2
 echoes = 0
 rank = 2

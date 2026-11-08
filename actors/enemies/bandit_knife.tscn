@@ -78,6 +78,7 @@ attack_lunge = 5.0
 body_color = Color(0.18, 0.17, 0.15, 1)
 max_poise = 30.0
 turn_time = 0.25
+flinch_threshold = 12.0
 echoes = 45
 
 [node name="Collision" type="CollisionShape3D" parent="."]

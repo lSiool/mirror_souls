@@ -822,6 +822,7 @@ turn_time = 0.12
 backstab_allowed = false
 parry_allowed = false
 roll_through = true
+flinch_threshold = 999.0
 echoes = 0""",
   """[node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)

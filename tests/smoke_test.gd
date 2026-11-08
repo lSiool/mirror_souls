@@ -861,6 +861,41 @@ func run() -> void:
 	var gap := soldier.global_position.x - player.global_position.x
 	check(gap > 0.6, "герой упёрся во врага, а не прошёл сквозь (зазор %.2f)" % gap)
 	check(player.health.current == hp_contact, "столкновение без урона (hp %.0f)" % player.health.current)
+	# Перекат проходит сквозь любого врага и выводит за спину (§6.3, 2026-11-09).
+	player.restore()
+	player._since_roll = 99.0
+	press("move_right")
+	await tap("roll")
+	await seconds(0.9)
+	release_all()
+	check(player.global_position.x > soldier.global_position.x + 0.3, "перекат сквозь рядового врага — за спиной")
+	await seconds(0.3)
+	check(player.global_position.x > soldier.global_position.x, "после переката враг снова твёрдый, герой снаружи")
+	# Реакции на удар по тяжести: лёгкий — вздрог, средний — осечка вне атаки.
+	var jab := Hitbox.new()
+	rooms.current_room.add_child(jab)
+	jab.damage = 1.0
+	jab.poise_damage = 8.0
+	jab.global_position = soldier.global_position + Vector3(-1.0, 1.0, 0.0)
+	soldier._set_state(Dummy.State.WINDUP)
+	soldier._on_hurt(jab)
+	check(soldier.state == Dummy.State.WINDUP and soldier._jolt > 0.0, "лёгкий удар — враг вздрогнул, замах не сбит")
+	jab.poise_damage = 18.0
+	soldier._on_hurt(jab)
+	check(soldier.state == Dummy.State.WINDUP, "в замахе удар меча не сбивает — сверхброня")
+	soldier.poise = soldier.max_poise
+	soldier._set_state(Dummy.State.RECOVER)
+	soldier._on_hurt(jab)
+	check(soldier.state == Dummy.State.FLINCH, "в откате удар меча — осечка")
+	soldier.poise = soldier.max_poise
+	soldier._set_state(Dummy.State.ATTACK)
+	soldier._on_hurt(jab)
+	check(soldier.state == Dummy.State.ATTACK, "в собственном ударе не осекается — размен")
+	jab.queue_free()
+	soldier.attack_hitbox.active = false
+	soldier.health.heal_full()
+	soldier.poise = soldier.max_poise
+	soldier._set_state(Dummy.State.PATROL)
 
 	soldier.global_position = Vector3(0, 0, 0)
 	soldier._origin = Vector3.ZERO
@@ -2447,6 +2482,15 @@ func run() -> void:
 	var hp_knight := knight.health.current
 	knight._on_hurt(probe)
 	check(hp_knight - knight.health.current < 5.0, "щит держит удар спереди (−%.1f)" % (hp_knight - knight.health.current))
+	check(knight._guard_lock > 0.0 and knight.state == Dummy.State.CHASE, "удар в щит отталкивает — в ответ бьёт не сразу")
+	for i in DrownedKnight.GUARD_BREAK_HITS - 1:
+		knight._on_hurt(probe)
+	check(knight.state == Dummy.State.OFF_BALANCE and knight.can_be_riposted(), "удары в щит подряд — защита пробита, можно добить")
+	knight._set_state(Dummy.State.RECOVER)
+	hp_knight = knight.health.current
+	knight._on_hurt(probe)
+	check(hp_knight - knight.health.current > 15.0, "в откате щит опущен — удар проходит (−%.1f)" % (hp_knight - knight.health.current))
+	knight._set_state(Dummy.State.CHASE)
 	probe.heavy = true
 	hp_knight = knight.health.current
 	knight._on_hurt(probe)

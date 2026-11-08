@@ -4,11 +4,20 @@ extends CharacterBody3D
 ## Удар можно прочитать: перед атакой тело наливается красным (§1.1, читаемый бой).
 ##
 ## Свойства типа врага — обязательные вопросы при создании нового врага (§6.3):
-## стойкость, время разворота, поддаётся ли удару в спину, можно ли парировать.
+## стойкость, время разворота, поддаётся ли удару в спину, можно ли парировать,
+## с какого удара осекается и держит ли удар в собственном замахе.
+##
+## Реакция на удар героя — по тяжести, как в Dark Souls (§6.3, 2026-11-09):
+## - любой удар — вздрог: тело дёргается назад, враг не прерывается;
+## - удар не слабее flinch_threshold (по стойкости) — осечка: шаг назад, замах сбит;
+##   в замахе и ударе (WINDUP, ATTACK) при armored_attack — только вздрог: начатую атаку
+##   одиночный удар не сбивает, размен ударами; окно — подход и откат;
+## - стойкость сломана — ошеломлён (STAGGER), отлетает;
+## - тяжёлый удар не слабее KNOCKDOWN_POISE по сломанной стойкости — сбит с ног.
 
 enum State {
 	DORMANT, PATROL, CHASE, WINDUP, ATTACK, RECOVER, STAGGER,
-	OFF_BALANCE, CRITICAL_HIT, KNOCKDOWN, DEAD, INVESTIGATE,
+	OFF_BALANCE, CRITICAL_HIT, KNOCKDOWN, DEAD, INVESTIGATE, FLINCH,
 }
 
 const WINDUP_COLOR := Color(1.0, 0.35, 0.1)
@@ -23,6 +32,11 @@ const OFF_BALANCE_COLOR := Color(1.0, 0.85, 0.2)
 const HEAD_SLIDE_SPEED := 5.0
 ## Страховка: если добивание так и не пришло, враг освобождается сам.
 const CRITICAL_TIMEOUT := 2.0
+## Тяжёлый удар с такой силой по стойкости, сломав её, сбивает с ног (заряд, молот сверху).
+const KNOCKDOWN_POISE := 50.0
+## Вздрог: сколько секунд тело дёргается и насколько отклоняется.
+const JOLT_TIME := 0.14
+const JOLT_TILT := 0.22
 
 ## Кто он для мастерства оружия героя. Кто из врагов мини-босс — решим позже; пока босс один — Кузнец.
 enum Rank { COMMON, MINIBOSS, BOSS }
@@ -66,9 +80,16 @@ const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
 @export var backstab_allowed := true
 @export var parry_allowed := true
 ## Перекат героя проходит сквозь него и выводит на другую сторону; в остальное время тело твёрдое.
-@export var roll_through := false
+## С 2026-11-09 — у любого врага (§6.3); выключать только тому, кто сам как стена.
+@export var roll_through := true
 @export var off_balance_time := 1.5
 @export var knockdown_time := 0.8
+## С какой силы удара (по стойкости) враг осекается; 0 — от любого (крыса), 999 — никогда (босс).
+## Меч бьёт 18–26, выпад 40, заряд и молот сверху 55–80.
+@export var flinch_threshold := 15.0
+@export var flinch_time := 0.28
+## В собственном замахе и ударе не осекается — только вздрагивает: размен ударами.
+@export var armored_attack := true
 ## Особое добивание этого врага. Пусто — герой бьёт добиванием своего оружия.
 @export var riposte_step: AttackStep
 ## Голос врага (события Sfx) поверх звука удара и падения. Пусто — безголосый (стекло, механизм).
@@ -111,6 +132,7 @@ var _poise_delay := 0.0
 ## Время с начала разворота; < 0 — не разворачивается.
 var _turn_t := -1.0
 var _noise_x := 0.0
+var _jolt := 0.0
 
 @onready var health: Health = $Health
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -222,6 +244,10 @@ func _physics_process(delta: float) -> void:
 		State.KNOCKDOWN:
 			_brake(25.0, delta)
 			if _state_time >= knockdown_time:
+				_set_state(State.CHASE)
+		State.FLINCH:
+			_brake(18.0, delta)
+			if _state_time >= flinch_time:
 				_set_state(State.CHASE)
 		State.DEAD:
 			_brake(25.0, delta)
@@ -440,20 +466,35 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	# В уязвимых состояниях реакции нет: враг и так беззащитен.
 	if state in [State.CRITICAL_HIT, State.KNOCKDOWN, State.OFF_BALANCE]:
 		return
-	poise -= hitbox.poise_damage * statuses.poise_mult()
+	var force := hitbox.poise_damage * statuses.poise_mult()
+	poise -= force
 	_poise_delay = poise_regen_delay
 	var dir := hitbox.knockback_direction(self)
+	_jolt = JOLT_TIME
 	if poise <= 0.0:
-		# Стойкость сломана — направленный стаггер, враг разворачивается к обидчику.
+		# Стойкость сломана — направленный стаггер, враг разворачивается к обидчику;
+		# очень тяжёлый удар сбивает с ног.
 		poise = max_poise
 		velocity.x = dir.x * hitbox.knockback
 		velocity.y = 3.0 if hitbox.heavy else 1.5
 		facing = -dir.x
 		_turn_t = -1.0
-		_set_state(State.STAGGER)
-	elif state in [State.PATROL, State.INVESTIGATE]:
-		# Удар не сбил, но враг заметил героя.
-		_set_state(State.CHASE)
+		# Боссов с ног не сбить: у них свои стаггеры.
+		var floored := hitbox.heavy and force >= KNOCKDOWN_POISE and rank != Rank.BOSS
+		_set_state(State.KNOCKDOWN if floored else State.STAGGER)
+	elif force >= flinch_threshold and not (armored_attack and state in [State.WINDUP, State.ATTACK]):
+		# Осечка: шаг назад, замах сбит; враг повернулся к обидчику.
+		velocity.x = dir.x * hitbox.knockback * 0.45
+		facing = -dir.x
+		_turn_t = -1.0
+		_set_state(State.FLINCH)
+	else:
+		# Вздрог: удар почувствовал, но не прервался. Чуть подался назад.
+		if state != State.ATTACK:
+			velocity.x += dir.x * minf(hitbox.knockback * 0.2, 1.2)
+		if state in [State.PATROL, State.INVESTIGATE]:
+			# Удар не сбил, но враг заметил героя.
+			_set_state(State.CHASE)
 
 
 ## Копим кровотечение; полное вырывается: доля от всего здоровья, сильным врагам больнее.
@@ -546,6 +587,14 @@ func _update_pose(delta: float) -> void:
 			tilt = 0.25
 		State.KNOCKDOWN:
 			tilt = PI * 0.5
+		State.FLINCH:
+			tilt = 0.3 * (1.0 - clampf(_state_time / flinch_time, 0.0, 1.0))
+	# Вздрог поверх позы: резкий толчок назад и быстрый возврат.
+	if _jolt > 0.0:
+		_jolt = maxf(_jolt - delta, 0.0)
+		tilt += JOLT_TILT * sin(_jolt / JOLT_TIME * PI)
+		body_mesh.rotation.z = tilt
+		return
 	body_mesh.rotation.z = lerpf(body_mesh.rotation.z, tilt, 1.0 - exp(-12.0 * delta))
 
 

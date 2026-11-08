@@ -114,7 +114,7 @@ var _parry_t := 0.0
 var _since_slide := 99.0
 var _since_roll := 99.0
 var _roll_attack_queued := false
-## Боссы, сквозь которых сейчас катимся (Dummy.roll_through). Твёрдыми становятся, когда вышли из них.
+## Враги, сквозь которых сейчас катимся (Dummy.roll_through). Твёрдыми становятся, когда вышли из них.
 var _rolled_through := []
 var _critical_target: Dummy
 var _critical_done := false
@@ -511,7 +511,7 @@ func _roll_state(delta: float) -> void:
 		_attack_buffer = 0.0
 		_roll_attack_queued = true
 	if _state_time >= stats.roll_duration:
-		# Внутри босса перекат не заканчивается; упёрлись в стену — выходим обратно.
+		# Внутри врага перекат не заканчивается; упёрлись в стену — выходим обратно.
 		if _boss_around():
 			_iframes = maxf(_iframes, delta * 2.0)
 			if is_on_wall() and get_wall_normal().x * _roll_dir < 0.0:
@@ -546,7 +546,7 @@ func _pass_through_bosses() -> void:
 			_rolled_through.append(enemy)
 
 
-## Босс, внутри которого стоит герой, или null.
+## Враг, внутри которого стоит герой, или null.
 func _boss_around() -> Dummy:
 	var radius := (body_shape.shape as CapsuleShape3D).radius
 	for enemy in _rolled_through:
@@ -556,7 +556,7 @@ func _boss_around() -> Dummy:
 	return null
 
 
-## После переката босс снова твёрдый. Если перекат сорвали внутри него — выдавливает наружу.
+## После переката враг снова твёрдый. Если перекат сорвали внутри него — выдавливает наружу.
 func _update_rolled_through(delta: float) -> void:
 	if state == State.ROLL or _rolled_through.is_empty():
 		return
