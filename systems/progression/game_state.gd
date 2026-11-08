@@ -24,7 +24,7 @@ const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick"]
+	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_worn"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -44,6 +44,8 @@ var quick_slots := [&"", &"", &"", &""]
 ## Выбранная ячейка (2026-11-09, как в Dark Souls): 1–4 / правый курок + крестовина только
 ## выбирают, бросает «использовать» — G / тап правого курка.
 var active_quick := 0
+## Щит надет (снимается в «Снаряжении»); купленный сразу в руке.
+var shield_worn := true
 ## Стрелы (§6.2), как в Dark Souls: два гнезда лука, I и II; в каждом id особых стрел
 ## (data/arrows) или пусто — обычные, бесконечные. Что в гнёздах — выбирается у осколка,
 ## в бою «сменить стрелы» переключает active_arrow. Кончились особые — гнездо стреляет обычными.

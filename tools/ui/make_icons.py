@@ -102,6 +102,27 @@ ITEMS = {
     "burning": ("#24140c", BURNING), "corroded": ("#16200c", CORRODED), "tar": ("#141110", TARRED),
 }
 
+# Вкладки меню паузы и пустые ячейки снаряжения (§8.12, 2026-11-09): светлый контур на тёмном.
+LINE = 'fill="none" stroke="#c9c3b8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"'
+DIM = 'fill="none" stroke="#6d6a66" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"'
+MENU = {
+    "menu_equipment": ("#16181c", f'<path d="M24 14 H 40 V 26 Q 40 40 32 48 Q 24 40 24 26 Z" {LINE}/><path d="M32 20 V 40 M27 28 H 37" {LINE}/>'),
+    "menu_items": ("#16181c", f'<path d="M20 24 H 44 L 46 50 H 18 Z" {LINE}/><path d="M26 24 Q 26 14 32 14 Q 38 14 38 24" {LINE}/>'),
+    "menu_status": ("#16181c", f'<circle cx="32" cy="20" r="6" {LINE}/><path d="M20 50 Q 20 32 32 30 Q 44 32 44 50" {LINE}/>'),
+    "menu_settings": ("#16181c", f'<circle cx="32" cy="32" r="8" {LINE}/><path d="M32 12 V 18 M32 46 V 52 M12 32 H 18 M46 32 H 52 M18 18 L 22 22 M42 42 L 46 46 M46 18 L 42 22 M22 42 L 18 46" {LINE}/>'),
+    "menu_exit": ("#16181c", f'<path d="M22 14 H 42 V 50 H 22" {LINE}/><path d="M34 32 H 14 M20 26 L 14 32 L 20 38" {LINE}/>'),
+    "slot_head": ("#121315", f'<path d="M20 40 V 28 Q 20 14 32 14 Q 44 14 44 28 V 40 L 38 46 H 26 Z M26 30 H 38" {DIM}/>'),
+    "slot_body": ("#121315", f'<path d="M20 16 L 26 14 Q 32 20 38 14 L 44 16 L 46 30 L 40 30 V 50 H 24 V 30 L 18 30 Z" {DIM}/>'),
+    "slot_hands": ("#121315", f'<path d="M24 50 V 30 Q 24 26 27 26 V 16 M27 26 V 14 M32 26 V 12 M37 26 V 14 M40 50 V 26 Q 40 22 37 22" {DIM}/>'),
+    "slot_legs": ("#121315", f'<path d="M22 14 H 42 L 40 50 H 34 L 32 28 L 30 50 H 24 Z" {DIM}/>'),
+    "slot_shield": ("#121315", f'<circle cx="32" cy="32" r="16" {DIM}/>'),
+    "slot_weapon": ("#121315", f'<path d="M44 16 L 24 40 M18 34 L 30 46 M24 40 L 17 49" {DIM}/>'),
+    "slot_bow": ("#121315", f'<path d="M24 14 Q 48 32 24 50 V 14" {DIM}/>'),
+    "slot_arrow": ("#121315", f'<path d="M16 48 L 46 18 M38 18 H 46 V 26" {DIM}/>'),
+    "slot_item": ("#121315", f'<path d="M28 16 H 36 V 22 A 12 12 0 1 1 28 22 Z" {DIM}/>'),
+    "slot_locked": ("#121315", f'<rect x="22" y="30" width="20" height="16" rx="2" {DIM}/><path d="M26 30 V 24 Q 26 18 32 18 Q 38 18 38 24 V 30" {DIM}/>'),
+}
+
 
 def icon(fill, art):
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
@@ -238,7 +259,7 @@ SECTION = """<svg xmlns="http://www.w3.org/2000/svg" width="96" height="40" view
 def main():
     ICONS.mkdir(parents=True, exist_ok=True)
     HUD.mkdir(parents=True, exist_ok=True)
-    for name, (fill, art) in {**ITEMS, **FACETS}.items():
+    for name, (fill, art) in {**ITEMS, **FACETS, **MENU}.items():
         (ICONS / f"{name}.svg").write_text(icon(fill, art), encoding="utf-8")
     for name, art in CONSUMABLES.items():
         (ICONS / f"{name}.svg").write_text(loose(art), encoding="utf-8")
@@ -250,7 +271,7 @@ def main():
              "section": SECTION}
     for name, text in files.items():
         (HUD / f"{name}.svg").write_text(text, encoding="utf-8")
-    print("icons:", len(ITEMS) + len(FACETS) + len(CONSUMABLES), "hud:", len(files))
+    print("icons:", len(ITEMS) + len(FACETS) + len(MENU) + len(CONSUMABLES), "hud:", len(files))
 
 
 if __name__ == "__main__":

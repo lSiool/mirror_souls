@@ -1042,7 +1042,12 @@ func _menu_state(delta: float) -> void:
 
 
 func has_shield() -> bool:
-	return GameState.item_count(GameState.SHIELD_ITEM) > 0
+	return GameState.item_count(GameState.SHIELD_ITEM) > 0 and GameState.shield_worn
+
+
+## Щит надели или сняли в «Снаряжении».
+func refresh_shield() -> void:
+	_refresh_shield()
 
 
 ## Щит в руке: есть, оружие не двуручное и лук не натянут.

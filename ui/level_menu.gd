@@ -21,9 +21,9 @@ const CLEAR_GLASS: StringName = &"clear_glass"
 const FACET_SLOT: StringName = &"facet_slot"
 const TYPE_NAMES := {&"sword": "Меч", &"bow": "Лук", &"spear": "Копьё", &"axe": "Топор", &"hammer": "Молот"}
 
-enum Page { ROOT, LEVEL, FACETS, WEAPON, ITEMS, SETTINGS }
+enum Page { ROOT, LEVEL, FACETS, WEAPON, ITEMS, SETTINGS, EQUIP }
 const PAGE_TITLES := {Page.LEVEL: "Поднять уровень", Page.FACETS: "Грани", Page.WEAPON: "Оружие", Page.ITEMS: "Предметы",
-	Page.SETTINGS: "Настройки"}
+	Page.SETTINGS: "Настройки", Page.EQUIP: "Снаряжение"}
 ## Те же страницы в меню паузы называются по-своему: там уровень не поднять, оружие не закалить.
 const PAUSE_TITLES := {Page.LEVEL: "Статус", Page.WEAPON: "Снаряжение"}
 const PARAMS := {
@@ -83,14 +83,17 @@ var _pages := {}
 var _root_buttons: Array[Button] = []
 var _hub: Button
 var _leave: Button
-## Корень меню паузы и подпись у осколка, которой в паузе нет.
-var _pause_buttons: Array[Button] = []
+## Подпись у осколка, которой в паузе нет.
 var _flavor: Label
 var _volume_label: Label
 var _volume_down: Button
 var _volume_up: Button
 ## Под наборами оружия в паузе: что меняется только у осколка.
 var _shard_note: Label
+## Пауза — компактная панель слева вверху (§8.12, 2026-11-09); страницы — на весь экран.
+var pause_panel: PausePanel
+var equipment: EquipmentScreen
+var _margin: MarginContainer
 var _status: Label
 # Поднять уровень.
 var _buttons := {}
@@ -165,6 +168,7 @@ func _ready() -> void:
 	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_veil)
 	var margin := MarginContainer.new()
+	_margin = margin
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for side in ["left", "right"]:
@@ -193,6 +197,9 @@ func _ready() -> void:
 	_build_weapon(_page_box(pages, Page.WEAPON))
 	_build_items(_page_box(pages, Page.ITEMS))
 	_build_settings(_page_box(pages, Page.SETTINGS))
+	equipment = EquipmentScreen.new()
+	_page_box(pages, Page.EQUIP).add_child(equipment)
+	equipment.setup(self)
 	var footer := HBoxContainer.new()
 	footer.alignment = BoxContainer.ALIGNMENT_END
 	footer.add_theme_constant_override("separation", 36)
@@ -203,6 +210,12 @@ func _ready() -> void:
 	_confirm = _frame_button(footer, "Подтвердить", 30)
 	_confirm.custom_minimum_size.x = 280
 	_confirm.pressed.connect(confirm)
+	pause_panel = PausePanel.new()
+	add_child(pause_panel)
+	pause_panel.setup(self)
+	pause_panel.page_chosen.connect(show_page)
+	pause_panel.exit_to_title.connect(leave_to_title)
+	pause_panel.resume.connect(close)
 	_build_dialog()
 
 
@@ -220,7 +233,7 @@ func _page_box(parent: Control, page: Page) -> VBoxContainer:
 
 func _build_root(page: VBoxContainer) -> void:
 	page.add_theme_constant_override("separation", 4)
-	for entry in [[Page.LEVEL, "Поднять уровень"], [Page.FACETS, "Грани"], [Page.WEAPON, "Оружие"], [Page.ITEMS, "Предметы"]]:
+	for entry in [[Page.LEVEL, "Поднять уровень"], [Page.FACETS, "Грани"], [Page.WEAPON, "Оружие"], [Page.EQUIP, "Снаряжение"], [Page.ITEMS, "Предметы"]]:
 		var button := _menu_button(page, entry[1], 34)
 		button.pressed.connect(show_page.bind(entry[0]))
 		_root_buttons.append(button)
@@ -229,17 +242,7 @@ func _build_root(page: VBoxContainer) -> void:
 	_hub.pressed.connect(go_to_hub)
 	_leave = _menu_button(page, "Отойти", 28)
 	_leave.pressed.connect(close)
-	for entry in [[Page.WEAPON, "Снаряжение"], [Page.ITEMS, "Предметы"], [Page.LEVEL, "Статус"], [Page.SETTINGS, "Настройки"]]:
-		var button := _menu_button(page, entry[1], 34)
-		button.pressed.connect(show_page.bind(entry[0]))
-		_pause_buttons.append(button)
-	var to_title := _menu_button(page, "Выйти в главное меню", 28)
-	to_title.pressed.connect(leave_to_title)
-	_pause_buttons.append(to_title)
-	var resume := _menu_button(page, "Вернуться", 28)
-	resume.pressed.connect(close)
-	_pause_buttons.append(resume)
-	for button: Button in _root_buttons + _pause_buttons + [_hub, _leave]:
+	for button: Button in _root_buttons + [_hub, _leave]:
 		button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		button.custom_minimum_size.x = 560
 	page.add_child(_spacer(30))
@@ -1030,7 +1033,7 @@ func _items_of(kind: ItemCatalog.Kind) -> Array[StringName]:
 	var result: Array[StringName] = []
 	if kind == ItemCatalog.Kind.WEAPON:
 		result.append_array(GameState.owned_weapons())
-		if _player.has_shield():
+		if GameState.item_count(GameState.SHIELD_ITEM) > 0:
 			result.append(GameState.SHIELD_ITEM)
 		result.append_array(GameState.owned_bows())
 		return result
@@ -1162,6 +1165,10 @@ func _unhandled_input(event: InputEvent) -> void:
 func back() -> void:
 	if _dialog.visible:
 		answer(false)
+	elif _page == Page.EQUIP and equipment.list_open():
+		equipment.close_list()
+	elif _page == Page.ROOT and not at_shard and pause_panel.exit_open():
+		pause_panel.close_exit()
 	elif _page != Page.ROOT:
 		if _animating:
 			return
@@ -1183,6 +1190,11 @@ func _refresh() -> void:
 	for page: Page in _pages:
 		(_pages[page] as Control).visible = page == _page
 	# Корень — полупрозрачная полоса слева, чтобы видеть отражение; страницы — почти весь экран.
+	# Пауза — только компактная панель: мир виден целиком.
+	var compact := not at_shard and _page == Page.ROOT
+	pause_panel.visible = compact
+	_margin.visible = not compact
+	_backdrop.visible = not compact
 	_backdrop.anchor_right = 0.62
 	_veil.visible = _page != Page.ROOT
 	_confirm.visible = _page == Page.LEVEL and at_shard
@@ -1203,8 +1215,6 @@ func _refresh() -> void:
 	for button in _root_buttons:
 		button.visible = at_shard
 		button.disabled = _animating
-	for button in _pause_buttons:
-		button.visible = not at_shard
 	var stats := _player.stats
 	_status.text = "Отзвуки %s    Уровень %d    Возраст %s" % [Hud._grouped(GameState.echoes), stats.level, _age_text(stats.current_age)]
 	_refresh_level()
@@ -1213,6 +1223,7 @@ func _refresh() -> void:
 		Page.WEAPON: _refresh_weapon()
 		Page.ITEMS: _refresh_items()
 		Page.SETTINGS: _refresh_settings()
+		Page.EQUIP: equipment.refresh(_player)
 
 
 func _place_name(room: Room) -> String:
@@ -1224,7 +1235,12 @@ func _place_name(room: Room) -> String:
 func _focus_first() -> void:
 	match _page:
 		Page.ROOT:
-			(_root_buttons[0] if at_shard else _pause_buttons[0]).grab_focus()
+			if at_shard:
+				_root_buttons[0].grab_focus()
+			else:
+				pause_panel.open(_place_name(get_tree().get_first_node_in_group(&"room") as Room))
+		Page.EQUIP:
+			equipment.focus_first()
 		Page.SETTINGS:
 			_volume_up.grab_focus() if not _volume_up.disabled else _volume_down.grab_focus()
 		Page.LEVEL:

@@ -23,6 +23,11 @@ func _ready() -> void:
 	GameState.weapon_glass[&"sword"] = 2
 	GameState.mastery[&"sword"] = 68.0
 	GameState.add_echoes(1240)
+	GameState.add_item(&"fire_flask", 3)
+	GameState.add_item(&"poison_flask", 2)
+	GameState.add_item(&"throwing_knife", 5)
+	GameState.add_item(&"fire_arrow", 6)
+	GameState.add_item(GameState.SHIELD_ITEM)
 	_main = load("res://main.tscn").instantiate()
 	_main.get_node("RoomManager").start_room = &"room_001"
 	get_tree().root.add_child.call_deferred(_main)
@@ -55,10 +60,15 @@ func _ready() -> void:
 	rooms.level_menu.open_pause(player)
 	await get_tree().create_timer(0.4).timeout
 	await _shot("pause_root")
-	for page in [LevelMenu.Page.WEAPON, LevelMenu.Page.SETTINGS]:
+	for page in [LevelMenu.Page.EQUIP, LevelMenu.Page.SETTINGS]:
 		rooms.level_menu.show_page(page)
-		await get_tree().create_timer(0.3).timeout
+		await get_tree().create_timer(0.5).timeout
 		await _shot("pause_%s" % LevelMenu.Page.keys()[page].to_lower())
+	# Снаряжение: список выбора для ячейки расходника.
+	rooms.level_menu.show_page(LevelMenu.Page.EQUIP)
+	rooms.level_menu.equipment._choose(EquipmentScreen.Slot.ITEM_2)
+	await get_tree().create_timer(0.4).timeout
+	await _shot("pause_equip_list")
 	print("snapshots: ", ProjectSettings.globalize_path(OUT))
 	get_tree().quit()
 

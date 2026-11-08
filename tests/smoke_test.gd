@@ -1413,6 +1413,26 @@ func run() -> void:
 	await seconds(0.3)
 	release("move_right")
 	check(absf(player.global_position.x - paused_x) < 0.05, "в меню герой не ходит")
+	check(pause_menu.pause_panel.visible and not pause_menu._margin.visible and pause_menu.pause_panel.tabs.size() == 5,
+		"пауза — компактная панель с пятью вкладками, мир виден")
+	pause_menu.show_page(LevelMenu.Page.EQUIP)
+	var equip := pause_menu.equipment
+	check(pause_menu._pages[LevelMenu.Page.EQUIP].visible and pause_menu._title.text == "Снаряжение"
+		and not pause_menu.pause_panel.visible, "вкладка «Снаряжение» — экран ячеек на герое")
+	# Расходник в ячейку — из списка; стрелы вне осколка не меняются.
+	game_state.add_item(&"throwing_knife", 2)
+	equip._choose(EquipmentScreen.Slot.ITEM_4)
+	check(equip.list_open(), "ячейка расходника — список выбора")
+	equip._put(EquipmentScreen.Slot.ITEM_4, &"throwing_knife")
+	check(game_state.quick_item(3) == &"throwing_knife" and not equip.list_open(), "нож в нижнюю ячейку из «Снаряжения»")
+	equip._choose(EquipmentScreen.Slot.ARROW_1)
+	check(not equip.list_open(), "стрелы вне осколка не меняются")
+	pause_menu.back()
+	check(pause_menu._page == LevelMenu.Page.ROOT and pause_menu.pause_panel.visible, "«Назад» — снова панель паузы")
+	game_state.items.erase(&"throwing_knife")
+	game_state.quick_slots = [&"", &"", &"", &""]
+	game_state.active_quick = 0
+	Events.quick_items_changed.emit()
 	pause_menu.show_page(LevelMenu.Page.WEAPON)
 	check(pause_menu._title.text == "Снаряжение" and not pause_menu._temper.visible and pause_menu._shard_note.visible,
 		"«Снаряжение»: закалка — только у осколка")
