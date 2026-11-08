@@ -38,7 +38,7 @@ Godot не в PATH, путь — `/c/Program Files/Godot/Godot.exe`.
 - `systems/progression/` — `GameState`, `PlayerStats` (все числа героя, зависимость от возраста), `Facet` (грани), `AgeLook`.
 - `systems/room_manager/` — `RoomManager`: загрузка комнаты в нужной реальности, применение `MirrorTransformation` (`FlipX`…), двери, смерть и возрождение.
 - `world/` — комнаты (`Room` — только раскладка и данные), зеркала, стекло (`GlassSurface` — одна сцена на все роли стекла), осколки-чекпоинты, отзвуки, `common/` (Interactable, Npc, ItemPickup, RoomDoor, SayLine, Note, Ladder, BossArena, FogGate…).
-- `ui/` — `Hud`, `LevelMenu` (меню у осколка: уровни, грани, закалка, мастерство, смена оружия и лука; оно же меню паузы — `open_pause`, режим `at_shard = false`), `StartMenu`. Настройки игрока — `systems/settings.gd` (`Settings`, отдельный `user://settings.cfg`).
+- `ui/` — `Hud`, `LevelMenu` (меню у осколка: уровни, грани, закалка, мастерство, смена оружия и лука; оно же меню паузы — `open_pause`, режим `at_shard = false`: корень паузы — компактная панель `PausePanel`, страница `Page.EQUIP` — экран снаряжения `EquipmentScreen` с манекеном героя), `StartMenu`. Настройки игрока — `systems/settings.gd` (`Settings`, отдельный `user://settings.cfg`).
 - `data/` — `.tres`: оружие (`stick`, `sword`, `candlestick`), расходники (`consumables/`), грани, статы героя, особые добивания врагов.
 - `tests/smoke_test.gd` — один сквозной тест всей игры, вводом через `Input.action_press`.
 
