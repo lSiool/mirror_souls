@@ -24,7 +24,7 @@ const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow"]
+	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -41,6 +41,9 @@ var bow_id: StringName
 ## Пусто — ячейка пуста. Предмет лежит не больше чем в одной ячейке; кончился — ячейка его помнит.
 const QUICK_SLOTS := 4
 var quick_slots := [&"", &"", &"", &""]
+## Выбранная ячейка (2026-11-09, как в Dark Souls): 1–4 / правый курок + крестовина только
+## выбирают, бросает «использовать» — G / тап правого курка.
+var active_quick := 0
 ## Стрелы (§6.2), как в Dark Souls: два гнезда лука, I и II; в каждом id особых стрел
 ## (data/arrows) или пусто — обычные, бесконечные. Что в гнёздах — выбирается у осколка,
 ## в бою «сменить стрелы» переключает active_arrow. Кончились особые — гнездо стреляет обычными.
@@ -217,7 +220,11 @@ func add_item(id: StringName, count := 1) -> void:
 	if is_consumable(id):
 		# Новый расходник сам ложится в первую пустую ячейку, как в кармане Elden Ring.
 		if not quick_slots.has(id) and quick_slots.has(&""):
-			quick_slots[quick_slots.find(&"")] = id
+			var slot := quick_slots.find(&"")
+			quick_slots[slot] = id
+			# Выбранная ячейка пуста — новинка сразу под рукой.
+			if quick_item(active_quick) == &"" or item_count(quick_item(active_quick)) <= 0:
+				active_quick = slot
 		Events.quick_items_changed.emit()
 	if is_arrow(id):
 		# Новые стрелы сами ложатся в пустое гнездо — сперва во второе: первое для обычных.
@@ -280,6 +287,14 @@ func set_quick_slot(slot: int, id: StringName) -> void:
 		if was >= 0:
 			quick_slots[was] = &""
 	quick_slots[slot] = id
+	Events.quick_items_changed.emit()
+
+
+## Выбрать ячейку крестовины 0…3 (верх, лево, право, низ).
+func select_quick(slot: int) -> void:
+	if slot < 0 or slot >= QUICK_SLOTS or slot == active_quick:
+		return
+	active_quick = slot
 	Events.quick_items_changed.emit()
 
 

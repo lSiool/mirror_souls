@@ -58,6 +58,12 @@ func pause_key() -> void:
 	await frames(2)
 
 
+## Выбрать ячейку крестовины (клавиша 1–4) и бросить выбранное (G).
+func use_slot(slot: int) -> void:
+	await tap("quick_%d" % (slot + 1))
+	await tap("quick_use")
+
+
 func tap(action: String) -> void:
 	Input.action_press(action)
 	await frames(2)
@@ -1219,22 +1225,34 @@ func run() -> void:
 	player.item_thrown.connect(on_throw)
 	await face_enemy(soldier, 4.0)
 	var hp_knife := soldier.health.current
+	# Как в Dark Souls: клавиша ячейки только выбирает, бросает G.
 	await tap("quick_1")
+	await seconds(0.3)
+	check(thrown_items.is_empty() and game_state.active_quick == 0, "клавиша 1 — только выбор ячейки, без броска")
+	await tap("quick_use")
 	await seconds(0.5)
 	check(thrown_items.size() == 1 and game_state.item_count(&"throwing_knife") == 2,
-		"клавиша 1 — бросок ножа, осталось %d" % game_state.item_count(&"throwing_knife"))
+		"G — бросок ножа из выбранной ячейки, осталось %d" % game_state.item_count(&"throwing_knife"))
+	var chosen_cell := cross.get_node("Slot1") as Control
+	check(chosen_cell.scale.x > 1.05 and (cross.get_node("Slot2") as Control).scale.x < 1.01, "выбранная ячейка в HUD выделена")
+	# Геймпад: тап правого курка без крестовины — бросок выбранного.
+	player.restore()
+	await seconds(0.3)
+	await tap("quick_hold")
+	await seconds(0.5)
+	check(thrown_items.size() == 2, "тап правого курка — бросок выбранного")
 	check(soldier.health.current < hp_knife, "нож попал (%.0f → %.0f)" % [hp_knife, soldier.health.current])
 	game_state.add_item(&"fire_flask")
 	check(game_state.quick_item(1) == &"fire_flask", "склянка легла в левую ячейку")
 	await face_enemy(soldier, 5.5)
 	var hp_fire := soldier.health.current
-	await tap("quick_2")
+	await use_slot(1)
 	await seconds(1.0)
 	check(soldier.health.current < hp_fire, "склянка разбилась вспышкой (%.0f → %.0f)" % [hp_fire, soldier.health.current])
 	check(game_state.item_count(&"fire_flask") == 0, "склянок не осталось")
-	await tap("quick_2")
+	await use_slot(1)
 	await frames(3)
-	check(player.state != Player.State.THROW and thrown_items.size() == 2, "кончились — броска нет")
+	check(player.state != Player.State.THROW and thrown_items.size() == 3, "кончились — броска нет")
 	game_state.set_quick_slot(3, &"throwing_knife")
 	check(game_state.quick_item(3) == &"throwing_knife" and game_state.quick_item(0) == &"",
 		"нож переложен вниз: предмет лежит в одной ячейке")
@@ -1277,11 +1295,11 @@ func run() -> void:
 	game_state.add_item(&"poison_flask", 4)
 	game_state.set_quick_slot(0, &"poison_flask")
 	await put(Vector3(-20, 0.1, 0), -1.0)
-	await tap("quick_1")
+	await use_slot(0)
 	await seconds(0.4)
-	press("quick_1")
+	press("quick_use")
 	await seconds(0.6)
-	release("quick_1")
+	release("quick_use")
 	await seconds(0.4)
 	check(flask_speeds.size() == 2, "два броска склянки: тап и с задержкой")
 	if flask_speeds.size() == 2:
@@ -1291,7 +1309,7 @@ func run() -> void:
 	clear_zones.call()
 	# Яд: облако травит солдата со временем и героя, если он в нём стоит.
 	await face_enemy(soldier, 5.0)
-	await tap("quick_1")
+	await use_slot(0)
 	await seconds(1.0)
 	var cloud := nodes_where(get_tree().root, func(n: Node) -> bool: return n is PoisonCloud)
 	check(not cloud.is_empty(), "склянка с ядом оставила облако")
@@ -1308,7 +1326,7 @@ func run() -> void:
 	game_state.add_item(&"acid_flask")
 	game_state.set_quick_slot(0, &"acid_flask")
 	await face_enemy(soldier, 5.0)
-	await tap("quick_1")
+	await use_slot(0)
 	await seconds(1.0)
 	check(soldier.statuses.has(Statuses.CORRODED), "кислота разъела броню солдата")
 	var hp_acid := soldier.health.current
@@ -1319,7 +1337,7 @@ func run() -> void:
 	game_state.add_item(&"tar_flask")
 	game_state.set_quick_slot(0, &"tar_flask")
 	await face_enemy(soldier, 5.0)
-	await tap("quick_1")
+	await use_slot(0)
 	await seconds(1.0)
 	check(soldier.statuses.has(Statuses.TAR) and soldier.statuses.speed_mult() < 0.5, "солдат объят смолой и еле двигается")
 	check(not nodes_where(get_tree().root, func(n: Node) -> bool: return n is TarPool).is_empty(), "смола лежит на земле")
@@ -1349,14 +1367,14 @@ func run() -> void:
 	game_state.set_quick_slot(0, &"holy_flask")
 	await face_enemy(soldier, 5.0)
 	var hp_holy := soldier.health.current
-	await tap("quick_1")
+	await use_slot(0)
 	await seconds(1.0)
 	var plain_holy := hp_holy - soldier.health.current
 	check(not nodes_where(get_tree().root, func(n: Node) -> bool: return n is HolyLight).is_empty(), "свет святой воды остался в комнате")
 	soldier.unholy = true
 	hp_holy = soldier.health.current
 	await face_enemy(soldier, 5.0)
-	await tap("quick_1")
+	await use_slot(0)
 	# Крест появляется, когда склянка долетит и разобьётся, и живёт меньше секунды.
 	var crossed := false
 	for i in 90:

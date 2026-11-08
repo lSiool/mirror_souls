@@ -45,6 +45,8 @@ const QUICK_AT: Array[Vector2] = [Vector2(0, -1), Vector2(-1, 0), Vector2(1, 0),
 const QUICK_DRAW_ORDER: Array[int] = [3, 1, 2, 0]
 ## Кончились — значок тускнеет, ячейка остаётся на месте.
 const QUICK_EMPTY_ALPHA := 0.32
+const QUICK_CHOSEN := Color(1.25, 1.12, 0.85)
+const QUICK_OTHER := Color(0.72, 0.72, 0.75)
 
 @export var player_path: NodePath
 
@@ -81,6 +83,7 @@ var _quick_icons: Array[TextureRect] = []
 var _health_max_shown := -1.0
 var _stamina_max_shown := -1.0
 var _quick_counts: Array[Label] = []
+var _quick_cells: Array[Control] = []
 
 @onready var health_bar: TextureProgressBar = %HealthBar
 @onready var stamina_bar: TextureProgressBar = %StaminaBar
@@ -386,7 +389,8 @@ func _refresh_arrows(has_bow: bool) -> void:
 
 
 ## Крестовина расходников (§8.12) слева внизу: четыре ромба, в каждом значок и число.
-## Клавиши 1–4 — верх, лево, право, низ; на геймпаде — держать правый курок и нажать крестовину.
+## Клавиши 1–4 выбирают ячейку (верх, лево, право, низ), G бросает выбранное; на геймпаде —
+## правый курок + крестовина выбирают, тап курка бросает.
 func _build_quick_cross() -> void:
 	var cross := Control.new()
 	cross.name = "QuickCross"
@@ -401,13 +405,16 @@ func _build_quick_cross() -> void:
 	add_child(cross)
 	_quick_icons.resize(GameState.QUICK_SLOTS)
 	_quick_counts.resize(GameState.QUICK_SLOTS)
+	_quick_cells.resize(GameState.QUICK_SLOTS)
 	for slot in QUICK_DRAW_ORDER:
 		var cell := Control.new()
 		cell.name = "Slot%d" % (slot + 1)
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		cell.position = area * 0.5 + QUICK_AT[slot] * QUICK_STEP - Vector2(QUICK_SIZE, QUICK_SIZE) * 0.5
 		cell.size = Vector2(QUICK_SIZE, QUICK_SIZE)
+		cell.pivot_offset = cell.size * 0.5
 		cross.add_child(cell)
+		_quick_cells[slot] = cell
 		var frame := TextureRect.new()
 		frame.texture = QUICK_CELL
 		frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -439,6 +446,11 @@ func _refresh_quick() -> void:
 		icon.modulate.a = 1.0 if left > 0 else QUICK_EMPTY_ALPHA
 		count.text = str(left) if id != &"" else ""
 		count.modulate.a = 1.0 if left > 0 else 0.5
+		# Выбранная ячейка — крупнее и светлее, остальные притушены (её бросает G).
+		var chosen := slot == GameState.active_quick
+		_quick_cells[slot].scale = Vector2.ONE * (1.12 if chosen else 1.0)
+		_quick_cells[slot].modulate = QUICK_CHOSEN if chosen else QUICK_OTHER
+		_quick_cells[slot].z_index = 1 if chosen else 0
 
 
 ## У осколка меню закрывает экран: полосы, оружие и подсказки управления прячутся.

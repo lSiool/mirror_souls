@@ -76,6 +76,8 @@ const THROW_MOVE_MULT := 0.5
 const THROW_UP_ANGLE := 20.0
 ## Геймпад: держать кнопку расходников и нажать крестовину — кнопка крестовины → ячейка
 ## (верх, лево, право, низ — как клавиши 1–4).
+## Короче — тап правого курка: бросок без заряда.
+const PAD_TAP := 0.2
 const QUICK_PAD := {JOY_BUTTON_DPAD_UP: 0, JOY_BUTTON_DPAD_LEFT: 1, JOY_BUTTON_DPAD_RIGHT: 2, JOY_BUTTON_DPAD_DOWN: 3}
 
 @export var stats: PlayerStats
@@ -141,6 +143,11 @@ var statuses: Statuses
 ## Открыто меню паузы (§8.12): мир идёт, как в Dark Souls, но ввод — меню; герой стоит и уязвим.
 var in_menu := false
 var _swap_buffer := 0.0
+## Правый курок геймпада (§8.12): с крестовиной — выбор ячейки, без неё — бросок на отпускании;
+## чем дольше держал, тем сильнее заряд.
+var _pad_hold := 0.0
+var _pad_picked := false
+var _preset_charge := 0.0
 var _swap_t := 0.0
 ## Сколько ещё можно ответить контрударом после блока.
 var _counter_t := 0.0
@@ -231,7 +238,7 @@ func _ready() -> void:
 	visual.add_child(model)
 	arms.attach_hand(model.hand)
 	PlayerArms._set_layers(body_mesh, 0)
-	attack_step_started.connect(func(step: AttackStep, index: int, _total: int) -> void: model.attack(step, index))
+	attack_step_started.connect(func(step: AttackStep, index: int, _total: int) -> void: model.attack(step, index, not is_on_floor()))
 	stats.changed.connect(_on_stats_changed)
 	_on_stats_changed()
 	# Купленный щит сразу в руке.
@@ -317,9 +324,20 @@ func _tick(delta: float) -> void:
 			_shoot_buffer = stats.input_buffer
 		if Input.is_action_just_pressed("heal"):
 			_heal_buffer = stats.input_buffer
+		# 1–4 только выбирают ячейку; бросок — G (держать — дальше) или тап правого курка.
 		for slot in GameState.QUICK_SLOTS:
 			if Input.is_action_just_pressed("quick_%d" % (slot + 1)):
-				_queue_quick(slot)
+				_select_quick(slot)
+		if Input.is_action_just_pressed("quick_use"):
+			_queue_quick(GameState.active_quick)
+		if Input.is_action_pressed("quick_hold"):
+			_pad_hold += delta
+		elif _pad_hold > 0.0:
+			if not _pad_picked:
+				_queue_quick(GameState.active_quick)
+				_preset_charge = clampf((_pad_hold - PAD_TAP) / THROW_CHARGE_TIME, 0.0, 1.0)
+			_pad_hold = 0.0
+			_pad_picked = false
 		if Input.is_action_just_pressed("interact"):
 			_try_interact()
 		# Крестовина геймпада — снаряжение, как в Souls; с правым курком она — расходники.
@@ -352,6 +370,14 @@ func _input_x() -> float:
 func _queue_quick(slot: int) -> void:
 	_quick_slot = slot
 	_quick_buffer = stats.input_buffer
+	_preset_charge = 0.0
+
+
+func _select_quick(slot: int) -> void:
+	if slot == GameState.active_quick:
+		return
+	GameState.select_quick(slot)
+	Sfx.play(&"glass_glint", global_position, -18.0)
 
 
 func _spend_stamina(amount: float) -> void:
@@ -1215,6 +1241,11 @@ func _start_throw() -> void:
 	_thrown = false
 	throw_charge = 0.0
 	_charge_done = item.charge_speed_mult <= 1.0
+	# Геймпад: заряд набран, пока держали курок, — бросок сразу с ним.
+	if _preset_charge > 0.0 and not _charge_done:
+		throw_charge = _preset_charge
+		_charge_done = true
+	_preset_charge = 0.0
 	_set_state(State.THROW)
 	# Заглушка в руке: отведена за плечо и идёт вперёд до выпуска.
 	_throw_hand = Thrown.make_look(item)
@@ -1222,16 +1253,9 @@ func _start_throw() -> void:
 	_throw_hand.position = Vector3(-0.25, 1.6, 0.25)
 
 
-## Держит ли герой кнопку ячейки: клавиша 1–4 или правый курок + крестовина.
-func _quick_held(slot: int) -> bool:
-	if Input.is_action_pressed("quick_%d" % (slot + 1)):
-		return true
-	if not Input.is_action_pressed("quick_hold"):
-		return false
-	for button: JoyButton in QUICK_PAD:
-		if QUICK_PAD[button] == slot and Input.is_joy_button_pressed(0, button):
-			return true
-	return false
+## Держит ли герой кнопку броска (G). С геймпада заряд приходит готовым — _preset_charge.
+func _quick_held(_slot: int) -> bool:
+	return Input.is_action_pressed("quick_use")
 
 
 ## Замах и выпуск: на ходу медленнее, в воздухе — по инерции. После выпуска кувырок отменяет бросок.
@@ -1388,7 +1412,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	var pad := event as InputEventJoypadButton
 	if pad and pad.pressed and QUICK_PAD.has(pad.button_index) and Input.is_action_pressed("quick_hold") \
 			and state != State.DEAD and not frozen:
-		_queue_quick(QUICK_PAD[pad.button_index])
+		_select_quick(QUICK_PAD[pad.button_index])
+		_pad_picked = true
 		return
 	if event is InputEventMouseMotion:
 		aim_source = Aim.MOUSE
