@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="ConsumableData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://combat/consumables/consumable_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"acid_flask"
+speed = 9.0
+angle = 30.0
+gravity = 16.0
+damage = 10.0
+poise_damage = 10.0
+knockback = 2.0
+stamina_cost = 12.0
+release_at = 0.18
+duration = 0.44
+spin = 1.2
+burst_radius = 1.6
+burst_color = Color(0.6, 0.95, 0.15, 1)
+zone = 3
+zone_radius = 0.9
+zone_time = 2.5
+status_time = 10.0
+charge_speed_mult = 1.45
+look_size = Vector3(0.11, 0.11, 0.11)
+look_color = Color(0.45, 0.75, 0.1, 1)
+look_metal = false

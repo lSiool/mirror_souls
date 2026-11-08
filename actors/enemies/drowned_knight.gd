@@ -9,6 +9,7 @@ const RISE_RANGE := 6.0
 const RISE_TIME := 1.1
 const UNDERWATER := -2.4
 const SHIELD_DAMAGE := 0.15
+const SHIELD_DAMAGE_CORRODED := 0.45
 const BACKSTEP_SPEED := 6.0
 
 enum Move { THRUST, DOUBLE, BASH }
@@ -99,8 +100,10 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	var guarding := state not in [State.ATTACK, State.STAGGER, State.OFF_BALANCE, State.CRITICAL_HIT, State.KNOCKDOWN]
 	if from_front and guarding and not hitbox.heavy:
 		last_weapon = hitbox.weapon_type
-		health.take_damage(hitbox.damage * SHIELD_DAMAGE)
-		poise -= hitbox.poise_damage * 0.5
+		# Кислота разъела щит: пропускает больше (§6.2).
+		var through := SHIELD_DAMAGE_CORRODED if statuses.has(Statuses.CORRODED) else SHIELD_DAMAGE
+		health.take_damage(hitbox.damage * through)
+		poise -= hitbox.poise_damage * 0.5 * statuses.poise_mult()
 		_poise_delay = poise_regen_delay
 		_shield_spark = 0.15
 		Sfx.play(&"sword_block", global_position)

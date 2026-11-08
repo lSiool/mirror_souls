@@ -146,7 +146,8 @@ turn_time = 0.25
 hurt_voice = &""
 death_voice = &"enemy_death_voice"
 echoes = 80
-weapon_type = &"sword\""""
+weapon_type = &"sword"
+unholy = true"""
     write("actors/enemies/drowned_knight.tscn", enemy_scene("res://actors/enemies/drowned_knight.gd",
           '[node name="DrownedKnight" type="CharacterBody3D"]\ncollision_layer = 4\ncollision_mask = 3', "\n\n".join(subs), 160.0, props, "\n\n".join(nodes)))
 

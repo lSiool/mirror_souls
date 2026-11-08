@@ -30,7 +30,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_find_player()
-	_state_time += delta
+	_state_time += delta * statuses.time_mult()
 	_time += delta
 	if state == State.DEAD:
 		velocity.x = 0.0
@@ -65,7 +65,11 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= recover_time:
 				_set_state(State.PATROL)
 	velocity.z = 0.0
+	# Смола на крыльях — только от прямых брызг склянки.
+	var mult := statuses.speed_mult()
+	velocity *= mult
 	move_and_slide()
+	velocity /= mult
 	global_position.z = 0.0
 	if _player and absf(_player.global_position.x - global_position.x) > 0.2:
 		facing = signf(_player.global_position.x - global_position.x)

@@ -293,7 +293,9 @@ def root_maze():
     s.box(D, "HollowArchL", (3.6, 4.4, -1.6), (0.6, 3.2, 0.8), "root", rot=(0, 0, 0.15))
     s.box(D, "HollowArchR", (7.4, 4.4, -1.6), (0.6, 3.2, 0.8), "root", rot=(0, 0, -0.15))
     s.box(D, "HollowTop", (5.5, 6.1, -1.6), (4.6, 0.6, 0.8), "root")
-    s.chest("RootCache", (5.5, 3.0, -1.0), 200, "root_cache", ("flask_vessel",) + ("throwing_axe",) * 3)
+    # Смола и огненные стрелы рядом — связку «приклеить и поджечь» можно попробовать сразу (§6.2).
+    s.chest("RootCache", (5.5, 3.0, -1.0), 200, "root_cache",
+            ("flask_vessel",) + ("throwing_axe",) * 3 + ("tar_flask",) * 3 + ("fire_arrow",) * 5)
     s.candles(D, "CacheCandles", 4.2, 3.0, -1.5)
     # Верхний ярус 1: над туманом, прыжок через разрыв, припасы охотника.
     s.ladder("UpLadderA", -8.0, 8.0, 5.0, 1.0)
@@ -378,6 +380,8 @@ def swamp():
         s.sphere(D, f"Gas{i}", (x, y, z), 0.18, "gas")
     s.lantern_post(D, "Lamp", -26.0, -1.2, energy=1.1)
     s.enemy("DrownedKnight", "knight", (6.0, 0.0, 0))
+    # На мостках — яд и святая вода: Утопленник — нежить, свет жжёт его во много раз сильнее (§6.2).
+    s.chest("SwampChest", (-15.0, 0.35, -0.9), 90, "swamp_chest", ("poison_flask",) * 3 + ("holy_flask",))
     s.veil(D, "Fog", (0.0, 2.5, -2.6), (60.0, 5.0), "fog_thick")
     s.veil(D, "FogLow", (0.0, 0.6, 1.3), (60.0, 1.2))
     s.box(D, "FrontLog", (-12.0, 0.1, 3.2), (5.0, 0.6, 0.6), "bark", rot=(0, 0.2, 0))
@@ -413,6 +417,8 @@ def cursed_village():
     for i, (x, z) in enumerate(((2.4, -0.3), (5.8, -0.5), (3.1, 0.7), (6.6, 0.4), (1.5, -1.4), (7.0, -1.8))):
         s.sphere(D, f"Skull{i}", (x, 0.15, z), 0.18, "bone")
     s.enemy("Blacksmith", "smith", (4.0, 0.0, 0), ["seated = true", "dormant = true", "facing = -1.0"])
+    # За кузней, вне арены: кислота разъедает броню (§6.2).
+    s.chest("ForgeChest", (22.0, 0.0, -0.9), 120, "forge_chest", ("acid_flask",) * 3)
     s.node("Arena", 'type="Node3D"', "Objects", ['script = ExtResource("arena")', 'boss_path = NodePath("../Blacksmith")',
            "left_x = -10.0", "right_x = 19.0", "height = 9.0"])
     s.node("BossEcho", 'type="Area3D"', "Objects", ["position = Vector3(4.0, 0, 0)", 'script = ExtResource("pickup")', 'flag = &"boss_smith_echo"',

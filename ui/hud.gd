@@ -70,6 +70,10 @@ var _weapon_glass: Label
 var _weapon_marks: HBoxContainer
 var _bow_line: Label
 var _bow_icon: TextureRect
+## Стрелы у лука (§6.2): значок и число активного гнезда, рядом тусклый значок другого.
+var _arrow_icon: TextureRect
+var _arrow_count: Label
+var _arrow_other: TextureRect
 var _second_line: Label
 var _metal: Array[CanvasItem] = []
 var _quick_icons: Array[TextureRect] = []
@@ -274,6 +278,17 @@ func _build_weapon_panel() -> void:
 	var bow_row := HBoxContainer.new()
 	bow_row.alignment = BoxContainer.ALIGNMENT_END
 	text.add_child(bow_row)
+	_arrow_other = TextureRect.new()
+	_arrow_other.custom_minimum_size = Vector2(22, 22)
+	_arrow_other.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_arrow_other.size_flags_vertical = Control.SIZE_SHRINK_END
+	_arrow_other.modulate = Color(1, 1, 1, 0.45)
+	bow_row.add_child(_arrow_other)
+	_arrow_icon = TextureRect.new()
+	_arrow_icon.custom_minimum_size = Vector2(32, 32)
+	_arrow_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bow_row.add_child(_arrow_icon)
+	_arrow_count = _panel_label(bow_row, 16, Color(0.85, 0.82, 0.74))
 	_bow_icon = TextureRect.new()
 	_bow_icon.custom_minimum_size = Vector2(38, 38)
 	_bow_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -315,9 +330,9 @@ func _panel_label(parent: Control, size: int, color: Color) -> Label:
 
 func _refresh_weapon() -> void:
 	var weapon := _player.weapon
-	var key := "%s|%d|%d|%s|%s" % [weapon.id if weapon else &"", GameState.glass_level(weapon.id) if weapon else 0,
+	var key := "%s|%d|%d|%s|%s|%s" % [weapon.id if weapon else &"", GameState.glass_level(weapon.id) if weapon else 0,
 		GameState.mastery_step(weapon.type) if weapon else 0, GameState.bow_id if GameState.has_flag(&"has_bow") else &"",
-		GameState.second_weapon_id]
+		GameState.second_weapon_id, _arrows_key()]
 	if key == _weapon_key:
 		return
 	_weapon_key = key
@@ -343,9 +358,31 @@ func _refresh_weapon() -> void:
 	_bow_line.visible = has_bow
 	_bow_icon.texture = ItemCatalog.icon(bow_id)
 	_bow_line.text = ItemCatalog.display_name(bow_id).to_lower()
+	_refresh_arrows(has_bow)
 	var second := GameState.second_weapon_id
 	_second_line.visible = second != &""
 	_second_line.text = "II  %s" % ItemCatalog.display_name(second) if second != &"" else ""
+
+
+## Что сейчас в гнёздах стрел: панель перерисовывается, когда это меняется.
+func _arrows_key() -> String:
+	var counts := []
+	for id: StringName in GameState.arrow_slots:
+		counts.append("%s:%d" % [id, GameState.item_count(id)])
+	return "%d|%s" % [GameState.active_arrow, ",".join(counts)]
+
+
+## Значок активных стрел с числом (обычные — без числа) и тусклый значок другого гнезда.
+func _refresh_arrows(has_bow: bool) -> void:
+	var active := GameState.current_arrow()
+	var slot_other: StringName = GameState.arrow_slots[(GameState.active_arrow + 1) % GameState.ARROW_SLOTS]
+	var other := slot_other if GameState.item_count(slot_other) > 0 else &""
+	_arrow_icon.visible = has_bow
+	_arrow_count.visible = has_bow and active != &""
+	_arrow_other.visible = has_bow and other != active
+	_arrow_icon.texture = ItemCatalog.icon(active if active != &"" else ItemCatalog.ARROW)
+	_arrow_count.text = str(GameState.item_count(active)) if active != &"" else ""
+	_arrow_other.texture = ItemCatalog.icon(other if other != &"" else ItemCatalog.ARROW)
 
 
 ## Крестовина расходников (§8.12) слева внизу: четыре ромба, в каждом значок и число.

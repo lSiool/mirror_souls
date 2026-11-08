@@ -34,6 +34,13 @@ const MUD_SPEED := 0.55
 const MUD_JUMP := 0.8
 const MUD_ROLL_SPEED := 0.6
 const MUD_ROLL_COST := 1.8
+## Смола (§6.2) держит сильнее грязи; у врагов — ещё сильнее (Statuses.TAR_SPEED).
+const TAR_SPEED := 0.35
+const TAR_JUMP := 0.6
+const TAR_ROLL_SPEED := 0.45
+const TAR_ROLL_COST := 2.2
+## Бросок с задержкой (§6.2): держишь ячейку — рука отводится дальше, заряд копится столько секунд.
+const THROW_CHARGE_TIME := 0.3
 ## Сколько добавляет к лечению одно улучшение зелья (Травница).
 const FLASK_POTENCY_STEP := 0.15
 const PLUNGE_LAND_TIME := 0.15
@@ -122,6 +129,11 @@ var _quick_slot := -1
 var _throw_item: ConsumableData
 var _thrown := false
 var _throw_hand: MeshInstance3D
+## Заряд броска 0…1 и закончен ли он (отпустили ячейку или заряд полный).
+var throw_charge := 0.0
+var _charge_done := false
+## Яд, огонь, кислота, смола на герое (§6.2); значки — в ряду эффектов HUD.
+var statuses: Statuses
 ## Сколько ещё можно ответить контрударом после блока.
 var _counter_t := 0.0
 var _charge_ready := false
@@ -196,6 +208,10 @@ func _ready() -> void:
 	health.changed.connect(health_changed.emit)
 	health.died.connect(_on_died)
 	hurtbox.hurt.connect(_on_hurt)
+	statuses = Statuses.new(health, 1.7)
+	add_child(statuses)
+	statuses.started.connect(add_effect)
+	statuses.ended.connect(remove_effect)
 	sword_hitbox.hit_landed.connect(_on_hit_landed)
 	plunge_hitbox.hit_landed.connect(_on_hit_landed)
 	# Хитбокс меча меняет форму от стадии к стадии — делаем свою копию формы.
@@ -291,6 +307,10 @@ func _tick(delta: float) -> void:
 				_queue_quick(slot)
 		if Input.is_action_just_pressed("interact"):
 			_try_interact()
+		if Input.is_action_just_pressed("arrow_swap") and GameState.has_flag(&"has_bow"):
+			# Как в Dark Souls: гнёзда стрел I и II переключаются в бою, выбираются у осколка.
+			GameState.swap_arrows()
+			Sfx.play(&"glass_glint", global_position, -14.0)
 
 	if _stamina_delay > 0.0:
 		_stamina_delay -= delta
@@ -374,7 +394,7 @@ func _move_state(delta: float) -> void:
 	if x != 0.0:
 		facing = signf(x)
 
-	var target := x * stats.move_speed * (MUD_SPEED if in_mud() else 1.0)
+	var target := x * stats.move_speed * _slow(MUD_SPEED, TAR_SPEED)
 	var accel := stats.acceleration if on_floor else stats.air_acceleration
 	if x == 0.0:
 		accel = stats.friction if on_floor else stats.air_drag
@@ -412,7 +432,7 @@ func _move_state(delta: float) -> void:
 
 
 func _jump() -> void:
-	velocity.y = stats.jump_velocity * (MUD_JUMP if in_mud() else 1.0)
+	velocity.y = stats.jump_velocity * _slow(MUD_JUMP, TAR_JUMP)
 	Sfx.play(&"player_jump", global_position)
 	if jump_is_effort():
 		Sfx.play(&"player_jump_voice", global_position)
@@ -457,7 +477,7 @@ func _start_roll() -> void:
 	facing = _roll_dir
 	# Подкат сохраняет скорость, если она больше обычной скорости переката.
 	var carried := absf(velocity.x) if signf(velocity.x) == _roll_dir else 0.0
-	_roll_speed = maxf(stats.roll_speed, carried) * (MUD_ROLL_SPEED if in_mud() else 1.0)
+	_roll_speed = maxf(stats.roll_speed, carried) * _slow(MUD_ROLL_SPEED, TAR_ROLL_SPEED)
 	_iframes = maxf(_iframes, stats.roll_iframes)
 	_roll_attack_queued = false
 	_pass_through_bosses()
@@ -552,10 +572,19 @@ func in_mud() -> bool:
 	return mud_zones > 0
 
 
+func in_tar() -> bool:
+	return statuses.has(Statuses.TAR)
+
+
+## Вязкость под ногами: грязь и смола, берётся сильнейшая.
+func _slow(mud: float, tar: float) -> float:
+	return minf(mud if in_mud() else 1.0, tar if in_tar() else 1.0)
+
+
 func roll_cost_now() -> float:
 	if not in_combat():
 		return 0.0
-	return stats.roll_cost * (MUD_ROLL_COST if in_mud() else 1.0)
+	return stats.roll_cost * maxf(MUD_ROLL_COST if in_mud() else 1.0, TAR_ROLL_COST if in_tar() else 1.0)
 
 
 ## Глотков зелья: стартовые и найденные сосуды.
@@ -1124,11 +1153,25 @@ func _start_throw() -> void:
 		return
 	_throw_item = item
 	_thrown = false
+	throw_charge = 0.0
+	_charge_done = item.charge_speed_mult <= 1.0
 	_set_state(State.THROW)
 	# Заглушка в руке: отведена за плечо и идёт вперёд до выпуска.
 	_throw_hand = Thrown.make_look(item)
 	visual.add_child(_throw_hand)
 	_throw_hand.position = Vector3(-0.25, 1.6, 0.25)
+
+
+## Держит ли герой кнопку ячейки: клавиша 1–4 или правый курок + крестовина.
+func _quick_held(slot: int) -> bool:
+	if Input.is_action_pressed("quick_%d" % (slot + 1)):
+		return true
+	if not Input.is_action_pressed("quick_hold"):
+		return false
+	for button: JoyButton in QUICK_PAD:
+		if QUICK_PAD[button] == slot and Input.is_joy_button_pressed(0, button):
+			return true
+	return false
 
 
 ## Замах и выпуск: на ходу медленнее, в воздухе — по инерции. После выпуска кувырок отменяет бросок.
@@ -1139,10 +1182,20 @@ func _throw_state(delta: float) -> void:
 	_apply_gravity(delta)
 	var item := _throw_item
 	if not _thrown:
-		var k := clampf(_state_time / item.release_at, 0.0, 1.0)
+		# Рука сначала почти стоит за плечом, потом резко идёт вперёд. Держит ячейку в момент
+		# «взвода» — замирает и отводится дальше, пока не отпустит или заряд не станет полным.
+		var cock := item.release_at * 0.55
+		if not _charge_done and _state_time >= cock:
+			if _quick_held(_quick_slot) and throw_charge < 1.0:
+				throw_charge = minf(throw_charge + delta / THROW_CHARGE_TIME, 1.0)
+				_state_time = cock
+			else:
+				_charge_done = true
+		var k := pow(clampf(_state_time / item.release_at, 0.0, 1.0), 2.5)
 		if is_instance_valid(_throw_hand):
-			_throw_hand.position = Vector3(-0.25, 1.6, 0.25).lerp(Vector3(0.5, 1.4, 0.25), k)
-			_throw_hand.rotation.z = lerpf(1.2, -0.3, k)
+			var back := Vector3(-0.3, 0.12, 0.0) * throw_charge * (1.0 if not _charge_done else 1.0 - k)
+			_throw_hand.position = Vector3(-0.25, 1.6, 0.25).lerp(Vector3(0.5, 1.4, 0.25), k) + back
+			_throw_hand.rotation.z = lerpf(1.2 + 0.5 * throw_charge, -0.3, k)
 		if _state_time >= item.release_at:
 			_release_throw(item)
 	elif _roll_buffer > 0.0 and is_on_floor() and not roll_cooling():
@@ -1165,7 +1218,8 @@ func _release_throw(item: ConsumableData) -> void:
 	var angle := deg_to_rad(item.angle + (THROW_UP_ANGLE if up else 0.0))
 	var dir := Vector3(cos(angle) * facing, sin(angle), 0.0)
 	var at := global_position + Vector3(0.0, THROW_HEIGHT, 0.0) + Vector3(facing * THROW_REACH, 0.0, 0.0)
-	var thrown := Thrown.spawn(get_parent(), at, dir * item.speed, item, stats.throw_damage_mult)
+	var speed := item.speed * lerpf(1.0, item.charge_speed_mult, throw_charge)
+	var thrown := Thrown.spawn(get_parent(), at, dir * speed, item, stats.throw_damage_mult)
 	_spend_stamina(item.stamina_cost)
 	Sfx.play(&"sword_swing", at, -6.0)
 	item_thrown.emit(thrown)
@@ -1215,9 +1269,15 @@ func _fire() -> void:
 	var speed := lerpf(stats.bow_speed_min, stats.bow_speed_max, _draw_t)
 	var damage := lerpf(stats.bow_damage_min, stats.bow_damage_max, _draw_t) * stats.bow_damage_mult * GameState.bow_damage_mult()
 	var poise_dmg := lerpf(stats.bow_poise_min, stats.bow_poise_max, _draw_t)
+	# Особые стрелы активного гнезда тратятся на выпуске; кончились — летит обычная.
+	var kind := ArrowData.by_id(GameState.current_arrow())
+	if kind and GameState.take_item(kind.id):
+		damage *= kind.damage_mult
+	else:
+		kind = null
 	# Стрела вылетает из лука — по линии прицела от плеча.
 	var at := global_position + Vector3(0.0, BOW_HEIGHT, 0.0) + dir * BOW_REACH
-	var arrow := Arrow.spawn(get_parent(), at, dir * speed, damage, poise_dmg)
+	var arrow := Arrow.spawn(get_parent(), at, dir * speed, damage, poise_dmg, kind)
 	Sfx.play(&"bow_release", at)
 	_spend_stamina(stats.bow_cost)
 	_set_state(State.MOVE)
@@ -1596,6 +1656,8 @@ func _land_from(drop: float) -> void:
 
 
 func restore() -> void:
+	statuses.clear()
+	wound_t = 0.0
 	health.heal_full()
 	stamina = stats.max_stamina
 	stamina_changed.emit(stamina, stats.max_stamina)

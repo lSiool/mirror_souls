@@ -791,6 +791,12 @@ omni_range = 6.5
 [node name="DrownedKnight" parent="Objects" instance=ExtResource("knight")]
 position = Vector3(6.0, 0.0, 0)
 
+[node name="SwampChest" parent="Objects" instance=ExtResource("chest")]
+position = Vector3(-15.0, 0.35, -0.9)
+reward = 90
+flag_id = &"swamp_chest"
+items = Array[StringName]([&"poison_flask", &"poison_flask", &"poison_flask", &"holy_flask"])
+
 [node name="Fog" type="MeshInstance3D" parent="Decor"]
 position = Vector3(0.0, 2.5, -2.6)
 mesh = SubResource("Veil_1")

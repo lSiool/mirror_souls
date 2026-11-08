@@ -9,6 +9,8 @@ signal died
 @export var max_health := 100.0
 
 var current := 0.0
+## Во сколько раз больнее любой урон: кислота разъела броню (Statuses, §6.2).
+var taken_mult := 1.0
 
 
 func _ready() -> void:
@@ -24,6 +26,7 @@ func take_damage(amount: float, non_lethal := false) -> void:
 	if is_dead():
 		return
 	var lowest := minf(1.0, current) if non_lethal else 0.0
+	amount *= taken_mult
 	current = maxf(current - amount, lowest)
 	changed.emit(current, max_health)
 	damaged.emit(amount)

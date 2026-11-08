@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StatusEffect" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://systems/progression/status_effect.gd" id="1_effect"]
+
+[resource]
+script = ExtResource("1_effect")
+id = &"poison"
+display_name = "Яд"
+description = "Отравлен: здоровье тает, пока яд не выйдет. Уйди из облака."

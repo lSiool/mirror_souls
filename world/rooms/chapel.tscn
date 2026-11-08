@@ -421,7 +421,7 @@ exit_dir = 1.0
 [node name="StashChest" parent="Objects" instance=ExtResource("chest")]
 position = Vector3(12.6, 0, -1.2)
 reward = 150
-items = Array[StringName]([&"tempered_glass", &"fire_flask", &"fire_flask"])
+items = Array[StringName]([&"tempered_glass", &"fire_flask", &"fire_flask", &"holy_flask", &"holy_flask"])
 flag_id = &"chapel_stash"
 
 [node name="StashCrate" type="CSGBox3D" parent="Decor"]

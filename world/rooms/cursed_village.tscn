@@ -545,6 +545,12 @@ seated = true
 dormant = true
 facing = -1.0
 
+[node name="ForgeChest" parent="Objects" instance=ExtResource("chest")]
+position = Vector3(22.0, 0.0, -0.9)
+reward = 120
+flag_id = &"forge_chest"
+items = Array[StringName]([&"acid_flask", &"acid_flask", &"acid_flask"])
+
 [node name="Arena" type="Node3D" parent="Objects"]
 script = ExtResource("arena")
 boss_path = NodePath("../Blacksmith")

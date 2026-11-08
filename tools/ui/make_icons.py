@@ -34,7 +34,41 @@ AXE = '<path d="M22 54 L 40 18" stroke="#7a5a3a" stroke-width="4.5" stroke-linec
 FIRE = ('<rect x="28" y="12" width="8" height="8" rx="1.5" fill="#7a5638"/><path d="M32 6 q 4 3 0 7 q -3 -3 0 -7" fill="#ffb040"/>'
         '<path d="M29 20 h6 v6 a13 13 0 1 1 -6 0 z" fill="#c8d3d9" fill-opacity="0.2" stroke="#c7d2d8" stroke-opacity="0.6" stroke-width="1.4"/>'
         '<path d="M20 40 q 6 -3 12 0 t 12 0 a 12 12 0 0 1 -24 0 z" fill="#d0601e"/><path d="M26 44 q 6 -6 12 0" stroke="#ffd27a" stroke-width="1.6" fill="none"/>')
-CONSUMABLES = {"throwing_knife": KNIFE, "throwing_axe": AXE, "fire_flask": FIRE}
+
+
+def flask(liquid, emblem="", glow=None):
+    """Склянка-заглушка цветом листа автора: пробка, стекло, жидкость и знак на стекле."""
+    shine = f'<circle cx="32" cy="40" r="15" fill="{glow}" opacity="0.25"/>' if glow else ""
+    return (f'{shine}<rect x="28" y="12" width="8" height="8" rx="1.5" fill="#7a5638"/>'
+            '<path d="M29 20 h6 v6 a13 13 0 1 1 -6 0 z" fill="#c8d3d9" fill-opacity="0.2" stroke="#c7d2d8" stroke-opacity="0.6" stroke-width="1.4"/>'
+            f'<path d="M20 40 q 6 -3 12 0 t 12 0 a 12 12 0 0 1 -24 0 z" fill="{liquid}"/>{emblem}'
+            '<path d="M24 31 a 9 9 0 0 1 5 -3.5" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.55"/>')
+
+
+POISON = flask("#6a2a86", '<circle cx="32" cy="41" r="3.2" fill="#d8d0c0"/><rect x="30" y="43" width="4" height="3" fill="#d8d0c0"/>'
+               '<path d="M22 14 q 3 -5 6 -1 M38 12 q 4 -4 6 1" stroke="#a070c0" stroke-width="1.6" fill="none" opacity="0.8"/>')
+ACID = flask("#7ac21c", '<path d="M26 50 v 5 M33 51 v 6 M39 50 v 4" stroke="#9be030" stroke-width="2" stroke-linecap="round"/>', "#9be030")
+HOLY = flask("#c9a85a", '<path d="M32 33 v 16 M26.5 38 h 11" stroke="#fff3c8" stroke-width="2.6" stroke-linecap="round"/>', "#ffe9a8")
+TAR = flask("#141110", '<path d="M24 44 q 2 6 4 1 M36 46 q 2 7 4 0" stroke="#3a2c1a" stroke-width="2" fill="none"/>'
+            '<path d="M28 20 q -3 4 0 6 M36 20 q 3 3 0 6" stroke="#2a2018" stroke-width="2.2" fill="none"/>')
+CONSUMABLES = {"throwing_knife": KNIFE, "throwing_axe": AXE, "fire_flask": FIRE, "poison_flask": POISON,
+               "acid_flask": ACID, "holy_flask": HOLY, "tar_flask": TAR}
+
+# Стрелы у лука (§6.2) и состояния от склянок (ряд эффектов HUD).
+ARROW = ('<path d="M16 48 L 46 18" stroke="#9c7a52" stroke-width="3" stroke-linecap="round"/>'
+         '<path d="M46 18 L 40 19 L 45 24 Z" fill="#d9dde2" stroke="#d9dde2" stroke-width="2"/>'
+         '<path d="M16 48 l -3 -6 M16 48 l 6 3 M20 44 l -3 -6 M20 44 l 6 3" stroke="#c9b99c" stroke-width="1.6"/>')
+FIRE_ARROW = ARROW + '<path d="M47 8 q 8 6 1 15 q -4 -2 -6 -6 q 0 -5 5 -9" fill="#ff9a30"/><path d="M46 13 q 3 3 1 7 q -2 -2 -2 -4" fill="#ffe08a"/>'
+POISONED = ('<path d="M32 12 C 40 24 46 31 46 38 A 14 14 0 0 1 18 38 C 18 31 24 24 32 12 Z" fill="#6a2a86"/>'
+            '<circle cx="32" cy="37" r="5" fill="#d8d0c0"/><rect x="29.5" y="40" width="5" height="4" fill="#d8d0c0"/>'
+            '<circle cx="30" cy="36.5" r="1.2" fill="#2a1030"/><circle cx="34" cy="36.5" r="1.2" fill="#2a1030"/>')
+BURNING = ('<path d="M32 10 C 42 22 46 30 44 40 A 12 12 0 0 1 20 40 C 18 32 24 28 26 20 C 28 26 30 28 32 28 C 32 22 30 16 32 10 Z" fill="#e0601c"/>'
+           '<path d="M32 30 C 36 36 38 40 36 44 A 5 5 0 0 1 28 44 C 27 40 30 36 32 30 Z" fill="#ffd27a"/>')
+CORRODED = ('<path d="M18 16 H 46 V 34 Q 46 48 32 54 Q 18 48 18 34 Z" fill="#5c6066" stroke="#8a8f96" stroke-width="1.5"/>'
+            '<path d="M24 22 q 3 6 0 10 M34 18 q 4 8 1 14 M40 26 q 2 5 -1 8" stroke="#9be030" stroke-width="2.4" fill="none" stroke-linecap="round"/>')
+TARRED = ('<path d="M14 40 q 6 -6 12 0 t 12 0 t 12 0 V 52 H 14 Z" fill="#141110"/>'
+          '<path d="M24 14 v 20 q 0 4 3 4 M40 14 v 16 q 0 6 -3 6" stroke="#2a2018" stroke-width="5" stroke-linecap="round" fill="none"/>'
+          '<path d="M18 44 q 4 -3 8 0" stroke="#5a4a36" stroke-width="1.6" fill="none"/>')
 
 
 def loose(art):
@@ -64,6 +98,8 @@ ITEMS = {
     "flask_potency": ("#12201c", POTENCY), "tempered_glass": ("#141a22", GLASS), "clear_glass": ("#141a22", CLEAR),
     "facet_slot": ("#141a22", SLOT), "recipe_heavy_hammer": ("#1c1712", RECIPE), "boss_smith_echo": ("#141a22", ECHO),
     "note": ("#1c1712", NOTE), "mud": ("#2a1f14", MUD), "regen": ("#12201c", REGEN), "unknown": ("#141112", UNKNOWN),
+    "arrow": ("#1c1712", ARROW), "fire_arrow": ("#24160e", FIRE_ARROW), "poison": ("#1e1224", POISONED),
+    "burning": ("#24140c", BURNING), "corroded": ("#16200c", CORRODED), "tar": ("#141110", TARRED),
 }
 
 

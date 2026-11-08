@@ -2,7 +2,8 @@ class_name Thrown
 extends Node3D
 ## Брошенный расходник (§6.2): нож, топорик или склянка — летит дугой по своим данным (ConsumableData).
 ## - враг — урон и стойкость; мёртвого пролетает насквозь;
-## - склянка разбивается обо что угодно: вспышка огня задевает всех врагов в радиусе;
+## - склянка разбивается обо что угодно: вспышка задевает всех врагов в радиусе, на месте
+##   остаётся её зона (FlaskZone: огненная лужа, ядовитое облако, кислота, смола, свет);
 ## - стекло нож и топорик не ломают — звякают и отскакивают вниз;
 ## - остальное — нож втыкается, торчит и исчезает. Любой удар не во врага — шум, как у стрелы.
 
@@ -54,6 +55,10 @@ static func make_look(item: ConsumableData) -> MeshInstance3D:
 		mat.emission_enabled = true
 		mat.emission = item.burst_color
 		mat.emission_energy_multiplier = 0.6
+		if item.zone == ConsumableData.Zone.FIRE:
+			var wick := Flame.make(Vector2(item.look_size.x * 1.6, item.look_size.x * 2.6))
+			wick.position.y = item.look_size.x * 0.8
+			look.add_child(wick)
 	else:
 		var box := BoxMesh.new()
 		box.size = item.look_size
@@ -137,28 +142,38 @@ func _on_hit(hit: Dictionary) -> void:
 	_age = 0.0
 
 
-## Склянка разбилась: огонь задевает каждого живого врага в радиусе один раз.
+## Склянка разбилась: вспышка задевает каждого живого врага в радиусе один раз — урон
+## (святая — нежити во много раз больнее, с крестом из света) и состояние склянки
+## (огонь, кислота, смола); дальше на месте остаётся её зона (FlaskZone).
 func _burst(at: Vector3) -> void:
 	global_position = at
-	var sphere := SphereShape3D.new()
-	sphere.radius = data.burst_radius
-	var query := PhysicsShapeQueryParameters3D.new()
-	query.shape = sphere
-	query.transform = Transform3D(Basis.IDENTITY, at)
-	query.collision_mask = ENEMY_MASK
-	query.collide_with_areas = true
-	query.collide_with_bodies = true
-	var burned: Array[Dummy] = []
-	for found: Dictionary in get_world_3d().direct_space_state.intersect_shape(query, 32):
-		var enemy := found.collider as Dummy
-		if enemy == null and found.collider is Hurtbox:
-			enemy = (found.collider as Hurtbox).owner as Dummy
-		if enemy == null or enemy in burned or enemy.state == Dummy.State.DEAD:
-			continue
-		burned.append(enemy)
-		enemy.hurtbox.receive_hit(_hitbox)
+	var base_damage := _hitbox.damage
+	for enemy in _enemies_in(at, data.burst_radius):
+		var holy := data.zone == ConsumableData.Zone.HOLY and enemy.unholy
+		_hitbox.damage = base_damage * (data.holy_mult if holy else 1.0)
+		if _hitbox.damage > 0.0:
+			enemy.hurtbox.receive_hit(_hitbox)
+		if holy:
+			HolyCross.spawn(get_parent(), enemy.global_position, enemy.body_height())
+		if is_instance_valid(enemy) and enemy.state != Dummy.State.DEAD:
+			var status := _burst_status()
+			if status != &"":
+				enemy.statuses.apply(status, data.status_time)
+	_hitbox.damage = base_damage
+	# Брызги кислоты и смолы задевают и героя, если он стоял рядом.
+	var player := get_tree().get_first_node_in_group("player") as Player
+	if player and (player.global_position + Vector3(0.0, 0.8, 0.0)).distance_to(at) <= data.burst_radius:
+		match data.zone:
+			ConsumableData.Zone.ACID: player.statuses.apply(Statuses.CORRODED, data.status_time * 0.5)
+			ConsumableData.Zone.TAR: player.statuses.apply(Statuses.TAR, 3.0)
+	if data.zone == ConsumableData.Zone.FIRE:
+		for node in get_tree().get_nodes_in_group(&"tar"):
+			var tar := node as TarPool
+			if tar and tar.overlaps(at.x - data.burst_radius, at.x + data.burst_radius, tar.floor_y):
+				tar.ignite()
+	FlaskZone.spawn(get_parent(), at, data)
 	HitSpark.spawn(get_parent(), at, data.burst_color, 30)
-	HitSpark.spawn(get_parent(), at + Vector3(0.0, 0.4, 0.0), Color(1.0, 0.85, 0.4), 16)
+	HitSpark.spawn(get_parent(), at + Vector3(0.0, 0.4, 0.0), data.burst_color.lightened(0.4), 16)
 	Sfx.play(&"glass_break", at, -2.0)
 	Events.noise_made.emit(at, NOISE_RADIUS * 1.5)
 	Events.camera_shake_requested.emit(0.15, 0.15)
@@ -172,6 +187,36 @@ func _burst(at: Vector3) -> void:
 	fade.tween_property(flash, "light_energy", 0.0, FLASH_TIME)
 	fade.tween_callback(flash.queue_free)
 	queue_free()
+
+
+## Живые враги, чьё тело или хёртбокс в шаре вспышки.
+func _enemies_in(at: Vector3, radius: float) -> Array[Dummy]:
+	var sphere := SphereShape3D.new()
+	sphere.radius = radius
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = sphere
+	query.transform = Transform3D(Basis.IDENTITY, at)
+	query.collision_mask = ENEMY_MASK
+	query.collide_with_areas = true
+	query.collide_with_bodies = true
+	var found_enemies: Array[Dummy] = []
+	for found: Dictionary in get_world_3d().direct_space_state.intersect_shape(query, 32):
+		var enemy := found.collider as Dummy
+		if enemy == null and found.collider is Hurtbox:
+			enemy = (found.collider as Hurtbox).owner as Dummy
+		if enemy == null or enemy in found_enemies or enemy.state == Dummy.State.DEAD:
+			continue
+		found_enemies.append(enemy)
+	return found_enemies
+
+
+## Состояние, которое вспышка вешает на задетого: яд — только облаком, свет — без состояния.
+func _burst_status() -> StringName:
+	match data.zone:
+		ConsumableData.Zone.FIRE: return Statuses.BURNING
+		ConsumableData.Zone.ACID: return Statuses.CORRODED
+		ConsumableData.Zone.TAR: return Statuses.TAR
+	return &""
 
 
 func _orient() -> void:

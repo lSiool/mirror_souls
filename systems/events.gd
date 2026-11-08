@@ -18,6 +18,8 @@ signal enemy_killed(enemy: Dummy)
 signal item_found(id: StringName)
 ## Расходники изменились: что лежит в ячейках крестовины или сколько чего осталось (HUD).
 signal quick_items_changed
+## Сменились стрелы в гнёздах лука, их число или активное гнездо (§6.2).
+signal arrows_changed
 ## Тип оружия достиг новой ступени мастерства.
 signal mastery_step_reached(type: StringName, step: int)
 ## Стекло разбилось: менеджер комнаты запоминает его по виду (GlassSurface.memory).

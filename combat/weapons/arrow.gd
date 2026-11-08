@@ -6,6 +6,8 @@ extends Node3D
 ## - мягкое (группа "arrow_soft") — втыкается и становится колышком-ступенькой;
 ## - мишень (ArrowTarget) — засчитывает попадание;
 ## - камень — торчит и исчезает. Любой удар не во врага — шум, на который приходят враги.
+## Особая стрела (ArrowData) вешает на врага своё состояние; огненная горит на лету
+## и поджигает смолу — на враге и на полу (§6.2).
 
 ## Слои: мир, враги, мишени. Стёкла-перегородки (хёртбоксы стекла) не задеваем.
 const MASK := 1 | 4 | 32
@@ -18,6 +20,8 @@ const STUCK_TIME := 1.0
 var velocity := Vector3.ZERO
 var ricochets := 0
 var stuck := false
+## Особая стрела; пусто — обычная.
+var kind: ArrowData
 
 var _age := 0.0
 var _hitbox: Hitbox
@@ -25,9 +29,10 @@ var _exclude: Array[RID] = []
 
 
 static func spawn(
-		parent: Node, at: Vector3, vel: Vector3, damage: float, poise_damage: float
+		parent: Node, at: Vector3, vel: Vector3, damage: float, poise_damage: float, of_kind: ArrowData = null
 ) -> Arrow:
 	var arrow := Arrow.new()
+	arrow._set_kind(of_kind)
 	parent.add_child(arrow)
 	arrow.global_position = at
 	arrow.velocity = vel
@@ -100,7 +105,9 @@ func _on_hit(hit: Dictionary) -> void:
 			_exclude.append(hit.rid)
 			return
 		hurtbox.receive_hit(_hitbox)
-		HitSpark.spawn(get_parent(), at, Color(1.0, 0.85, 0.6), 8)
+		HitSpark.spawn(get_parent(), at, kind.tip_color if kind else Color(1.0, 0.85, 0.6), 8)
+		if kind and kind.status != &"" and enemy and enemy.state != Dummy.State.DEAD:
+			enemy.statuses.apply(kind.status, kind.status_time)
 		queue_free()
 		return
 	if collider is ArrowTarget:
@@ -119,6 +126,8 @@ func _on_hit(hit: Dictionary) -> void:
 		Sfx.play(&"arrow_ricochet_glass", at)
 		return
 	Events.noise_made.emit(at, NOISE_RADIUS)
+	if kind and kind.ignites:
+		_ignite_tar(at)
 	if collider is Node and (collider as Node).is_in_group("arrow_soft"):
 		ArrowPeg.plant(get_parent(), at, normal)
 		Sfx.play(&"arrow_hit_wood", at)
@@ -128,6 +137,31 @@ func _on_hit(hit: Dictionary) -> void:
 	global_position = at
 	stuck = true
 	_age = 0.0
+
+
+## Особая стрела: цвет наконечника, у огненной — язык пламени и свет.
+func _set_kind(of_kind: ArrowData) -> void:
+	kind = of_kind
+	if kind == null:
+		return
+	_hitbox.weapon_type = &"bow"
+	if kind.flame:
+		var flame := Flame.make(Vector2(0.22, 0.34))
+		flame.position = Vector3(0.0, -0.06, 0.0)
+		add_child(flame)
+		var light := OmniLight3D.new()
+		light.light_color = kind.tip_color
+		light.light_energy = 1.2
+		light.omni_range = 2.5
+		add_child(light)
+
+
+## Огненная стрела воткнулась: смола рядом вспыхивает.
+func _ignite_tar(at: Vector3) -> void:
+	for node in get_tree().get_nodes_in_group(&"tar"):
+		var tar := node as TarPool
+		if tar and tar.overlaps(at.x - 0.4, at.x + 0.4, at.y):
+			tar.ignite()
 
 
 func _orient() -> void:

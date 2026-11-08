@@ -82,6 +82,8 @@ const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
 @export var weapon_type: StringName
 ## Кровоточит ли: у стекла и механизмов крови нет.
 @export var can_bleed := true
+## Нежить или нечисть: святая склянка бьёт её во много раз сильнее (§6.2).
+@export var unholy := false
 
 ## Остаётся в мире статуей (босс): комната не забывает его как убитого, его хранит флаг босса.
 var leaves_statue := false
@@ -92,6 +94,8 @@ var bleed := 0.0
 var _bleed_delay := 0.0
 ## Красная вспышка, когда кровотечение вырвалось: поверх белой вспышки удара.
 var _bleed_flash := 0.0
+## Яд, огонь, кислота, смола (§6.2).
+var statuses: Statuses
 
 var state := State.PATROL
 var poise := 0.0
@@ -126,6 +130,8 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 	hurtbox.hurt.connect(_on_hurt)
 	attack_hitbox.non_lethal = non_lethal
+	statuses = Statuses.new(health, body_height())
+	add_child(statuses)
 	Events.noise_made.connect(_on_noise)
 	state = State.DORMANT if dormant else State.PATROL
 
@@ -142,6 +148,16 @@ func body_half_width() -> float:
 	if shape is CapsuleShape3D:
 		return (shape as CapsuleShape3D).radius
 	return 0.5
+
+
+## Рост тела: где на нём горит пламя и откуда капает смола.
+func body_height() -> float:
+	var shape := ($Collision as CollisionShape3D).shape
+	if shape is BoxShape3D:
+		return (shape as BoxShape3D).size.y
+	if shape is CapsuleShape3D:
+		return (shape as CapsuleShape3D).height
+	return 1.8
 
 
 ## Вызывается FlipX: враг в отражении смотрит в другую сторону.
@@ -162,7 +178,8 @@ func _physics_process(delta: float) -> void:
 	if state == State.DORMANT:
 		_wake_check(delta)
 		return
-	_state_time += delta
+	# В смоле всё медленнее: и шаг, и замах, и откат.
+	_state_time += delta * statuses.time_mult()
 	_find_player()
 	_regen_poise(delta)
 	if not is_on_floor():
@@ -211,7 +228,7 @@ func _physics_process(delta: float) -> void:
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
-	move_and_slide()
+	_move_slowed()
 	# Засада из ниши за стеклом выпрыгивает в плоскость боя.
 	global_position.z = move_toward(global_position.z, 0.0, 12.0 * delta)
 	_check_player_head()
@@ -224,6 +241,14 @@ func _physics_process(delta: float) -> void:
 	_update_pose(delta)
 	_update_material(delta)
 	_update_extra(delta)
+
+
+## Шаг с учётом смолы: скорость гасится только на сам шаг, падение — как обычно.
+func _move_slowed() -> void:
+	var mult := statuses.speed_mult()
+	velocity.x *= mult
+	move_and_slide()
+	velocity.x /= mult
 
 
 # --- Точки расширения для типов врагов --------------------------------------
@@ -415,7 +440,7 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	# В уязвимых состояниях реакции нет: враг и так беззащитен.
 	if state in [State.CRITICAL_HIT, State.KNOCKDOWN, State.OFF_BALANCE]:
 		return
-	poise -= hitbox.poise_damage
+	poise -= hitbox.poise_damage * statuses.poise_mult()
 	_poise_delay = poise_regen_delay
 	var dir := hitbox.knockback_direction(self)
 	if poise <= 0.0:
@@ -448,6 +473,7 @@ func _add_bleed(amount: float) -> void:
 
 func _on_died() -> void:
 	_set_state(State.DEAD)
+	statuses.clear()
 	Sfx.play(&"enemy_death", global_position)
 	Sfx.play(death_voice, global_position)
 	Events.enemy_killed.emit(self)
@@ -529,8 +555,8 @@ func _update_material(delta: float) -> void:
 	if _bleed_delay <= 0.0:
 		bleed = maxf(bleed - BLEED_FADE * delta, 0.0)
 	# Копится кровотечение — тело темнеет кровью.
-	var color := body_color.lerp(BLEED_COLOR, bleed / BLEED_FULL * 0.7)
-	var glow := 0.0
+	var color := statuses.tint(body_color.lerp(BLEED_COLOR, bleed / BLEED_FULL * 0.7))
+	var glow := statuses.glow()
 	if state == State.WINDUP:
 		var t := clampf(_state_time / windup_time, 0.0, 1.0)
 		color = body_color.lerp(WINDUP_COLOR, t * windup_tint)

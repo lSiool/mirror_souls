@@ -99,6 +99,8 @@ var _set_rows: VBoxContainer
 var _weapon_switch: Button
 var _second_switch: Button
 var _bow_switch: Button
+## Стрелы в гнёздах лука I и II (§6.2): выбираются только здесь, у осколка.
+var _arrow_switches: Array[Button] = []
 var _card_icon: TextureRect
 var _card_name: Label
 var _card_info: Label
@@ -673,6 +675,10 @@ func _build_weapon(page: VBoxContainer) -> void:
 	_second_switch.pressed.connect(switch_second)
 	_bow_switch = _menu_button(sets, "", 19)
 	_bow_switch.pressed.connect(switch_bow)
+	for slot in GameState.ARROW_SLOTS:
+		var arrows := _menu_button(sets, "", 19)
+		arrows.pressed.connect(switch_arrows.bind(slot))
+		_arrow_switches.append(arrows)
 	var card := VBoxContainer.new()
 	card.custom_minimum_size.x = 520
 	card.add_theme_constant_override("separation", 14)
@@ -730,6 +736,24 @@ func switch_bow() -> void:
 	_refresh()
 
 
+## Стрелы в гнездо лука: обычные, потом каждые особые, что есть у героя, по кругу.
+func switch_arrows(slot: int) -> void:
+	var choices: Array[StringName] = [&""]
+	choices.append_array(GameState.owned_arrows())
+	if choices.size() < 2:
+		return
+	var now: StringName = GameState.arrow_slots[slot]
+	GameState.set_arrow_slot(slot, choices[(choices.find(now) + 1) % choices.size()])
+	Sfx.play(&"glass_glint", _player.global_position, -12.0)
+	_refresh()
+
+
+func _arrow_name(id: StringName) -> String:
+	if id == &"":
+		return "обычные"
+	return "%s ×%d" % [ItemCatalog.display_name(id).to_lower(), GameState.item_count(id)]
+
+
 ## Взять в руку (набор I) следующее оружие из того, что герой носит с собой.
 func switch_weapon() -> void:
 	var owned := GameState.owned_weapons()
@@ -765,6 +789,10 @@ func _refresh_weapon() -> void:
 	_set_line("II", ItemCatalog.display_name(GameState.second_weapon_id) if GameState.second_weapon_id != &"" else "пусто", false)
 	if GameState.has_flag(&"has_bow"):
 		_set_line("Лук", bow.to_lower(), false)
+		for slot in GameState.ARROW_SLOTS:
+			var id: StringName = GameState.arrow_slots[slot]
+			_set_line("Стр. " + ["I", "II"][slot], _arrow_name(id if GameState.item_count(id) > 0 else &""),
+				slot == GameState.active_arrow)
 	if _player.has_shield():
 		_set_line("Щит", "щит-гоплон", false)
 	var owned := GameState.owned_weapons()
@@ -779,6 +807,10 @@ func _refresh_weapon() -> void:
 	if bows.size() >= 2:
 		var other: StringName = bows[(bows.find(GameState.bow_id) + 1) % bows.size()]
 		_bow_switch.text = "Лук: взять %s" % GameState.BOWS[other][0]
+	var arrows_owned := GameState.has_flag(&"has_bow") and not GameState.owned_arrows().is_empty()
+	for slot in _arrow_switches.size():
+		_arrow_switches[slot].visible = arrows_owned
+		_arrow_switches[slot].text = "Стрелы %s: положить другие" % ["I", "II"][slot]
 	var weapon := _player.weapon
 	_temper.visible = weapon != null
 	for box in [_scaling_row, _glass_row, _mastery_rows]:

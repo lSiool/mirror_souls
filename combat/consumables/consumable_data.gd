@@ -24,6 +24,22 @@ const DIRECTORY := "res://data/consumables"
 ## Склянка: радиус вспышки, когда она разбивается обо что угодно; 0 — не разбивается.
 @export var burst_radius := 0.0
 @export var burst_color := Color(1.0, 0.55, 0.2)
+
+## Что склянка оставляет после себя (§6.2): огненную лужу, ядовитое облако, кислоту, свет, смолу.
+enum Zone { NONE, FIRE, POISON, ACID, HOLY, TAR }
+@export_group("Склянка")
+@export var zone := Zone.NONE
+## Размер зоны: полуширина лужи или радиус облака, м; и сколько она держится, с.
+@export var zone_radius := 0.0
+@export var zone_time := 0.0
+## Сколько держится состояние на задетом (горение, яд, «разъедено», смола), с.
+@export var status_time := 0.0
+## Святая склянка: во сколько раз больнее нежити (Dummy.unholy).
+@export var holy_mult := 1.0
+## Задержка броска: держишь кнопку ячейки — рука отводится дальше, полный заряд — скорость ×это.
+## 1 — заряда нет (нож и топорик).
+@export var charge_speed_mult := 1.0
+@export_group("")
 ## Вид заглушки в руке и в полёте: брусок (нож, топорик) или шар (склянка — при burst_radius > 0).
 @export var look_size := Vector3(0.3, 0.05, 0.05)
 @export var look_color := Color(0.8, 0.82, 0.86)

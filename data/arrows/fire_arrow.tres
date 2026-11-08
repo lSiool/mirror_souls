@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ArrowData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://combat/weapons/arrow_data.gd" id="1_arrow"]
+
+[resource]
+script = ExtResource("1_arrow")
+id = &"fire_arrow"
+status = &"burning"
+status_time = 3.0
+ignites = true
+flame = true
+tip_color = Color(1, 0.5, 0.15, 1)

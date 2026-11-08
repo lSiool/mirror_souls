@@ -24,7 +24,7 @@ const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id", "quick_slots"]
+	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -41,6 +41,12 @@ var bow_id: StringName
 ## Пусто — ячейка пуста. Предмет лежит не больше чем в одной ячейке; кончился — ячейка его помнит.
 const QUICK_SLOTS := 4
 var quick_slots := [&"", &"", &"", &""]
+## Стрелы (§6.2), как в Dark Souls: два гнезда лука, I и II; в каждом id особых стрел
+## (data/arrows) или пусто — обычные, бесконечные. Что в гнёздах — выбирается у осколка,
+## в бою «сменить стрелы» переключает active_arrow. Кончились особые — гнездо стреляет обычными.
+const ARROW_SLOTS := 2
+var arrow_slots := [&"", &""]
+var active_arrow := 0
 ## Сохранять ли на диск (тесты отключают) и куда.
 var saves_enabled := true
 var save_path := "user://save.sav"
@@ -98,6 +104,7 @@ func load_game() -> Dictionary:
 			set(key, data[key])
 	Events.echoes_changed.emit(echoes)
 	Events.quick_items_changed.emit()
+	Events.arrows_changed.emit()
 	return data.get("extra", {})
 
 
@@ -191,12 +198,56 @@ func add_item(id: StringName, count := 1) -> void:
 		if not quick_slots.has(id) and quick_slots.has(&""):
 			quick_slots[quick_slots.find(&"")] = id
 		Events.quick_items_changed.emit()
+	if is_arrow(id):
+		# Новые стрелы сами ложатся в пустое гнездо — сперва во второе: первое для обычных.
+		if not arrow_slots.has(id):
+			for slot in [1, 0]:
+				if arrow_slots[slot] == &"":
+					arrow_slots[slot] = id
+					break
+		Events.arrows_changed.emit()
 	Events.item_found.emit(id)
 
 
 ## Боевой расходник (data/consumables): его можно положить в крестовину и бросить.
 func is_consumable(id: StringName) -> bool:
 	return ConsumableData.by_id(id) != null
+
+
+## Особые стрелы (data/arrows): ложатся в гнездо лука, а не в крестовину.
+func is_arrow(id: StringName) -> bool:
+	return ArrowData.by_id(id) != null
+
+
+## Чем стреляет лук сейчас: особые стрелы активного гнезда или пусто — обычные.
+func current_arrow() -> StringName:
+	var id: StringName = arrow_slots[active_arrow]
+	return id if item_count(id) > 0 else &""
+
+
+## Кнопка «сменить стрелы»: другое гнездо.
+func swap_arrows() -> void:
+	active_arrow = (active_arrow + 1) % ARROW_SLOTS
+	Events.arrows_changed.emit()
+
+
+## Положить стрелы в гнездо 0…1 (у осколка); из другого гнезда они уходят. Пусто — обычные.
+func set_arrow_slot(slot: int, id: StringName) -> void:
+	if slot < 0 or slot >= ARROW_SLOTS:
+		return
+	if id != &"" and arrow_slots.has(id):
+		arrow_slots[arrow_slots.find(id)] = &""
+	arrow_slots[slot] = id
+	Events.arrows_changed.emit()
+
+
+## Какие особые стрелы есть у героя (для выбора у осколка).
+func owned_arrows() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for id: StringName in items:
+		if item_count(id) > 0 and is_arrow(id):
+			result.append(id)
+	return result
 
 
 ## Положить расходник в ячейку 0…3; из прежней ячейки он уходит. Пустой id — очистить ячейку.
@@ -256,6 +307,8 @@ func take_item(id: StringName) -> bool:
 	items[id] = item_count(id) - 1
 	if quick_slots.has(id):
 		Events.quick_items_changed.emit()
+	if arrow_slots.has(id):
+		Events.arrows_changed.emit()
 	return true
 
 

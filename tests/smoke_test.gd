@@ -1202,6 +1202,137 @@ func run() -> void:
 	player.restore()
 	await seconds(0.3)
 
+	print("== Склянки: заряд броска, яд, кислота, смола, огненные стрелы, святая вода (§6.2)")
+	# Солдат снова стоит на месте и не умрёт: здоровья на всё. В конце всё возвращаем.
+	soldier_home = soldier.global_position
+	soldier_look = soldier.facing
+	var soldier_max := soldier.health.max_health
+	soldier.patrol_speed = 0.0
+	soldier.chase_speed = 0.0
+	soldier.health.max_health = 2000.0
+	soldier.health.heal_full()
+	var clear_zones := func() -> void:
+		for node in nodes_where(get_tree().root, func(n: Node) -> bool: return n is FlaskZone or n is Thrown):
+			node.free()
+		soldier.statuses.clear()
+		player.statuses.clear()
+		player.restore()
+	clear_zones.call()
+	# Скорость склянки — в момент броска: долетев, она разбивается и исчезает.
+	var flask_speeds: Array[float] = []
+	var on_flask := func(t: Thrown) -> void: flask_speeds.append(t.velocity.length())
+	player.item_thrown.connect(on_flask)
+	# Заряд: тап — обычный бросок, удержание ячейки — дальше (быстрее).
+	game_state.add_item(&"poison_flask", 4)
+	game_state.set_quick_slot(0, &"poison_flask")
+	await put(Vector3(-20, 0.1, 0), -1.0)
+	await tap("quick_1")
+	await seconds(0.4)
+	press("quick_1")
+	await seconds(0.6)
+	release("quick_1")
+	await seconds(0.4)
+	check(flask_speeds.size() == 2, "два броска склянки: тап и с задержкой")
+	if flask_speeds.size() == 2:
+		check(player.throw_charge >= 0.99, "задержка: заряд полный (%.2f)" % player.throw_charge)
+		check(flask_speeds[1] > flask_speeds[0] * 1.3, "с задержкой — дальше (%.1f против %.1f м/с)" % [flask_speeds[1], flask_speeds[0]])
+	await seconds(1.2)
+	clear_zones.call()
+	# Яд: облако травит солдата со временем и героя, если он в нём стоит.
+	await face_enemy(soldier, 5.0)
+	await tap("quick_1")
+	await seconds(1.0)
+	var cloud := nodes_where(get_tree().root, func(n: Node) -> bool: return n is PoisonCloud)
+	check(not cloud.is_empty(), "склянка с ядом оставила облако")
+	check(soldier.statuses.has(Statuses.POISON), "солдат отравлен")
+	var hp_poison := soldier.health.current
+	await seconds(1.5)
+	check(soldier.health.current < hp_poison, "яд ранит со временем (%.0f → %.0f)" % [hp_poison, soldier.health.current])
+	if not cloud.is_empty():
+		await put(Vector3((cloud[0] as Node3D).global_position.x, 0.1, 0), -soldier.facing)
+		await seconds(0.6)
+		check(player.statuses.has(Statuses.POISON) and player.has_effect(&"poison"), "облако травит и героя, значок «яд» в HUD")
+	clear_zones.call()
+	# Кислота: по разъеденному бьют больнее.
+	game_state.add_item(&"acid_flask")
+	game_state.set_quick_slot(0, &"acid_flask")
+	await face_enemy(soldier, 5.0)
+	await tap("quick_1")
+	await seconds(1.0)
+	check(soldier.statuses.has(Statuses.CORRODED), "кислота разъела броню солдата")
+	var hp_acid := soldier.health.current
+	soldier.health.take_damage(10.0)
+	check(is_equal_approx(hp_acid - soldier.health.current, 10.0 * Statuses.CORRODED_DAMAGE), "по разъеденному больнее (−%.1f)" % (hp_acid - soldier.health.current))
+	clear_zones.call()
+	# Смола: враг объят смолой, лужа держится; огненная стрела — взрыв.
+	game_state.add_item(&"tar_flask")
+	game_state.set_quick_slot(0, &"tar_flask")
+	await face_enemy(soldier, 5.0)
+	await tap("quick_1")
+	await seconds(1.0)
+	check(soldier.statuses.has(Statuses.TAR) and soldier.statuses.speed_mult() < 0.5, "солдат объят смолой и еле двигается")
+	check(not nodes_where(get_tree().root, func(n: Node) -> bool: return n is TarPool).is_empty(), "смола лежит на земле")
+	game_state.add_item(&"fire_arrow", 2)
+	check(game_state.arrow_slots[1] == &"fire_arrow" and game_state.current_arrow() == &"", "огненные стрелы легли во второе гнездо, в руке обычные")
+	await tap("arrow_swap")
+	check(game_state.current_arrow() == &"fire_arrow", "смена стрел: теперь огненные")
+	await seconds(0.3)
+	check(rooms.hud._arrow_count.visible and rooms.hud._arrow_count.text == "2", "HUD: значок огненных стрел у лука, их 2")
+	var hp_tar := soldier.health.current
+	await face_enemy(soldier, 5.0)
+	await shoot(0.5)
+	await seconds(0.8)
+	check(game_state.item_count(&"fire_arrow") == 1, "огненная стрела потрачена")
+	check(not soldier.statuses.has(Statuses.TAR) and hp_tar - soldier.health.current > 40.0,
+		"огонь по смоле — взрыв (%.0f → %.0f)" % [hp_tar, soldier.health.current])
+	check(nodes_where(get_tree().root, func(n: Node) -> bool: return n is TarPool).is_empty(), "смола на земле сгорела")
+	await shoot(0.2)
+	await seconds(0.5)
+	check(game_state.item_count(&"fire_arrow") == 0 and game_state.current_arrow() == &"", "огненные кончились — гнездо стреляет обычными")
+	game_state.active_arrow = 0
+	game_state.arrow_slots = [&"", &""]
+	game_state.items.erase(&"fire_arrow")
+	clear_zones.call()
+	# Святая вода: нежить горит во много раз сильнее, свет остаётся.
+	game_state.add_item(&"holy_flask", 2)
+	game_state.set_quick_slot(0, &"holy_flask")
+	await face_enemy(soldier, 5.0)
+	var hp_holy := soldier.health.current
+	await tap("quick_1")
+	await seconds(1.0)
+	var plain_holy := hp_holy - soldier.health.current
+	check(not nodes_where(get_tree().root, func(n: Node) -> bool: return n is HolyLight).is_empty(), "свет святой воды остался в комнате")
+	soldier.unholy = true
+	hp_holy = soldier.health.current
+	await face_enemy(soldier, 5.0)
+	await tap("quick_1")
+	# Крест появляется, когда склянка долетит и разобьётся, и живёт меньше секунды.
+	var crossed := false
+	for i in 90:
+		await frames(1)
+		if not nodes_where(get_tree().root, func(n: Node) -> bool: return n is HolyCross).is_empty():
+			crossed = true
+			break
+	await seconds(1.0)
+	var unholy_holy := hp_holy - soldier.health.current
+	check(crossed and unholy_holy > plain_holy * 4.0, "нежить: крест из света и урон ×%.1f (%.0f против %.0f)" % [unholy_holy / maxf(plain_holy, 0.01), unholy_holy, plain_holy])
+	soldier.unholy = false
+	player.item_thrown.disconnect(on_flask)
+	for id: StringName in [&"poison_flask", &"acid_flask", &"tar_flask", &"holy_flask"]:
+		game_state.items.erase(id)
+	game_state.quick_slots = [&"", &"", &"", &""]
+	Events.quick_items_changed.emit()
+	clear_zones.call()
+	soldier.health.max_health = soldier_max
+	soldier.health.heal_full()
+	soldier.patrol_speed = soldier_patrol
+	soldier.chase_speed = soldier_chase
+	soldier.global_position = soldier_home
+	soldier.facing = soldier_look
+	soldier.velocity = Vector3.ZERO
+	soldier._set_state(Dummy.State.PATROL)
+	await seconds(0.3)
+
 	print("== Стрела не ломает стекло — отскакивает")
 	await put(Vector3(-8.0, 0.1, 0), -1.0)
 	sfx.history.clear()
