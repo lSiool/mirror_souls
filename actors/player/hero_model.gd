@@ -22,6 +22,14 @@ const COMBO_ANIMS: Array[StringName] = [&"Sword_Regular_B", &"Sword_Regular_A", 
 ## Меч в кулаке: поворот и сдвиг от кости кисти (подобраны по снимкам tools/characters/hero_snapshot.gd).
 const GRIP_ROTATION := Vector3(0.0, 0.0, -PI * 0.5)
 const GRIP_OFFSET := Vector3(0.0, 0.08, 0.02)
+## Удар в воздухе (2026-11-09, по замечанию автора): вертикальный, снизу вверх, и только
+## верхом тела — ноги держат позу прыжка. Клип без костей ног собирается на лету.
+const AIR_CLIP := &"Sword_Regular_A"
+const AIR_FROM := 0.15
+const LOWER_BODY: Array[String] = [
+	"Root", "Hips", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftToes",
+	"RightUpperLeg", "RightLowerLeg", "RightFoot", "RightToes",
+]
 
 var anim: AnimationPlayer
 var skeleton: Skeleton3D
@@ -43,6 +51,9 @@ func _ready() -> void:
 	anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	skeleton = model.find_child("GeneralSkeleton", true, false) as Skeleton3D
 	_merge_extra()
+	# Кости без дорожки в клипе держат прежнюю позу, а не встают в покой: удар верхом тела
+	# в воздухе оставляет ноги в позе прыжка.
+	anim.deterministic = false
 	hand = skeleton.find_child("Grip", true, false) as Node3D
 	if hand == null:
 		var bone := BoneAttachment3D.new()
@@ -106,11 +117,28 @@ func hold(clip: StringName, at: float, blend := BLEND) -> void:
 
 
 ## Удар: клип стадии, иначе — по номеру в серии.
-func attack(step: AttackStep, index: int) -> void:
+## В воздухе — всегда вертикальный удар снизу верхом тела.
+func attack(step: AttackStep, index: int, airborne := false) -> void:
+	if airborne:
+		play_span(_upper(AIR_CLIP), AIR_FROM, 0.0, step.duration)
+		return
 	var clip := step.anim
 	if clip == &"":
 		clip = COMBO_ANIMS[clampi(index - 1, 0, COMBO_ANIMS.size() - 1)]
 	play_span(clip, step.anim_from, step.anim_to, step.duration)
+
+
+## Копия клипа без костей ног и таза — только верх тела.
+func _upper(clip: StringName) -> StringName:
+	var upper := StringName(String(clip) + "_Upper")
+	var lib := anim.get_animation_library(&"")
+	if not lib.has_animation(upper):
+		var copy := anim.get_animation(clip).duplicate(true) as Animation
+		for track in range(copy.get_track_count() - 1, -1, -1):
+			if String(copy.track_get_path(track).get_concatenated_subnames()) in LOWER_BODY:
+				copy.remove_track(track)
+		lib.add_animation(upper, copy)
+	return upper
 
 
 ## Каждый кадр: поза по состоянию героя. Удары запускает сигнал attack_step_started.

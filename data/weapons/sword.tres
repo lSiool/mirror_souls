@@ -121,7 +121,8 @@ blade_yaw_to = 0.0
 [sub_resource type="Resource" id="Step_air"]
 script = ExtResource("2_step")
 display_name = "рез в прыжке"
-anim = &"Sword_Regular_B"
+anim = &"Sword_Regular_A"
+anim_from = 0.15
 duration = 0.4
 active_from = 0.1
 active_to = 0.2
