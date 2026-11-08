@@ -1,40 +1,30 @@
 class_name FireSpot
 extends Node3D
-## Очаг пожара в деревне (§9.2): языки пламени, дрожащий свет и искры. Заглушка до настоящего огня.
+## Очаг пожара в деревне (§9.2): языки процедурного пламени (Flame), дрожащий свет и искры.
+## Огонь поджигает смолу (TarPool, §6.2): очаг — в группе fire_source.
 
-const FLAME_COLOR := Color(1.0, 0.32, 0.06)
 const EMBER_COLOR := Color(1.0, 0.55, 0.2)
 const FLICKER_SPEED := 9.0
+const TONGUES := 5
 
 @export var size := Vector3(1.6, 2.2, 0.6)
 @export var light_energy := 2.2
 @export var light_range := 8.0
 
-var _flames: Array[MeshInstance3D] = []
 var _light: OmniLight3D
 var _t := 0.0
 
 
 func _ready() -> void:
+	add_to_group(&"fire_source")
 	_t = randf() * 10.0
-	var flame_material := StandardMaterial3D.new()
-	flame_material.albedo_color = FLAME_COLOR
-	flame_material.emission_enabled = true
-	flame_material.emission = FLAME_COLOR
-	flame_material.emission_energy_multiplier = 1.8
-	for i in 3:
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = size.x * (0.3 - 0.05 * i)
-		cone.height = size.y * (1.0 - 0.2 * i)
-		cone.radial_segments = 6
-		cone.rings = 1
-		cone.material = flame_material
-		var mesh := MeshInstance3D.new()
-		mesh.mesh = cone
-		mesh.position = Vector3(size.x * 0.28 * (i - 1), cone.height * 0.5, 0.0)
-		add_child(mesh)
-		_flames.append(mesh)
+	# Языки разной высоты по ширине очага, середина выше; задние чуть глубже.
+	for i in TONGUES:
+		var k := float(i) / float(TONGUES - 1) - 0.5
+		var height := size.y * (1.0 - absf(k) * 0.9) * randf_range(0.85, 1.1)
+		var flame := Flame.make(Vector2(size.x * 0.7, height))
+		flame.position = Vector3(k * size.x * 0.8, 0.0, -0.08 * (i % 2))
+		add_child(flame)
 	_light = OmniLight3D.new()
 	_light.light_color = Color(1.0, 0.5, 0.2)
 	_light.light_energy = light_energy
@@ -48,10 +38,12 @@ func _process(delta: float) -> void:
 	_t += delta * FLICKER_SPEED
 	var pulse := 0.75 + 0.15 * sin(_t) + 0.1 * sin(_t * 2.7)
 	_light.light_energy = light_energy * pulse
-	for i in _flames.size():
-		var flame := _flames[i]
-		flame.scale.y = 0.85 + 0.2 * sin(_t * 1.3 + i * 1.9)
-		flame.position.y = (flame.mesh as CylinderMesh).height * 0.5 * flame.scale.y
+
+
+## Задевает ли огонь шар в точке (смола поджигается, если лужа касается очага).
+func touches(at: Vector3, radius: float) -> bool:
+	var local := at - global_position
+	return absf(local.x) <= size.x * 0.5 + radius and local.y >= -radius and local.y <= size.y + radius
 
 
 func _embers() -> CPUParticles3D:

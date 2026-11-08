@@ -235,17 +235,24 @@ func _ignite() -> void:
 	glow.light_energy = 1.6
 	glow.omni_range = 4.5
 	hammer_head.add_child(glow)
+	# Языки фиолетового пламени (Flame) срываются с молота и тают, отставая от взмаха.
 	var flames := CPUParticles3D.new()
-	var speck := BoxMesh.new()
-	speck.size = Vector3(0.08, 0.08, 0.08)
-	speck.material = material
-	flames.mesh = speck
-	flames.amount = 24
-	flames.lifetime = 0.7
+	var tongue := QuadMesh.new()
+	tongue.size = Vector2(0.4, 0.6)
+	tongue.material = Flame.material(&"spirit")
+	flames.mesh = tongue
+	flames.amount = 18
+	flames.lifetime = 0.6
 	flames.local_coords = false
 	flames.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	flames.emission_box_extents = Vector3(0.5, 0.3, 0.3)
+	flames.emission_box_extents = Vector3(0.45, 0.25, 0.25)
 	flames.gravity = Vector3(0.0, 2.5, 0.0)
+	flames.scale_amount_min = 0.7
+	flames.scale_amount_max = 1.3
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1, 1, 1, 1))
+	ramp.set_color(1, Color(1, 1, 1, 0))
+	flames.color_ramp = ramp
 	hammer_head.add_child(flames)
 
 
