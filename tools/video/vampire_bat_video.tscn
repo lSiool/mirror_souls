@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tools/video/vampire_bat_video.gd" id="1"]
+
+[node name="VampireBatVideo" type="Node"]
+script = ExtResource("1")

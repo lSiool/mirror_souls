@@ -16,6 +16,9 @@ extends Node3D
 ## чем позволяет пол под навершием; GripHands разворачивает кулак поперёк рукояти, и молот ложится
 ## в ладонь правой кисти по итоговой позе скелета — оружие всегда в руке. Молот опущен — держит
 ## одной рукой, поднят — двумя. Сцены (сидит на камне, на колене) — клипами по Dummy._model_pose().
+##
+## Вампир перед превращением в мышь (Vampire): глаза разгораются (eyes_flare), руки раскинуты, плащ
+## раскрыт крыльями (spread) — перепонка от кисти до колена, строится по костям после IK.
 
 const SOLDIER := &"soldier"
 const VAMPIRE := &"vampire"
@@ -69,6 +72,16 @@ var holding := false
 var _scene_pose := &""
 ## Насколько поднят сидящий, чтобы таз лёг на камень, а не ушёл в него.
 var _seat_lift := 0.0
+## Вампир: насколько раскрыт плащ-крылья (0…1) и разгорелись глаза — ведёт Vampire.
+var spread := 0.0
+var eyes_flare := 0.0
+var _eyes: Array[MeshInstance3D] = []
+var _eye_glow: StandardMaterial3D
+var _eye_light: OmniLight3D
+## Плащ-крылья: перепонка в мире, точки — кости после IK (шея, плечо, локоть, кисть, бедро, колено).
+var _wing_mesh: MeshInstance3D
+var _wing_bones: Array = []
+var _neck: Node3D
 
 
 static func build(enemy: Dummy, visual: Node3D, body_material: Material, model_look: StringName) -> EnemyModel:
@@ -142,7 +155,36 @@ func _dress() -> void:
 			glow.emission_energy_multiplier = 4.0
 			var head := _bone("Head")
 			for x: float in [-0.035, 0.035]:
-				head.add_child(_part(SphereMesh, Vector3(0.022, 0.022, 0.022), Vector3(x, 0.07, 0.1), glow))
+				var eye := _part(SphereMesh, Vector3(0.022, 0.022, 0.022), Vector3(x, 0.07, 0.1), glow)
+				head.add_child(eye)
+				_eyes.append(eye)
+			_eye_glow = glow
+			_eye_light = OmniLight3D.new()
+			_eye_light.light_color = Color(1.0, 0.1, 0.05)
+			_eye_light.light_energy = 0.0
+			_eye_light.omni_range = 3.0
+			_eye_light.position = Vector3(0.0, 0.07, 0.2)
+			head.add_child(_eye_light)
+			# Плащ-крылья: раскрытый плащ повёрнут к камере багровой подкладкой (как у Дракулы).
+			var wing := _flat(Color(0.42, 0.02, 0.06))
+			wing.emission_enabled = true
+			wing.emission = Color(0.3, 0.0, 0.03)
+			wing.emission_energy_multiplier = 0.6
+			wing.cull_mode = BaseMaterial3D.CULL_DISABLED
+			_wing_mesh = MeshInstance3D.new()
+			_wing_mesh.name = &"CloakWings"
+			_wing_mesh.mesh = ImmediateMesh.new()
+			_wing_mesh.material_override = wing
+			_wing_mesh.top_level = true
+			_wing_mesh.visible = false
+			add_child(_wing_mesh)
+			_wing_mesh.global_transform = Transform3D.IDENTITY
+			_neck = chest
+			for side: String in ["Right", "Left"]:
+				var bones: Array[Node3D] = []
+				for part: String in ["UpperArm", "LowerArm", "Hand", "UpperLeg", "LowerLeg", "Foot"]:
+					bones.append(_bone(side + part))
+				_wing_bones.append(bones)
 
 
 func _bone(bone: String) -> Node3D:
@@ -246,6 +288,8 @@ func _weapon_to_hand() -> void:
 # --- Каждый кадр ---------------------------------------------------------------------
 
 func update(delta: float) -> void:
+	if look == VAMPIRE:
+		_update_cloak()
 	var enemy := _enemy
 	var state := enemy.state
 	var fresh := state != _state
@@ -419,6 +463,14 @@ func _update_palms(rubbing: bool, t: float, delta: float) -> void:
 	if _weapon:
 		_hold_weapon(rubbing, t)
 		return
+	if spread > 0.001:
+		# Руки раскинуты в стороны и чуть вверх — держат края плаща.
+		_ik.influence = spread
+		var side := global_basis.z.normalized()
+		for i in 2:
+			var shoulder: Vector3 = (_wing_bones[i][0] as Node3D).global_position
+			_targets[i].global_position = shoulder + side * (0.6 if i == 0 else -0.6) * size + Vector3.UP * 0.25 * size
+		return
 	var want := 1.0 if rubbing and t > 0.12 else 0.0
 	_ik.influence = move_toward(_ik.influence, want, delta * (6.0 if want > 0.0 else 3.0))
 	if _ik.influence > 0.0:
@@ -432,3 +484,39 @@ func _update_palms(rubbing: bool, t: float, delta: float) -> void:
 	if hero.hand:
 		var along := Vector3.ZERO if rubbing else HeroModel.GRIP_ROTATION
 		hero.hand.rotation = hero.hand.rotation.lerp(along, 1.0 - exp(-10.0 * delta))
+
+
+## Глаза и плащ-крылья вампира: перепонка от шеи по руке до кисти и вниз к колену.
+func _update_cloak() -> void:
+	if _eye_light == null:
+		return
+	_eye_light.light_energy = eyes_flare * 3.0
+	_eye_glow.emission_energy_multiplier = 4.0 + eyes_flare * 16.0
+	for eye in _eyes:
+		eye.scale = Vector3.ONE * (1.0 + eyes_flare * 1.5)
+	_wing_mesh.visible = spread > 0.02 and is_visible_in_tree()
+	var mesh := _wing_mesh.mesh as ImmediateMesh
+	mesh.clear_surfaces()
+	if not _wing_mesh.visible:
+		return
+	# Чуть за спиной: плащ не режет тело.
+	var back := -global_basis.x.normalized() * 0.06 * size
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	for bones: Array in _wing_bones:
+		var shoulder: Vector3 = (bones[0] as Node3D).global_position
+		var elbow: Vector3 = (bones[1] as Node3D).global_position
+		var hand: Vector3 = (bones[2] as Node3D).global_position
+		var hip: Vector3 = (bones[3] as Node3D).global_position
+		var knee: Vector3 = (bones[4] as Node3D).global_position
+		var foot: Vector3 = (bones[5] as Node3D).global_position
+		# Край плаща дальше кисти; низ — до лодыжек, по краю провисает к телу фестонами.
+		var tip := hand + (hand - elbow).normalized() * 0.25 * size
+		var ankle := knee.lerp(foot, 0.8)
+		var hem := ankle.lerp(tip, 0.5).lerp(hip, 0.15)
+		var neck := _neck.global_position
+		var ring := [neck, shoulder, elbow, tip, hem, ankle, knee]
+		for i in range(ring.size() - 1):
+			for p: Vector3 in [hip, ring[i], ring[i + 1]]:
+				mesh.surface_set_normal(Vector3.BACK)
+				mesh.surface_add_vertex(p + back)
+	mesh.surface_end()

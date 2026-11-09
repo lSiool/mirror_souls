@@ -164,6 +164,64 @@ func wait_attack_over(enemy: Dummy) -> void:
 
 ## Ставит героя перед врагом лицом к нему. Враг начинает с чистого листа (патруль),
 ## чтобы проверка не попала на середину старого замаха.
+## Приём вампира «Мышь» (§6.3): взлёт-телеграф, пике на героя, тьма скрывает превращение,
+## мышь пикирует низко сквозь героя, садится и снова человек. Вампир возвращается на место.
+func check_vampire_bat(vampire: Vampire) -> void:
+	var home := vampire.global_position
+	var floor_y := home.y
+	await put(Vector3(home.x - 6.0, 0.1, 0.0), 1.0)
+	player.restore()
+	var hero_x := player.global_position.x
+	vampire.start_bat()
+	check(vampire.move == Vampire.Move.RISE and vampire.state == Dummy.State.WINDUP, "«Мышь»: взлёт — телеграф, как замах")
+	await seconds(vampire.rise_time + 0.1)
+	check(vampire.global_position.y > floor_y + 2.5 and vampire.model.spread > 0.9 and vampire.model.eyes_flare > 0.9,
+		"вампир взмыл, глаза горят, плащ раскрыт крыльями")
+	var dived := false
+	for i in 180:
+		dived = dived or vampire.move == Vampire.Move.DIVE
+		if vampire.move == Vampire.Move.BURST:
+			break
+		await frames(1)
+	check(dived and vampire.move == Vampire.Move.BURST and absf(vampire.global_position.x - hero_x) < 0.8
+		and absf(vampire.global_position.y - floor_y) < 0.05, "пике — туда, где стоял герой, удар о землю")
+	await seconds(0.2)
+	check(vampire.bat.visible and not vampire.model.visible, "из тьмы вылетает огромная мышь, человека нет")
+	# Удары по мыши проходят, но приём не сбивают.
+	var probe := Hitbox.new()
+	rooms.current_room.add_child(probe)
+	probe.global_position = vampire.global_position
+	probe.damage = 1.0
+	probe.poise_damage = 999.0
+	var hp_vampire := vampire.health.current
+	vampire._on_hurt(probe)
+	probe.queue_free()
+	check(vampire.health.current < hp_vampire and vampire.move != Vampire.Move.NONE, "удар по мыши ранит, но не сбивает приём")
+	var lowest := INF
+	var swoop_hit := false
+	for i in 600:
+		var hp_frame := player.health.current
+		await frames(1)
+		if player.health.current < 40.0:
+			player.restore()
+		elif vampire.move == Vampire.Move.BAT_SWOOP and player.health.current < hp_frame:
+			swoop_hit = true
+		if vampire.move == Vampire.Move.BAT_SWOOP:
+			lowest = minf(lowest, vampire.global_position.y + GiantBat.CENTER - floor_y)
+		if vampire.move == Vampire.Move.NONE:
+			break
+	check(lowest < 0.8, "мышь пикирует низко — через неё прыгают (центр %.2f м над полом)" % lowest)
+	check(swoop_hit, "пике мыши достаёт героя, который стоит на месте")
+	check(vampire.move == Vampire.Move.NONE and vampire.model.visible and not vampire.bat.visible
+		and absf(vampire.global_position.y - floor_y) < 0.05 and vampire.collision_layer != 0,
+		"мышь села в облаке тьмы и снова стала человеком")
+	check(vampire.state == Dummy.State.RECOVER and vampire.windup_time == vampire._windup_base, "после посадки он открыт, замах когтей прежний")
+	vampire.global_position = home
+	vampire._bat_wait = 999.0
+	player.restore()
+	await frames(2)
+
+
 func face_enemy(enemy: Dummy, distance := 1.5) -> void:
 	enemy._set_state(Dummy.State.PATROL)
 	enemy._turn_t = -1.0
@@ -2070,6 +2128,9 @@ func run() -> void:
 	check(vampire != null and vampire.creature == CreatureKind.Kind.VAMPIRE and vampire.model != null
 		and vampire.model.look == EnemyModel.VAMPIRE and vampire.unholy, "в галерее вампир: бледный манекен в плаще, нечисть")
 	if vampire:
+		# «Мышь» проверяется отдельно ниже: пока она не мешает остальным проверкам галереи.
+		vampire.bat_first_delay = 999.0
+		vampire._bat_wait = 999.0
 		await face_enemy(vampire, 2.4)
 		var clawed := false
 		for i in 240:
@@ -2079,6 +2140,7 @@ func run() -> void:
 			await frames(1)
 		check(clawed, "вампир заметил героя и бьёт когтями")
 		await wait_attack_over(vampire)
+		await check_vampire_bat(vampire)
 	# Посох лежит у гроба за вампиром; пока герой его берёт, вампир стоит.
 	var hero_stats := player.stats
 	hero_stats.reset_progress()
