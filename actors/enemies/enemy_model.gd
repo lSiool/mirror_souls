@@ -11,11 +11,15 @@ extends Node3D
 ## Слепота (§6.2): отшатнулся (Hit_Head), дальше обе кисти у глаз — их ведёт TwoBoneIK3D поверх
 ## клипа; меч ложится вдоль кисти и предплечья. Вампир шатается (Idle_Shield_Break).
 ##
-## Кузнец — проклятый человек в 1.6 раза выше, движется медленнее. Своих клипов молота нет:
-## угол молота ведёт Blacksmith, кисти по IK идут к хвату — от груди в сторону молота, не ниже,
-## чем позволяет пол под навершием; GripHands разворачивает кулак поперёк рукояти, и молот ложится
-## в ладонь правой кисти по итоговой позе скелета — оружие всегда в руке. Молот опущен — держит
-## одной рукой, поднят — двумя. Сцены (сидит на камне, на колене) — клипами по Dummy._model_pose().
+## Кузнец — проклятый человек в 1.6 раза выше, движется медленнее. Клипов двуручного молота
+## в наборах нет — позу он строит сам, по углу молота (его ведёт Blacksmith): SMITH_POSES — где
+## правая ладонь, куда смотрят локти, как согнут и развёрнут корпус, насколько присел и широко
+## стоит. Тело и ноги ставит SmithBody поверх клипа, кисти ведёт IK, локти — к своим полюсам;
+## GripHands разворачивает кулак поперёк рукояти, и молот ложится в ладонь правой кисти
+## по итоговой позе скелета — оружие всегда в руке. Тащит молот за спиной — одной рукой,
+## поднял — двумя; чем выше молот, тем ближе левая кисть подъезжает к правой по древку.
+## Ходит тяжёлым шагом проклятого (Zombie_Walk_Fwd), волок — бегом. Сцены (сидит на камне,
+## на колене) — клипами по Dummy._model_pose().
 ##
 ## Вампир перед превращением в мышь (Vampire): глаза разгораются (eyes_flare), руки раскинуты, плащ
 ## раскрыт крыльями (spread) — перепонка от кисти до колена, строится по костям после IK.
@@ -48,6 +52,50 @@ const WALK_SPEED := 1.6
 const PALM_AHEAD := 0.13
 const PALM_DROP := 0.1
 const PALM_SPREAD := 0.07
+## Поза Кузнеца по углу молота (рад от вертикали, вперёд — минус; углы — Blacksmith.POSE_*), между
+## строками — плавно. Поля: угол; середина правой ладони, полюс правого и левого локтя (пространство
+## модели: x — вперёд, z — вправо, рост 1.0); наклон корпуса вперёд (минус — прогиб назад);
+## разворот (плюс — правое плечо назад); присед; ширина шага; на сколько левая кисть выше правой
+## по древку (м молота; рукоять за плечом или за спиной — кисти рядом); таз назад.
+## Руки не уходят за спину дальше, чем пускает плечо: молот назад заводит разворот корпуса,
+## а кисти остаются перед грудью — у правого бедра.
+const SMITH_POSES := [
+	# Сидит / молот в землю перед собой.
+	[-2.75, Vector3(0.32, 0.9, 0.12), Vector3(0.15, 0.9, 0.55), Vector3(0.15, 0.9, -0.55), 0.45, -0.1, 0.16, 1.1, 0.5, 0.06],
+	# Удар в пол: глубоко присел, сложился вперёд, руки вытянуты вниз, локти в стороны.
+	[-2.1, Vector3(0.26, 0.74, 0.04), Vector3(0.2, 0.9, 0.6), Vector3(0.2, 0.9, -0.6), 0.6, -0.15, 0.26, 1.25, 0.5, 0.1],
+	# Молот пронёсся вперёд: правое плечо вышло вперёд.
+	[-1.9, Vector3(0.45, 1.1, 0.0), Vector3(0.2, 0.95, 0.6), Vector3(0.2, 0.95, -0.6), 0.3, -0.45, 0.13, 1.15, 0.5, 0.05],
+	[-0.6, Vector3(0.3, 1.6, 0.04), Vector3(0.5, 1.45, 0.55), Vector3(0.5, 1.45, -0.55), 0.0, -0.15, 0.08, 1.05, 0.35, 0.0],
+	# Над головой: прогнулся назад, локти вперёд и вверх, кисти сошлись.
+	[0.35, Vector3(0.0, 1.78, 0.06), Vector3(0.45, 2.0, 0.5), Vector3(0.45, 2.0, -0.5), -0.22, 0.15, 0.06, 1.0, 0.2, -0.02],
+	# На плече (Blacksmith.POSE_SHOULDER): рукоять лежит на правом плече, кисти у груди, локти вниз.
+	[1.0, Vector3(0.16, 1.34, 0.2), Vector3(0.1, 0.9, 0.6), Vector3(0.35, 1.0, -0.1), 0.1, 0.35, 0.1, 1.05, 0.06, 0.02],
+	# Заведён назад для бокового: плечи и таз развёрнуты, кисти у правого бедра, левая рука —
+	# поперёк груди, правый локоть вниз и назад; вес на задней ноге.
+	[1.7, Vector3(0.08, 0.9, 0.28), Vector3(-0.2, 0.75, 0.6), Vector3(0.4, 1.0, 0.0), 0.2, 1.25, 0.14, 1.15, 0.1, 0.03],
+	# Волочит за спиной одной рукой: рука висит чуть назад, локоть сзади.
+	[2.15, Vector3(-0.16, 0.84, 0.2), Vector3(-0.3, 1.0, 0.4), Vector3(-0.3, 1.0, -0.4), 0.2, 0.2, 0.06, 0.65, 0.5, 0.02],
+]
+## Удар наискосок (крест, Blacksmith.SLAM_TILT): от угла TILT_LOW (у пола) до TILT_HIGH (над
+## головой) кисти уходят вбок на столько (на sin наклона), плечи доворачиваются на столько.
+const TILT_LOW := -1.9
+const TILT_HIGH := 0.35
+const TILT_PALM_LOW := 0.25
+const TILT_PALM_HIGH := 0.3
+const TILT_TWIST := 0.7
+## Двумя руками молот держат между этими углами; за ними — правой (волочит, оперся в землю).
+const TWO_HANDS_FROM := -2.6
+const TWO_HANDS_UNTIL := 1.95
+## Как быстро тело Кузнеца входит в свою позу и отдаёт её клипу (вздрог, сцены).
+const SMITH_BLEND := 5.0
+## Дыхание в стойке: размах наклона и частота.
+const BREATH := 0.03
+const BREATH_RATE := 1.7
+## Шаг проклятого (Zombie_Walk_Fwd) сутулит слишком: на ходу спина выпрямлена на столько,
+## голова поднята — взгляд на герое.
+const WALK_STRAIGHTEN := 0.4
+const WALK_HEAD_UP := 0.45
 
 var look := SOLDIER
 var hero: HeroModel
@@ -56,6 +104,12 @@ var lean: Node3D
 var _enemy: Dummy
 var _ik: TwoBoneIK3D
 var _targets: Array[Node3D] = []
+## Полюса локтей IK (под Lean): Кузнец двигает их по позе.
+var _poles: Array[Node3D] = []
+## Тело Кузнеца поверх клипа и его поза по углу молота в этом кадре.
+var _smith: SmithBody
+var _smith_pose := []
+var _breath := 0.0
 var _head := -1
 ## Кисти на костях: BoneAttachment3D идёт за позой после IK (поза кости из скелета — до неё).
 var _hands: Array[Node3D] = []
@@ -111,6 +165,12 @@ func _setup(body_material: Material) -> void:
 	_head = hero.skeleton.find_bone("Head")
 	_hands = [hero.hand.get_parent() as Node3D, _bone("LeftHand")]
 	_dress()
+	if look == BLACKSMITH:
+		# До IK рук: руки тянутся уже от согнутого корпуса.
+		_smith = SmithBody.new()
+		_smith.name = &"SmithBody"
+		_smith.model_space = lean
+		hero.skeleton.add_child(_smith)
 	_rig_ik()
 	_weapon = _enemy._grip
 	if _weapon:
@@ -245,6 +305,7 @@ func _rig_ik() -> void:
 		lean.add_child(pole)
 		pole.position = Vector3(0.35, 0.6, 0.35 if i == 0 else -0.35)
 		_ik.set_pole_node(i, _ik.get_path_to(pole))
+		_poles.append(pole)
 	_ik.influence = 0.0
 
 
@@ -308,6 +369,8 @@ func update(delta: float) -> void:
 		else:
 			hero.play(scene_pose, tempo)
 		lean.rotation.z = 0.0
+		if _smith:
+			_smith_weights(0.0, 0.0, delta)
 		_scene_pose = scene_pose
 		_update_palms(false, t, delta)
 		return
@@ -318,7 +381,8 @@ func update(delta: float) -> void:
 	if look == BLACKSMITH:
 		_update_blacksmith(state, delta)
 		_update_palms(rubbing, t, delta)
-		lean.rotation.z = enemy.body_mesh.rotation.z * 0.5
+		# Наклон всей фигуры не нужен: корпус гнёт SmithBody, а стопы стоят на земле.
+		lean.rotation.z = 0.0
 		return
 	var attack: Array = ATTACKS.get(look, ATTACKS[SOLDIER])
 	var clip: StringName = attack[0]
@@ -397,28 +461,123 @@ func _kneel(delta: float) -> void:
 	hero.anim.seek(KNEEL_AT, true)
 
 
-## Кузнец: тело — шаг и стойка, удары делает молот (поза — Blacksmith), руки на рукояти.
+## Кузнец: клип даёт шаг и вздрог, остальное — поза под молотом (SMITH_POSES): корпус и ноги
+## ставит SmithBody, руки — _hold_hammer. Удары делает молот (угол — Blacksmith).
 func _update_blacksmith(state: Dummy.State, delta: float) -> void:
 	var enemy := _enemy
 	var speed := absf(enemy.velocity.x)
+	var airborne := not enemy.is_on_floor()
+	var striking := state in [Dummy.State.WINDUP, Dummy.State.ATTACK, Dummy.State.RECOVER]
+	var body := 1.0
+	var legs := 1.0
+	var walking := false
 	match state:
 		Dummy.State.STAGGER, Dummy.State.FLINCH:
 			hero.play(&"Hit_Chest", tempo)
+			body = 0.0
+			legs = 0.0
 		Dummy.State.KNOCKDOWN:
 			hero.play(&"Hit_Knockback", tempo)
+			body = 0.0
+			legs = 0.0
 		Dummy.State.BLINDED:
 			if enemy.blind_recoiling():
 				hero.play(&"Hit_Head", tempo)
+				body = 0.0
 			else:
 				hero.play(&"Idle", tempo)
+				body = 0.4
+			legs = 0.0
 		_:
-			if speed < 0.3 or state in [Dummy.State.WINDUP, Dummy.State.ATTACK, Dummy.State.RECOVER]:
-				hero.play(&"Idle", tempo)
+			if airborne:
+				# Прыжок второй фазы: ноги поджаты, молот над головой.
+				hero.play(&"NinjaJump_Idle", tempo)
+				legs = 0.0
+			elif state == Dummy.State.ATTACK and enemy.attack_time > 0.5 and speed > WALK_SPEED:
+				# Волок: бежит, молот за спиной высекает искры.
+				hero.play(&"Jog_Fwd", clampf(speed / (JOG_SPEED * size), 0.7, 1.4))
+				legs = 0.0
+				walking = true
+			elif speed >= 0.3 and not striking:
+				hero.play(&"Zombie_Walk_Fwd", speed / (WALK_SPEED * size))
+				legs = 0.0
+				walking = true
 			else:
-				hero.play(&"Walk", speed / (WALK_SPEED * size))
+				hero.play(&"Idle", tempo)
 	if state == Dummy.State.BLINDED and enemy.blind_reaction == CreatureKind.Reaction.RUB_EYES:
 		# Придерживает молот одной рукой навершием в землю (Dummy._blind_weapon_angle).
 		_weapon.rotation.z = lerp_angle(_weapon.rotation.z, enemy._blind_weapon_angle(), 1.0 - exp(-8.0 * delta))
+	_smith_pose = _pose_for(_weapon.rotation.z).duplicate()
+	# Удар наискосок (крест): наверху кисти и плечи уходят к плечу замаха, внизу — к другой ноге.
+	var tilt := sin(_weapon.rotation.x)
+	if absf(tilt) > 0.001:
+		var high := clampf((_weapon.rotation.z - TILT_LOW) / (TILT_HIGH - TILT_LOW), 0.0, 1.0)
+		_smith_pose[1] = (_smith_pose[1] as Vector3) + Vector3(0.0, 0.0, lerpf(-TILT_PALM_LOW, TILT_PALM_HIGH, high) * tilt)
+		_smith_pose[5] = (_smith_pose[5] as float) + lerpf(-TILT_TWIST, TILT_TWIST, high) * tilt
+	_breath += delta
+	_smith.bend = _smith_pose[4] + (-WALK_STRAIGHTEN if walking else BREATH * sin(_breath * BREATH_RATE))
+	_smith.head_up = WALK_HEAD_UP if walking else 0.0
+	_smith.twist = _smith_pose[5]
+	_smith.crouch = _smith_pose[6]
+	_smith.stride = _smith_pose[7]
+	_smith.hips_back = _smith_pose[9]
+	_smith_weights(body, legs, delta)
+
+
+## Тело Кузнеца входит в позу и отдаёт её клипу плавно; без физики (статуя) — сразу.
+func _smith_weights(body: float, legs: float, delta: float) -> void:
+	var step := SMITH_BLEND * delta if delta > 0.0 else 1.0
+	_smith.body = move_toward(_smith.body, body, step)
+	_smith.legs = move_toward(_smith.legs, legs, step)
+
+
+## Поза под молотом по его углу — между строками SMITH_POSES плавно.
+static func _pose_for(angle: float) -> Array:
+	var first: Array = SMITH_POSES[0]
+	if angle <= first[0]:
+		return first
+	for i in range(1, SMITH_POSES.size()):
+		var high: Array = SMITH_POSES[i]
+		if angle <= high[0]:
+			var low: Array = SMITH_POSES[i - 1]
+			var t: float = (angle - low[0]) / (high[0] - low[0])
+			var pose := []
+			for k in low.size():
+				pose.append(lerp(low[k], high[k], t))
+			return pose
+	return SMITH_POSES[SMITH_POSES.size() - 1]
+
+
+## Кузнец в бою: правая ладонь идёт по дуге своей позы (не ниже, чем позволяет пол под навершием),
+## локти — к полюсам позы, левая кисть — выше по древку, а у поднятого молота подъезжает к правой.
+func _hold_hammer() -> void:
+	_ik.influence = 1.0
+	var visual := get_parent_node_3d()
+	var points := _enemy._grip_points()
+	var angle := _weapon.rotation.z
+	# Вдоль рукояти — с наклоном плоскости удара (крест).
+	var along := _weapon.basis.y.normalized()
+	var pose := _smith_pose if not _smith_pose.is_empty() else _pose_for(angle)
+	var floor_y := -_enemy.visual.position.y
+	var reach := _enemy._weapon_tip().y - points[0].y
+	var grip := transform * (lean.transform * (pose[1] as Vector3))
+	grip.y = maxf(grip.y, floor_y - along.y * reach + 0.04)
+	_targets[0].global_position = visual.global_transform * _wrist_for(grip, 1.0)
+	_poles[0].position = pose[2]
+	_poles[1].position = pose[3]
+	var world_axis := (visual.global_basis * along).normalized()
+	_grip_hands.axes[0] = world_axis
+	var two_hands := angle > TWO_HANDS_FROM and angle < TWO_HANDS_UNTIL and points.size() > 1
+	_grip_hands.axes[1] = world_axis if two_hands else Vector3.ZERO
+	if two_hands:
+		# IK ведёт левую кисть к древку, точно на место её кладёт GripHands (follow_gap).
+		var gap := minf(pose[8], points[1].y - points[0].y)
+		_targets[1].global_position = visual.global_transform * _wrist_for(grip + along * gap, -1.0)
+		_grip_hands.follow_gap = (visual.global_basis * along * gap).length()
+	else:
+		_grip_hands.follow_gap = 0.0
+		# Левая свободна: висит у бедра.
+		_targets[1].global_position = visual.global_transform * Vector3(0.08 * size, position.y + 0.78 * size, -SHOULDER_Z * size * 1.2)
 
 
 ## Руки на рукояти (IK, пространство Visual). Хват — от груди в сторону молота, но не ниже, чем
@@ -426,7 +585,15 @@ func _update_blacksmith(state: Dummy.State, delta: float) -> void:
 ## правая держит одна, левая висит; поднят — обе на древке. В слепоте правая держит его опущенным,
 ## левая трёт глаза. Кулак поперёк рукояти — GripHands; сам молот кладёт в ладонь _weapon_to_hand.
 func _hold_weapon(rubbing: bool, t: float) -> void:
+	if _smith and _scene_pose == &"" and not rubbing:
+		_hold_hammer()
+		return
+	_grip_hands.follow_gap = 0.0
 	_ik.influence = 1.0
+	if _smith:
+		# Сцена или слепота: локти снова вниз, как задано в _rig_ik.
+		_poles[0].position = Vector3(0.35, 0.6, 0.35)
+		_poles[1].position = Vector3(0.35, 0.6, -0.35)
 	var visual := get_parent_node_3d()
 	var points := _enemy._grip_points()
 	var angle := _weapon.rotation.z

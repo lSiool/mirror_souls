@@ -9,8 +9,9 @@ extends Dummy
 ## дух и входит в тело, загораются глаза, он встаёт. На 55 % здоровья — вторая фаза: падает
 ## на колено, дух вырывается и возвращается, молот горит фиолетовым, кольцо отбрасывает героя.
 ##
-## Фаза 1: боковой; удар сверху с волной; серия «боковой, боковой, сверху с задержкой»;
-## волок — тащит молот с искрами и бьёт снизу.
+## Фаза 1: боковой; крест — два удара сверху наискосок (с правого плеча в пол слева, пауза у пола,
+## из-за левого плеча в пол справа), каждый с волной; серия «боковой, боковой, сверху с задержкой»;
+## волок — тащит молот с искрами и бьёт снизу. Перед первым ударом сверху кладёт молот на плечо.
 ## Фаза 2 добавляет: прыжок на героя с кольцом волн, три удара сверху подряд, руки духа из земли.
 ## Побеждён один раз за игру (boss_flag).
 
@@ -32,11 +33,19 @@ const HAND_DAMAGE := 18.0
 const RING_DAMAGE := 8.0
 ## Наклон молота (радианы от вертикали, вперёд — минус): волочится по земле за спиной, заведён
 ## над головой или назад, пришёл в пол или вперёд на уровень груди.
-const POSE_DRAG := 2.5
+const POSE_DRAG := 2.15
 const POSE_OVERHEAD := 0.35
 const POSE_BACK := 1.7
-const POSE_FLOOR := -2.5
+const POSE_FLOOR := -2.1
+## На колене (сбитая стойка, переход фазы) молот круче — навершием в землю у колена.
+const POSE_KNEEL := -2.5
 const POSE_SWEPT := -1.9
+## Молот на правом плече — первая часть замаха сверху (рукоять лежит на плече, кисти у груди).
+const POSE_SHOULDER := 1.0
+## Удар сверху наискосок (крест): плоскость удара наклонена — верх у одного плеча, низ у другой
+## ноги; следующий удар серии — с другого плеча. Доля замаха, пока молот лежит на плече.
+const SLAM_TILT := 0.55
+const SHOULDER_SHARE := 0.5
 ## Сидит на камне: молот стоит навершием в землю перед ним, кисть — на конце рукояти.
 const POSE_SEATED := -2.75
 ## Верх камня, на котором он сидит до боя (SeatStone в build_forest.py), над его ногами.
@@ -82,6 +91,10 @@ var _leap_x := 0.0
 var _spark_t := 0.0
 var _trail_t := 0.0
 var _pattern := 0
+## Наклон плоскости удара сверху (крест): плюс — с правого плеча, минус — с левого, 0 — прямо.
+var _tilt := 0.0
+## Удар идёт следом в серии — замах короче и сразу от пола.
+var _quick := false
 ## Застыл стеклом.
 var statue := false
 ## Встаёт с камня (вступление): манекен уходит из сидячего клипа.
@@ -212,7 +225,7 @@ func _transition() -> void:
 	var kneel := create_tween().set_parallel(true)
 	kneel.tween_property(visual, "position:y", -0.6, 0.35)
 	kneel.tween_property(body_mesh, "rotation:z", -0.4, 0.35)
-	kneel.tween_property(hammer, "rotation:z", POSE_FLOOR, 0.35)
+	kneel.tween_property(hammer, "rotation:z", POSE_KNEEL, 0.35)
 	await kneel.finished
 	await _spirit(false)
 	await _spirit(true)
@@ -360,9 +373,9 @@ func _begin(blows: Array[Blow], dx: float) -> void:
 
 ## Вблизи — по кругу, чтобы ритм не читался заучиванием одного удара.
 func _close_pattern() -> Array[Blow]:
-	var patterns: Array = [[Blow.SWEEP], [Blow.SWEEP, Blow.SWEEP, Blow.SLAM_HELD], [Blow.SLAM]]
+	var patterns: Array = [[Blow.SWEEP], [Blow.SWEEP, Blow.SWEEP, Blow.SLAM_HELD], [Blow.SLAM, Blow.SLAM]]
 	if phase == 2:
-		patterns = [[Blow.SWEEP, Blow.SLAM], [Blow.SLAM, Blow.SLAM, Blow.SLAM_BIG], [Blow.SWEEP, Blow.SWEEP, Blow.SLAM_HELD], [Blow.SLAM]]
+		patterns = [[Blow.SWEEP, Blow.SLAM], [Blow.SLAM, Blow.SLAM, Blow.SLAM_BIG], [Blow.SWEEP, Blow.SWEEP, Blow.SLAM_HELD], [Blow.SLAM, Blow.SLAM]]
 	_pattern = (_pattern + 1) % patterns.size()
 	var result: Array[Blow] = []
 	result.assign(patterns[_pattern])
@@ -389,7 +402,13 @@ func _set_state(new_state: State) -> void:
 
 func _configure(blow: Blow, quick: bool) -> void:
 	_blow = blow
+	_quick = quick
 	var k := PHASE_SPEEDUP if phase == 2 else 1.0
+	# Крест: первый удар сверху — с правого плеча, следующий в серии — с другого.
+	if blow in [Blow.SLAM, Blow.SLAM_HELD, Blow.SLAM_BIG]:
+		_tilt = -_tilt if quick and _tilt != 0.0 else SLAM_TILT
+	else:
+		_tilt = 0.0
 	var more := _chain.size() > 1
 	attack_time = 0.18
 	attack_hitbox.knockback = 8.0
@@ -405,7 +424,8 @@ func _configure(blow: Blow, quick: bool) -> void:
 				# Задержка наверху: ранний перекат уходит в пустоту.
 				windup_time += 0.6
 			attack_lunge = 1.5 if quick else 0.5
-			recover_time = (0.4 if more else slam_stuck) * k
+			# Молот тяжёл: и между ударами серии он лежит у пола.
+			recover_time = (0.6 if more else slam_stuck) * k
 			attack_hitbox.damage = 40.0 if blow == Blow.SLAM_BIG else 34.0
 		Blow.DRAG:
 			windup_time = 0.7 * k
@@ -489,7 +509,7 @@ func _death_scene() -> void:
 	var kneel := create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	kneel.tween_property(visual, "position:y", KNEEL_Y, 1.4)
 	kneel.tween_property(body_mesh, "rotation:z", KNEEL_TILT, 1.4)
-	kneel.tween_property(hammer, "rotation:z", POSE_FLOOR - 0.4, 1.1)
+	kneel.tween_property(hammer, "rotation:z", POSE_KNEEL - 0.4, 1.1)
 	kneel.tween_method(func(c: Color) -> void: body_color = c, body_color, HUMAN_COLOR, STATUE_DELAY)
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.85, 0.6)
@@ -591,7 +611,7 @@ func _stand_as_statue() -> void:
 		eye.visible = false
 	visual.position.y = KNEEL_Y
 	body_mesh.rotation.z = KNEEL_TILT
-	hammer.rotation.z = POSE_FLOOR - 0.4
+	hammer.rotation.z = POSE_KNEEL - 0.4
 	hammer.position.z = 0.75 * facing
 	body_color = HUMAN_COLOR
 	_material.albedo_color = HUMAN_COLOR
@@ -833,6 +853,9 @@ func _update_extra(delta: float) -> void:
 			match _blow:
 				Blow.SWEEP: pose = POSE_BACK
 				Blow.DRAG: pose = POSE_DRAG
+				Blow.SLAM, Blow.SLAM_HELD, Blow.SLAM_BIG:
+					# Сперва на плечо, потом над головой; следующий в серии — сразу от пола вверх.
+					pose = POSE_SHOULDER if not _quick and _state_time < windup_time * SHOULDER_SHARE else POSE_OVERHEAD
 				_: pose = POSE_OVERHEAD
 			speed = 3.0
 		State.ATTACK:
@@ -843,8 +866,11 @@ func _update_extra(delta: float) -> void:
 			pose = down if _state_time < recover_time * 0.6 else POSE_DRAG
 			speed = 3.0
 		State.OFF_BALANCE:
-			pose = POSE_FLOOR
+			pose = POSE_KNEEL
 			speed = 6.0
+	# Наклон плоскости удара (крест): держится, пока молот не потащат обратно за спину.
+	var tilt := _tilt if state in [State.WINDUP, State.ATTACK] or (state == State.RECOVER and _state_time < recover_time * 0.6) else 0.0
+	hammer.rotation.x = lerpf(hammer.rotation.x, tilt, 1.0 - exp(-speed * delta))
 	# Слепота: молот в одной руке навершием в землю — позу ведёт Dummy._update_arms.
 	if state == State.BLINDED:
 		return
