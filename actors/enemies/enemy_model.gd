@@ -11,19 +11,27 @@ extends Node3D
 ## Слепота (§6.2): отшатнулся (Hit_Head), дальше обе кисти у глаз — их ведёт TwoBoneIK3D поверх
 ## клипа; меч ложится вдоль кисти и предплечья. Вампир шатается (Idle_Shield_Break).
 ##
-## Кузнец — проклятый человек в полтора раза выше, движется медленнее. Своих клипов молота нет:
-## позу молота ведёт Blacksmith, руки тянутся к рукояти через IK, а сам молот кладётся в правую
-## кисть по итоговой позе скелета — оружие всегда в руке. Сцены (сидит на камне, на колене) —
-## клипами по Dummy._model_pose().
+## Кузнец — проклятый человек в 1.6 раза выше, движется медленнее. Своих клипов молота нет:
+## угол молота ведёт Blacksmith, кисти по IK идут к хвату — от груди в сторону молота, не ниже,
+## чем позволяет пол под навершием; GripHands разворачивает кулак поперёк рукояти, и молот ложится
+## в ладонь правой кисти по итоговой позе скелета — оружие всегда в руке. Молот опущен — держит
+## одной рукой, поднят — двумя. Сцены (сидит на камне, на колене) — клипами по Dummy._model_pose().
 
 const SOLDIER := &"soldier"
 const VAMPIRE := &"vampire"
 const BLACKSMITH := &"blacksmith"
 ## Рост облика и темп клипов: крупный — медленнее.
-const SIZE := {BLACKSMITH: 1.55}
+const SIZE := {BLACKSMITH: 1.6}
 const TEMPO := {BLACKSMITH: 0.75}
-## Сидит на камне: насколько выше пола таз клипа Sitting_Idle (камень выше сиденья клипа).
-const SEAT_RAISE := 0.22
+## Манекен (рост 1.0): высота плеча и груди, сколько от запястья до середины ладони.
+const SHOULDER_Y := 1.41
+const CHEST_Y := 1.27
+const SHOULDER_Z := 0.19
+const PALM_FROM_WRIST := 0.09
+## Хват оружия — на таком расстоянии от груди в сторону молота (рост 1.0).
+const GRIP_RADIUS := 0.38
+## Сидит на камне (Dummy._seat_height): таз над сиденьем на столько (рост 1.0).
+const SEAT_PELVIS := 0.12
 ## Из сцены (сидел, стоял на колене) в обычную позу — плавно, как встаёт.
 const SCENE_BLEND := 0.8
 ## Кадр клипа Fixing_Kneeling, где стоит на колене, и переход в него.
@@ -54,7 +62,13 @@ var size := 1.0
 var tempo := 1.0
 ## Оружие, которое держат руки модели (молот Кузнеца): узел прямо под Visual.
 var _weapon: Node3D
+var _grip_hands: GripHands
+var _palms: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
+## Скелет уже обновлялся и оружие лежит в ладони (до первого обновления ладоней ещё нет).
+var holding := false
 var _scene_pose := &""
+## Насколько поднят сидящий, чтобы таз лёг на камень, а не ушёл в него.
+var _seat_lift := 0.0
 
 
 static func build(enemy: Dummy, visual: Node3D, body_material: Material, model_look: StringName) -> EnemyModel:
@@ -87,7 +101,10 @@ func _setup(body_material: Material) -> void:
 	_rig_ik()
 	_weapon = _enemy._grip
 	if _weapon:
-		# Оружие в кисти — по итоговой позе (после клипа и IK), каждый раз, как скелет обновился.
+		# Кулак поперёк рукояти — после IK; оружие в ладони — по итоговой позе, как скелет обновился.
+		_grip_hands = GripHands.new()
+		_grip_hands.name = &"GripHands"
+		hero.skeleton.add_child(_grip_hands)
 		hero.skeleton.skeleton_updated.connect(_weapon_to_hand)
 
 
@@ -211,17 +228,19 @@ func head_attachment() -> Node3D:
 	return _bone("Head")
 
 
-## Хват оружия (Dummy._grip_points) в мире при позе, которую задал враг.
-func _grip_world(local: Vector3, anchor: Vector3) -> Vector3:
-	return get_parent_node_3d().global_transform * (anchor + _weapon.basis * local)
+## Середина ладони кисти side (0 — правая), в мире: через неё идёт рукоять. Поза кости после IK
+## видна только в момент обновления скелета — поэтому ладони запоминаются там (_weapon_to_hand),
+## в пространстве Visual: враг переехал (телепорт, сцена) — ладонь едет вместе с ним.
+func palm_point(side: int) -> Vector3:
+	return get_parent_node_3d().global_transform * _palms[side] if _grip_hands else hand_point(side)
 
 
-## Скелет обновился: оружие ложится в правую кисть (первая точка хвата — в запястье).
+## Скелет обновился: оружие ложится в ладонь правой кисти (первая точка хвата — в ладони).
 func _weapon_to_hand() -> void:
-	var visual := get_parent_node_3d()
-	var bone := hero.skeleton.find_bone("RightHand")
-	var wrist := hero.skeleton.global_transform * hero.skeleton.get_bone_global_pose(bone).origin
-	_weapon.position = visual.global_transform.affine_inverse() * wrist - _weapon.basis * _enemy._grip_points()[0]
+	var to_visual := get_parent_node_3d().global_transform.affine_inverse()
+	_palms = [to_visual * _grip_hands.palm(0), to_visual * _grip_hands.palm(1)]
+	holding = true
+	_weapon.position = _palms[0] - _weapon.basis * _enemy._grip_points()[0]
 
 
 # --- Каждый кадр ---------------------------------------------------------------------
@@ -238,7 +257,7 @@ func update(delta: float) -> void:
 	if look == BLACKSMITH:
 		# Примитивы Кузнеца в сценах опускают Visual (сел, встал на колено) — у манекена это делают
 		# клипы, поэтому ноги остаются на земле.
-		position.y = -enemy.visual.position.y + (SEAT_RAISE if scene_pose == &"Sitting_Idle" else 0.0)
+		position.y = -enemy.visual.position.y + _seat(scene_pose == &"Sitting_Idle")
 	if scene_pose != &"":
 		if scene_pose == &"Fixing_Kneeling":
 			_kneel(delta)
@@ -310,6 +329,17 @@ func update(delta: float) -> void:
 	lean.rotation.z = enemy.body_mesh.rotation.z * 0.5
 
 
+## Сидит: таз ложится на камень (Dummy._seat_height), а не уходит в него — подъём по позе таза.
+func _seat(sitting: bool) -> float:
+	if not sitting:
+		_seat_lift = 0.0
+		return 0.0
+	var hips := hero.skeleton.global_transform * hero.skeleton.get_bone_global_pose(hero.skeleton.find_bone("Hips")).origin
+	var want := _enemy.global_position.y + _enemy._seat_height() + SEAT_PELVIS * size
+	_seat_lift += (want - hips.y) * 0.5
+	return _seat_lift
+
+
 ## На колене: кадр клипа стоит, а переход в него идёт. У AnimationPlayer переход идёт со скоростью
 ## speed_scale — поэтому стоит сам клип (custom_speed 0), а не весь плеер. Без физики (статуя,
 ## delta 0) — сразу в позу.
@@ -347,23 +377,39 @@ func _update_blacksmith(state: Dummy.State, delta: float) -> void:
 		_weapon.rotation.z = lerp_angle(_weapon.rotation.z, enemy._blind_weapon_angle(), 1.0 - exp(-8.0 * delta))
 
 
-## Руки на рукояти оружия (IK); в слепоте правая держит его опущенным, концом в землю,
-## левая трёт глаза. Само оружие кладёт в кисть _weapon_to_hand.
+## Руки на рукояти (IK, пространство Visual). Хват — от груди в сторону молота, но не ниже, чем
+## позволяет пол под навершием: опущенный молот упирается в землю, а не в неё. Молот опущен —
+## правая держит одна, левая висит; поднят — обе на древке. В слепоте правая держит его опущенным,
+## левая трёт глаза. Кулак поперёк рукояти — GripHands; сам молот кладёт в ладонь _weapon_to_hand.
 func _hold_weapon(rubbing: bool, t: float) -> void:
 	_ik.influence = 1.0
 	var visual := get_parent_node_3d()
 	var points := _enemy._grip_points()
-	# Где оружие хотело бы быть: место из сцены, с правого бока.
-	var anchor := Vector3(_enemy._grip_rest.x, _enemy._grip_rest.y, 0.3 * size)
-	if rubbing:
-		var down := Basis(Vector3.BACK, _enemy._blind_weapon_angle()) * (_enemy._weapon_tip() - points[0])
-		_targets[0].global_position = visual.global_transform * Vector3(0.45 * size, -down.y, 0.3 * size)
-		var eyes := eye_point()
+	var angle := _weapon.rotation.z
+	var along := Vector3(-sin(angle), cos(angle), 0.0)
+	var floor_y := -_enemy.visual.position.y
+	var reach := _enemy._weapon_tip().y - points[0].y
+	var grip := Vector3(0.0, position.y + CHEST_Y * size, SHOULDER_Z * size) + along * GRIP_RADIUS * size
+	grip.y = maxf(grip.y, floor_y - along.y * reach + 0.04)
+	_targets[0].global_position = visual.global_transform * _wrist_for(grip, 1.0)
+	var world_axis := (visual.global_basis * along).normalized()
+	_grip_hands.axes[0] = world_axis
+	var two_hands := along.y > -0.5 and not rubbing and points.size() > 1
+	_grip_hands.axes[1] = world_axis if two_hands else Vector3.ZERO
+	if two_hands:
+		_targets[1].global_position = visual.global_transform * _wrist_for(grip + along * (points[1].y - points[0].y), -1.0)
+	elif rubbing:
 		var rub := Vector3.UP * sin(t * 9.0) * 0.04
-		_targets[1].global_position = eyes + global_basis.x.normalized() * PALM_AHEAD * size - Vector3.UP * PALM_DROP + rub
-		return
-	_targets[0].global_position = _grip_world(points[0], anchor)
-	_targets[1].global_position = _grip_world(points[1] if points.size() > 1 else points[0], anchor)
+		_targets[1].global_position = eye_point() + global_basis.x.normalized() * PALM_AHEAD * size - Vector3.UP * PALM_DROP + rub
+	else:
+		# Левая свободна: висит у бедра.
+		_targets[1].global_position = visual.global_transform * Vector3(0.08 * size, position.y + 0.78 * size, -SHOULDER_Z * size * 1.2)
+
+
+## Куда вести запястье, чтобы середина ладони легла в точку palm (пространство Visual).
+func _wrist_for(palm: Vector3, side: float) -> Vector3:
+	var shoulder := Vector3(0.0, position.y + SHOULDER_Y * size, SHOULDER_Z * size * side)
+	return palm - (palm - shoulder).normalized() * PALM_FROM_WRIST * size
 
 
 ## Ладони к глазам и трут; меч в это время — вдоль кисти и предплечья (§6.2).

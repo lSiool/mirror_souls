@@ -34,17 +34,20 @@ func _ready() -> void:
 	await _shot("2_rising", smith)
 	await _wait(1.2)
 	await _shot("3_standing", smith)
+	await _close("3b_hand_standing", smith)
 	# Удары: замах сверху, удар в пол, боковой.
 	smith.chase_speed = 0.0
 	smith._begin([Blacksmith.Blow.SLAM], 1.0)
 	await _wait(smith.windup_time * 0.8)
 	await _shot("4_slam_windup", smith)
+	await _close("4b_hands_overhead", smith)
 	await _wait(smith.windup_time * 0.2 + smith.attack_time * 0.9)
 	await _shot("5_slam_hit", smith)
 	await _wait(1.5)
 	smith._set_state(Dummy.State.OFF_BALANCE)
 	await _wait(0.5)
 	await _shot("6_off_balance_kneel", smith)
+	await _close("6b_hand_kneel", smith)
 	smith._set_state(Dummy.State.CHASE)
 	await _wait(1.0)
 	smith._begin([Blacksmith.Blow.SWEEP], 1.0)
@@ -64,11 +67,19 @@ func _wait(seconds: float) -> void:
 
 
 func _shot(shot_name: String, foe: Node3D) -> void:
+	await _crop(shot_name, foe.global_position + Vector3(0.0, 1.5, 0.0), 260)
+
+
+## Крупно — кисть на рукояти (как молот лежит в руке).
+func _close(shot_name: String, smith: Blacksmith) -> void:
+	await _crop(shot_name, smith.model.palm_point(0), 110)
+
+
+func _crop(shot_name: String, center: Vector3, half: int) -> void:
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	var cam := get_viewport().get_camera_3d()
-	var at := cam.unproject_position(foe.global_position + Vector3(0.0, 1.5, 0.0))
-	var half := 260
+	var at := cam.unproject_position(center)
 	var crop := Rect2i(int(at.x) - half, int(at.y) - half, half * 2, half * 2).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
 	var part := img.get_region(crop)
 	part.resize(300, 300 * crop.size.y / maxi(crop.size.x, 1), Image.INTERPOLATE_LANCZOS)

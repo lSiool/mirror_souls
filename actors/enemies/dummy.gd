@@ -274,8 +274,10 @@ func on_revealed() -> void:
 func _physics_process(delta: float) -> void:
 	if state == State.DORMANT:
 		_wake_check(delta)
-		# Спящий (в засаде, на камне) тоже держит оружие в руке.
+		# Спящий (в засаде, на камне) тоже держит оружие в руке; манекен — в позе сцены.
 		_update_arms(delta)
+		if model:
+			model.update(delta)
 		return
 	# В смоле всё медленнее: и шаг, и замах, и откат.
 	_state_time += delta * statuses.time_mult()
@@ -427,6 +429,11 @@ func _weapon_posed_by_self() -> bool:
 ## Клип сцены для манекена (сидит, стоит на колене); пусто — по состоянию.
 func _model_pose() -> StringName:
 	return &""
+
+
+## На чём сидит в сцене Sitting_Idle: высота сиденья над ногами (камень Кузнеца).
+func _seat_height() -> float:
+	return 0.0
 
 
 func _brake(rate: float, delta: float) -> void:
@@ -732,7 +739,10 @@ func _attach_grip(arm: Node3D, local: Vector3, z: float) -> void:
 ## Для тестов: правило «оружие всегда в руке».
 func weapon_gap() -> float:
 	if model and _grip:
-		var held := model.get_parent_node_3d().global_transform.affine_inverse() * model.hand_point(0) - _grip_point(_grip_points()[0])
+		# Только что появился: скелет ещё не обновлялся — молот ляжет в ладонь до первого кадра.
+		if not model.holding:
+			return 0.0
+		var held := model.get_parent_node_3d().global_transform.affine_inverse() * model.palm_point(0) - _grip_point(_grip_points()[0])
 		return Vector2(held.x, held.y).length()
 	if arms == null or _grip == null:
 		return 0.0

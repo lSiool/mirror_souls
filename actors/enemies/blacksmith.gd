@@ -37,6 +37,10 @@ const POSE_OVERHEAD := 0.35
 const POSE_BACK := 1.7
 const POSE_FLOOR := -2.5
 const POSE_SWEPT := -1.9
+## Сидит на камне: молот стоит навершием в землю перед ним, кисть — на конце рукояти.
+const POSE_SEATED := -2.75
+## Верх камня, на котором он сидит до боя (SeatStone в build_forest.py), над его ногами.
+const SEAT_TOP := 0.9
 ## Поза на коленях после смерти: в ней он застывает.
 const KNEEL_Y := -0.8
 const KNEEL_TILT := -0.45
@@ -107,7 +111,7 @@ func _ready() -> void:
 			eye.visible = false
 		visual.position.y = -0.95
 		body_mesh.rotation.z = -0.35
-		hammer.rotation.z = POSE_OVERHEAD * 0.4
+		hammer.rotation.z = POSE_SEATED
 		# Сидит с молотом в руках.
 		_update_arms(0.0)
 
@@ -148,17 +152,24 @@ func _grip_node() -> Node3D:
 	return get_node_or_null(^"Visual/Hammer") as Node3D
 
 
+## Правая кисть — у навершия рукояти, левая — выше по древку.
 func _grip_points() -> Array[Vector3]:
-	return [Vector3(0.0, 0.15, 0.0), Vector3(0.0, 0.7, 0.0)]
+	return [Vector3(0.0, 0.1, 0.0), Vector3(0.0, 0.6, 0.0)]
 
 
-## Почти отвесно, навершием вниз: рука держит рукоять у плеча.
+## Ослеп: молот в одной руке, навершием вперёд и вниз — в землю.
 func _blind_weapon_angle() -> float:
-	return -2.8
+	return -2.5
 
 
+## Дальний край головы молота.
 func _weapon_tip() -> Vector3:
-	return Vector3(0.0, 2.4, 0.0)
+	return Vector3(0.0, 2.38, 0.0)
+
+
+## Камень, на котором он сидит до боя (SeatStone в build_forest.py).
+func _seat_height() -> float:
+	return SEAT_TOP
 
 
 # --- Вступление и вторая фаза --------------------------------------------------
