@@ -78,6 +78,7 @@ echoes = 0
 rank = 2
 weapon_type = &"hammer"
 blind_resistance = 0.5
+mannequin_look = &"blacksmith"
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)

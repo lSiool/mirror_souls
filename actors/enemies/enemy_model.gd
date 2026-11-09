@@ -10,9 +10,25 @@ extends Node3D
 ##
 ## Слепота (§6.2): отшатнулся (Hit_Head), дальше обе кисти у глаз — их ведёт TwoBoneIK3D поверх
 ## клипа; меч ложится вдоль кисти и предплечья. Вампир шатается (Idle_Shield_Break).
+##
+## Кузнец — проклятый человек в полтора раза выше, движется медленнее. Своих клипов молота нет:
+## позу молота ведёт Blacksmith, руки тянутся к рукояти через IK, а сам молот кладётся в правую
+## кисть по итоговой позе скелета — оружие всегда в руке. Сцены (сидит на камне, на колене) —
+## клипами по Dummy._model_pose().
 
 const SOLDIER := &"soldier"
 const VAMPIRE := &"vampire"
+const BLACKSMITH := &"blacksmith"
+## Рост облика и темп клипов: крупный — медленнее.
+const SIZE := {BLACKSMITH: 1.55}
+const TEMPO := {BLACKSMITH: 0.75}
+## Сидит на камне: насколько выше пола таз клипа Sitting_Idle (камень выше сиденья клипа).
+const SEAT_RAISE := 0.22
+## Из сцены (сидел, стоял на колене) в обычную позу — плавно, как встаёт.
+const SCENE_BLEND := 0.8
+## Кадр клипа Fixing_Kneeling, где стоит на колене, и переход в него.
+const KNEEL_AT := 1.0
+const KNEEL_BLEND := 0.3
 ## Клип удара по облику и доля клипа, где удар попадает (конец замаха).
 const ATTACKS := {SOLDIER: [&"Sword_Regular_A", 0.42], VAMPIRE: [&"Melee_Hook", 0.45]}
 const JOG_SPEED := 4.0
@@ -34,6 +50,11 @@ var _head := -1
 var _hands: Array[Node3D] = []
 var _sword: Node3D
 var _state := -1
+var size := 1.0
+var tempo := 1.0
+## Оружие, которое держат руки модели (молот Кузнеца): узел прямо под Visual.
+var _weapon: Node3D
+var _scene_pose := &""
 
 
 static func build(enemy: Dummy, visual: Node3D, body_material: Material, model_look: StringName) -> EnemyModel:
@@ -47,8 +68,11 @@ static func build(enemy: Dummy, visual: Node3D, body_material: Material, model_l
 
 
 func _setup(body_material: Material) -> void:
+	size = SIZE.get(look, 1.0)
+	tempo = TEMPO.get(look, 1.0)
 	lean = Node3D.new()
 	lean.name = &"Lean"
+	lean.scale = Vector3.ONE * size
 	add_child(lean)
 	hero = HeroModel.new()
 	lean.add_child(hero)
@@ -61,6 +85,10 @@ func _setup(body_material: Material) -> void:
 	_hands = [hero.hand.get_parent() as Node3D, _bone("LeftHand")]
 	_dress()
 	_rig_ik()
+	_weapon = _enemy._grip
+	if _weapon:
+		# Оружие в кисти — по итоговой позе (после клипа и IK), каждый раз, как скелет обновился.
+		hero.skeleton.skeleton_updated.connect(_weapon_to_hand)
 
 
 # --- Черты облика ----------------------------------------------------------------
@@ -78,6 +106,13 @@ func _dress() -> void:
 			hero.hand.add_child(_sword)
 			_sword.add_child(_part(BoxMesh, Vector3(0.05, 0.75, 0.015), Vector3(0.0, 0.45, 0.0), steel))
 			_sword.add_child(_part(BoxMesh, Vector3(0.2, 0.035, 0.04), Vector3(0.0, 0.06, 0.0), _flat(Color(0.3, 0.24, 0.16))))
+		BLACKSMITH:
+			# Кожаный фартук кузнеца и наплечник из грубого железа.
+			var leather := _flat(Color(0.2, 0.12, 0.07))
+			var hips := _bone("Hips")
+			hips.add_child(_part(BoxMesh, Vector3(0.36, 0.55, 0.03), Vector3(0.0, -0.18, 0.13), leather))
+			var shoulder := _bone("RightShoulder")
+			shoulder.add_child(_part(BoxMesh, Vector3(0.2, 0.08, 0.2), Vector3(0.0, 0.08, 0.0), _flat(Color(0.28, 0.27, 0.29), 0.5)))
 		VAMPIRE:
 			# Плащ до колен, высокий воротник, красные глаза.
 			var cloth := _flat(Color(0.08, 0.03, 0.05))
@@ -171,6 +206,24 @@ func sword() -> Node3D:
 	return _sword
 
 
+## Голова на кости — туда Кузнец сажает свои горящие глаза.
+func head_attachment() -> Node3D:
+	return _bone("Head")
+
+
+## Хват оружия (Dummy._grip_points) в мире при позе, которую задал враг.
+func _grip_world(local: Vector3, anchor: Vector3) -> Vector3:
+	return get_parent_node_3d().global_transform * (anchor + _weapon.basis * local)
+
+
+## Скелет обновился: оружие ложится в правую кисть (первая точка хвата — в запястье).
+func _weapon_to_hand() -> void:
+	var visual := get_parent_node_3d()
+	var bone := hero.skeleton.find_bone("RightHand")
+	var wrist := hero.skeleton.global_transform * hero.skeleton.get_bone_global_pose(bone).origin
+	_weapon.position = visual.global_transform.affine_inverse() * wrist - _weapon.basis * _enemy._grip_points()[0]
+
+
 # --- Каждый кадр ---------------------------------------------------------------------
 
 func update(delta: float) -> void:
@@ -180,6 +233,30 @@ func update(delta: float) -> void:
 	_state = state
 	var t := enemy._state_time
 	var rubbing := state == Dummy.State.BLINDED and enemy.blind_reaction == CreatureKind.Reaction.RUB_EYES
+	# Сцена (сидит, на колене) — свой клип; таз на месте, хоть Visual и опущен для примитивов.
+	var scene_pose := enemy._model_pose()
+	if look == BLACKSMITH:
+		# Примитивы Кузнеца в сценах опускают Visual (сел, встал на колено) — у манекена это делают
+		# клипы, поэтому ноги остаются на земле.
+		position.y = -enemy.visual.position.y + (SEAT_RAISE if scene_pose == &"Sitting_Idle" else 0.0)
+	if scene_pose != &"":
+		if scene_pose == &"Fixing_Kneeling":
+			_kneel(delta)
+		else:
+			hero.play(scene_pose, tempo)
+		lean.rotation.z = 0.0
+		_scene_pose = scene_pose
+		_update_palms(false, t, delta)
+		return
+	if _scene_pose != &"":
+		# Встаёт из сцены: плавный переход в обычную позу.
+		_scene_pose = &""
+		hero.play(&"Idle", tempo, SCENE_BLEND)
+	if look == BLACKSMITH:
+		_update_blacksmith(state, delta)
+		_update_palms(rubbing, t, delta)
+		lean.rotation.z = enemy.body_mesh.rotation.z * 0.5
+		return
 	var attack: Array = ATTACKS.get(look, ATTACKS[SOLDIER])
 	var clip: StringName = attack[0]
 	var length := hero.anim.get_animation(clip).length
@@ -233,8 +310,69 @@ func update(delta: float) -> void:
 	lean.rotation.z = enemy.body_mesh.rotation.z * 0.5
 
 
+## На колене: кадр клипа стоит, а переход в него идёт. У AnimationPlayer переход идёт со скоростью
+## speed_scale — поэтому стоит сам клип (custom_speed 0), а не весь плеер. Без физики (статуя,
+## delta 0) — сразу в позу.
+func _kneel(delta: float) -> void:
+	if hero._clip == &"Fixing_Kneeling":
+		return
+	hero._clip = &"Fixing_Kneeling"
+	hero._clip_end = 0.0
+	hero.anim.speed_scale = 1.0
+	hero.anim.play(&"Fixing_Kneeling", KNEEL_BLEND if delta > 0.0 else 0.0, 0.0)
+	hero.anim.seek(KNEEL_AT, true)
+
+
+## Кузнец: тело — шаг и стойка, удары делает молот (поза — Blacksmith), руки на рукояти.
+func _update_blacksmith(state: Dummy.State, delta: float) -> void:
+	var enemy := _enemy
+	var speed := absf(enemy.velocity.x)
+	match state:
+		Dummy.State.STAGGER, Dummy.State.FLINCH:
+			hero.play(&"Hit_Chest", tempo)
+		Dummy.State.KNOCKDOWN:
+			hero.play(&"Hit_Knockback", tempo)
+		Dummy.State.BLINDED:
+			if enemy.blind_recoiling():
+				hero.play(&"Hit_Head", tempo)
+			else:
+				hero.play(&"Idle", tempo)
+		_:
+			if speed < 0.3 or state in [Dummy.State.WINDUP, Dummy.State.ATTACK, Dummy.State.RECOVER]:
+				hero.play(&"Idle", tempo)
+			else:
+				hero.play(&"Walk", speed / (WALK_SPEED * size))
+	if state == Dummy.State.BLINDED and enemy.blind_reaction == CreatureKind.Reaction.RUB_EYES:
+		# Придерживает молот одной рукой навершием в землю (Dummy._blind_weapon_angle).
+		_weapon.rotation.z = lerp_angle(_weapon.rotation.z, enemy._blind_weapon_angle(), 1.0 - exp(-8.0 * delta))
+
+
+## Руки на рукояти оружия (IK); в слепоте правая держит его опущенным, концом в землю,
+## левая трёт глаза. Само оружие кладёт в кисть _weapon_to_hand.
+func _hold_weapon(rubbing: bool, t: float) -> void:
+	_ik.influence = 1.0
+	var visual := get_parent_node_3d()
+	var points := _enemy._grip_points()
+	# Где оружие хотело бы быть: место из сцены, с правого бока.
+	var anchor := Vector3(_enemy._grip_rest.x, _enemy._grip_rest.y, 0.3 * size)
+	if rubbing:
+		var down := Basis(Vector3.BACK, _enemy._blind_weapon_angle()) * (_enemy._weapon_tip() - points[0])
+		_targets[0].global_position = visual.global_transform * Vector3(0.45 * size, -down.y, 0.3 * size)
+		var eyes := eye_point()
+		var rub := Vector3.UP * sin(t * 9.0) * 0.04
+		_targets[1].global_position = eyes + global_basis.x.normalized() * PALM_AHEAD * size - Vector3.UP * PALM_DROP + rub
+		return
+	_targets[0].global_position = _grip_world(points[0], anchor)
+	_targets[1].global_position = _grip_world(points[1] if points.size() > 1 else points[0], anchor)
+
+
 ## Ладони к глазам и трут; меч в это время — вдоль кисти и предплечья (§6.2).
+## У кого руки держат оружие (Кузнец), IK ведёт их к рукояти, а в слепоте одна рука
+## держит оружие опущенным, другая трёт глаза.
 func _update_palms(rubbing: bool, t: float, delta: float) -> void:
+	if _weapon:
+		_hold_weapon(rubbing, t)
+		return
 	var want := 1.0 if rubbing and t > 0.12 else 0.0
 	_ik.influence = move_toward(_ik.influence, want, delta * (6.0 if want > 0.0 else 3.0))
 	if _ik.influence > 0.0:

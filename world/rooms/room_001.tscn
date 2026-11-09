@@ -125,6 +125,9 @@ material = SubResource("Mat_back")
 [node name="PlayerStart" type="Marker3D" parent="Spawns"]
 position = Vector3(-21, 0.1, 0)
 
+[node name="FromGallery" type="Marker3D" parent="Spawns"]
+position = Vector3(16.8, 0.1, 0)
+
 [node name="Glass" type="Node3D" parent="."]
 
 [node name="Tower" parent="Glass" instance=ExtResource("2_glass")]
@@ -175,6 +178,13 @@ script = ExtResource("12_door")
 target_room = &"chapel"
 target_spawn = NodePath("Spawns/FromMirror")
 open_prompt = "Вернуться через зеркало"
+
+[node name="DoorToGallery" type="Area3D" parent="Objects" groups=["normal_only"]]
+position = Vector3(17.8, 0, -1.2)
+script = ExtResource("12_door")
+target_room = &"castle_gallery"
+target_spawn = NodePath("Spawns/FromRoom001")
+open_prompt = "В галерею замка"
 
 [node name="SwordFind" type="Area3D" parent="Objects" groups=["normal_only"]]
 position = Vector3(-20.2, 0, 0)

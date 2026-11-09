@@ -210,6 +210,11 @@ func _ready() -> void:
 	statuses.ended.connect(_on_status_ended)
 	_eye_point = _find_eye_point()
 	if mannequin_look != &"":
+		# Оружие в руках манекена (молот Кузнеца) — его держат руки модели.
+		_grip = _grip_node()
+		if _grip:
+			_grip_rest = _grip.position
+			_grip_rest_angle = _grip.rotation.z
 		model = EnemyModel.build(self, visual, _material, mannequin_look)
 		# Примитивы остаются для чисел (рост, наклон), но не видны.
 		body_mesh.visible = false
@@ -417,6 +422,11 @@ func _weapon_tip() -> Vector3:
 ## Позу оружия ведёт сам наследник (и возвращает его после слепоты).
 func _weapon_posed_by_self() -> bool:
 	return false
+
+
+## Клип сцены для манекена (сидит, стоит на колене); пусто — по состоянию.
+func _model_pose() -> StringName:
+	return &""
 
 
 func _brake(rate: float, delta: float) -> void:
@@ -721,6 +731,9 @@ func _attach_grip(arm: Node3D, local: Vector3, z: float) -> void:
 ## Насколько рукоять оружия разошлась с держащей её кистью (в плоскости кадра); 0 — в руке.
 ## Для тестов: правило «оружие всегда в руке».
 func weapon_gap() -> float:
+	if model and _grip:
+		var held := model.get_parent_node_3d().global_transform.affine_inverse() * model.hand_point(0) - _grip_point(_grip_points()[0])
+		return Vector2(held.x, held.y).length()
 	if arms == null or _grip == null:
 		return 0.0
 	var gap := arms.hand(arms.arm_at(_grip.position)) - _grip_point(_grip_points()[0])

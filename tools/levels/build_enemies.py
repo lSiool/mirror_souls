@@ -221,7 +221,8 @@ windup_tint = 0.2
 echoes = 0
 rank = 2
 weapon_type = &"hammer"
-blind_resistance = 0.5"""
+blind_resistance = 0.5
+mannequin_look = &"blacksmith\""""
     write("actors/enemies/blacksmith.tscn", enemy_scene("res://actors/enemies/blacksmith.gd",
           '[node name="Blacksmith" type="CharacterBody3D"]\ncollision_layer = 4\ncollision_mask = 3', "\n\n".join(subs), 800.0, props, "\n\n".join(nodes)))
 

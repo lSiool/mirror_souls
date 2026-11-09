@@ -1,0 +1,108 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://world/rooms/room.gd" id="1_room"]
+[ext_resource type="Script" path="res://world/common/room_door.gd" id="2_door"]
+[ext_resource type="PackedScene" path="res://actors/enemies/vampire.tscn" id="3_vampire"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.3, 0.29, 0.3, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_back"]
+albedo_color = Color(0.13, 0.11, 0.12, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_coffin"]
+albedo_color = Color(0.16, 0.08, 0.07, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_banner"]
+albedo_color = Color(0.32, 0.04, 0.06, 1)
+roughness = 0.9
+
+[node name="CastleGallery" type="Node3D"]
+script = ExtResource("1_room")
+room_id = &"castle_gallery"
+width = 30.0
+sun_color = Color(0.75, 0.8, 1, 1)
+sun_energy = 0.6
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="Floor" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0, -2, 0)
+use_collision = true
+size = Vector3(30, 4, 4)
+material = SubResource("Mat_stone")
+
+[node name="WallLeft" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-15.5, 5, 0)
+use_collision = true
+size = Vector3(1, 14, 4)
+material = SubResource("Mat_stone")
+
+[node name="WallRight" type="CSGBox3D" parent="Geometry"]
+position = Vector3(15.5, 5, 0)
+use_collision = true
+size = Vector3(1, 14, 4)
+material = SubResource("Mat_stone")
+
+[node name="Ceiling" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0, 9.5, 0)
+use_collision = true
+size = Vector3(32, 1, 4)
+material = SubResource("Mat_stone")
+
+[node name="BackWall" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0, 4, -2.5)
+size = Vector3(32, 14, 0.5)
+material = SubResource("Mat_back")
+
+[node name="PillarA" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-6, 4, -1.7)
+size = Vector3(0.9, 9, 0.9)
+material = SubResource("Mat_stone")
+
+[node name="PillarB" type="CSGBox3D" parent="Geometry"]
+position = Vector3(6, 4, -1.7)
+size = Vector3(0.9, 9, 0.9)
+material = SubResource("Mat_stone")
+
+[node name="BannerA" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-3, 5.5, -2.2)
+size = Vector3(1.2, 3.5, 0.05)
+material = SubResource("Mat_banner")
+
+[node name="BannerB" type="CSGBox3D" parent="Geometry"]
+position = Vector3(3, 5.5, -2.2)
+size = Vector3(1.2, 3.5, 0.05)
+material = SubResource("Mat_banner")
+
+[node name="Coffin" type="CSGBox3D" parent="Geometry"]
+position = Vector3(9, 0.35, -1.5)
+size = Vector3(2.2, 0.7, 0.9)
+material = SubResource("Mat_coffin")
+
+[node name="CoffinLid" type="CSGBox3D" parent="Geometry"]
+transform = Transform3D(0.94, -0.34, 0, 0.34, 0.94, 0, 0, 0, 1, 10.6, 0.6, -1.2)
+size = Vector3(2.2, 0.08, 0.9)
+material = SubResource("Mat_coffin")
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="FromRoom001" type="Marker3D" parent="Spawns"]
+position = Vector3(-13, 0.1, 0)
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="DoorBack" type="Area3D" parent="Objects"]
+position = Vector3(-14.4, 0, 0)
+script = ExtResource("2_door")
+target_room = &"room_001"
+target_spawn = NodePath("Spawns/FromGallery")
+open_prompt = "Вернуться"
+
+[node name="Vampire" parent="Objects" instance=ExtResource("3_vampire")]
+position = Vector3(5, 0, 0)
+facing = -1.0
+patrol_distance = 3.0

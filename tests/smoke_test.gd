@@ -2053,6 +2053,52 @@ func run() -> void:
 	check(not game_state.has_save(), "тестовое сохранение удалено")
 	game_state.saves_enabled = false
 
+	print("== Галерея замка: вампир (§6.3)")
+	player.restore()
+	var gallery_door := room_node("Objects/DoorToGallery") as Node3D
+	check(gallery_door != null, "в замке у ниши — дверь в галерею")
+	await put(Vector3(gallery_door.global_position.x, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	for i in 180:
+		if rooms.current_room_id == &"castle_gallery":
+			break
+		await frames(1)
+	await seconds(0.8)
+	check(rooms.current_room_id == &"castle_gallery", "дверь ведёт в галерею замка")
+	var vampire := room_node("Objects/Vampire") as Vampire
+	check(vampire != null and vampire.creature == CreatureKind.Kind.VAMPIRE and vampire.model != null
+		and vampire.model.look == EnemyModel.VAMPIRE and vampire.unholy, "в галерее вампир: бледный манекен в плаще, нечисть")
+	if vampire:
+		await face_enemy(vampire, 2.4)
+		var clawed := false
+		for i in 240:
+			if vampire.state in [Dummy.State.WINDUP, Dummy.State.ATTACK]:
+				clawed = true
+				break
+			await frames(1)
+		check(clawed, "вампир заметил героя и бьёт когтями")
+		await wait_attack_over(vampire)
+		player.restore()
+		vampire.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+		check(vampire.state == Dummy.State.BLINDED and vampire.can_be_riposted(), "Блик по вампиру: дезориентирован, открыт спереди")
+		await put(Vector3(vampire.global_position.x + vampire.facing * 1.2, 0.1, 0.0), -vampire.facing)
+		await seconds(0.1)
+		await tap("attack")
+		check(player.state == Player.State.CRITICAL, "добивание ослеплённого вампира спереди")
+		await seconds(2.5)
+	player.restore()
+	await put(room_node("Objects/DoorBack").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	for i in 180:
+		if rooms.current_room_id == &"room_001":
+			break
+		await frames(1)
+	await seconds(0.8)
+	check(rooms.current_room_id == &"room_001", "из галереи — обратно в замок")
+	player.restore()
+
 	print("== Деревня: хижина")
 	player.restore()
 	game_state.flags.erase(&"intro_done")

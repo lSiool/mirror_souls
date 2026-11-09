@@ -80,6 +80,8 @@ var _trail_t := 0.0
 var _pattern := 0
 ## Застыл стеклом.
 var statue := false
+## Встаёт с камня (вступление): манекен уходит из сидячего клипа.
+var _rising := false
 
 @onready var hammer: Node3D = $Visual/Hammer
 @onready var hammer_head: MeshInstance3D = $Visual/Hammer/Head
@@ -93,6 +95,8 @@ func _init() -> void:
 func _ready() -> void:
 	super()
 	leaves_statue = true
+	if model:
+		_dress_model()
 	if GameState.has_flag(boss_flag):
 		_stand_as_statue()
 		return
@@ -106,6 +110,36 @@ func _ready() -> void:
 		hammer.rotation.z = POSE_OVERHEAD * 0.4
 		# Сидит с молотом в руках.
 		_update_arms(0.0)
+
+
+## Манекен (§3.3): примитивы тела прячем, горящие глаза — на кость головы.
+func _dress_model() -> void:
+	for part: NodePath in [^"Visual/Shoulders", ^"Visual/Head"]:
+		(get_node(part) as Node3D).visible = false
+	var glow := (eyes[0] as MeshInstance3D).mesh.surface_get_material(0)
+	var head := model.head_attachment()
+	var fresh: Array[Node3D] = []
+	for x: float in [-0.04, 0.04]:
+		var eye := MeshInstance3D.new()
+		var slit := BoxMesh.new()
+		slit.size = Vector3(0.05, 0.02, 0.02)
+		slit.material = glow
+		eye.mesh = slit
+		eye.position = Vector3(x, 0.08, 0.1)
+		head.add_child(eye)
+		fresh.append(eye)
+	eyes.assign(fresh)
+
+
+## Сцена для манекена: сидит на камне, стоит на колене (вторая фаза, сбитая стойкость, смерть).
+func _model_pose() -> StringName:
+	if statue or state == State.DEAD or state == State.OFF_BALANCE:
+		return &"Fixing_Kneeling"
+	if seated and not _engaged and not _rising:
+		return &"Sitting_Idle"
+	if state == State.DORMANT and phase == 2 and _scene_running:
+		return &"Fixing_Kneeling"
+	return &""
 
 
 ## Молот двумя руками за рукоять; ослепнув, Кузнец придерживает его одной рукой навершием
@@ -144,6 +178,7 @@ func _play_intro() -> void:
 	await _spirit(true)
 	for eye in eyes:
 		eye.visible = true
+	_rising = true
 	var rise := create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE)
 	rise.tween_property(visual, "position:y", 0.0, 0.9)
 	rise.tween_property(body_mesh, "rotation:z", 0.0, 0.9)
@@ -550,6 +585,9 @@ func _stand_as_statue() -> void:
 	body_color = HUMAN_COLOR
 	_material.albedo_color = HUMAN_COLOR
 	_material.emission = Color.BLACK
+	if model:
+		# Манекен — на колене, молот в руке (кадр сцены держится и без физики).
+		model.update(0.0)
 	_glaze(_glass_materials(), 1.0)
 	set_physics_process(false)
 	# Ушёл из комнаты, пока стекленел: отзвуки — сейчас.
