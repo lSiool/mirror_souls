@@ -9,7 +9,7 @@ const OUT := "user://blind_snapshots"
 ## Враг: сцена, класс (пусто — свой) и половина кадра в пикселях.
 const FOES := [
 	["dummy", -1, 130],
-	["dummy", CreatureKind.Kind.VAMPIRE, 130],
+	["vampire", -1, 130],
 	["bandit_heavy", -1, 150],
 	["bandit_knife", -1, 150],
 	["blacksmith", -1, 230],
@@ -59,7 +59,7 @@ func _ready() -> void:
 		foe.global_position = Vector3(-20.5, 0.1 if not foe is Bat else 2.2, 0.0)
 		if foe is Bat:
 			(foe as Bat)._awake = true
-		var shot := "%d_%s%s" % [i + 1, spec[0], "_vampire" if spec[1] == CreatureKind.Kind.VAMPIRE else ""]
+		var shot := "%d_%s" % [i + 1, spec[0]]
 		await _wait(1.2)
 		await _shot(shot + "_a_before", foe, spec[2])
 		foe.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)

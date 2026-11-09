@@ -14,10 +14,25 @@ var last_arrow: Arrow
 var last_arrow_speed := 0.0
 ## Надписи игроку (Events.message) по порядку.
 var messages: Array[String] = []
+## Правило «оружие всегда в руке» (§6.3): самый большой разрыв кисти и рукояти у врагов
+## с руками graybox за весь тест и кто это был.
+var weapon_gap := 0.0
+var weapon_gap_who := ""
 
 
 func _ready() -> void:
 	run()
+
+
+func _physics_process(_delta: float) -> void:
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Dummy
+		if enemy == null or enemy.state == Dummy.State.DEAD:
+			continue
+		var gap := enemy.weapon_gap()
+		if gap > weapon_gap:
+			weapon_gap = gap
+			weapon_gap_who = "%s (%s)" % [enemy.name, Dummy.State.keys()[enemy.state]]
 
 
 func frames(n: int) -> void:
@@ -1392,15 +1407,17 @@ func run() -> void:
 	soldier.chase_speed = 0.0
 	player.restore()
 	await face_enemy(soldier, 1.6)
-	check(soldier.arms != null and soldier.creature == CreatureKind.Kind.HUMAN, "у солдата-человека руки graybox")
+	check(soldier.model != null and soldier.model.sword() != null and soldier.creature == CreatureKind.Kind.HUMAN,
+		"солдат-человек — манекен героя с мечом")
 	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
 	check(soldier.state == Dummy.State.BLINDED and soldier.blind_reaction == CreatureKind.Reaction.RUB_EYES
 		and is_equal_approx(soldier.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME), "солдат ослеп на 4 с: человек трёт глаза")
 	await seconds(0.6)
-	# Ладонь у глаз в плоскости кадра: плечо graybox — сбоку тела, ближе к камере.
-	var palm := soldier.arms.hand(soldier.arms.front)
-	var palm_gap := Vector2(palm.x, palm.y).distance_to(Vector2(soldier._eye_point.x, soldier._eye_point.y))
-	check(soldier.blind_recoiling() and palm_gap < 0.3, "первую секунду отшатнулся, ладони у глаз (%.2f м)" % palm_gap)
+	var palm_gap := maxf(soldier.model.hand_point(0).distance_to(soldier.model.eye_point()),
+		soldier.model.hand_point(1).distance_to(soldier.model.eye_point()))
+	check(soldier.blind_recoiling() and palm_gap < 0.3, "первую секунду отшатнулся, обе ладони у глаз (%.2f м)" % palm_gap)
+	check(soldier.model.sword().get_parent() == soldier.model.hero.hand and soldier.model.hero.hand.rotation.length() < 0.25,
+		"меч в руке и лежит вдоль кисти и предплечья")
 	var hp_blind := soldier.health.current
 	await tap("attack")
 	await seconds(0.5)
@@ -1446,6 +1463,7 @@ func run() -> void:
 	soldier._blind_count = 0
 	# Враги леса и босс: у каждого класса своя реакция и своё время.
 	var classes := {
+		"vampire": [CreatureKind.Reaction.DISORIENT, 0.75],
 		"rat": [CreatureKind.Reaction.SHAKE_HEAD, 0.5], "bat": [CreatureKind.Reaction.IMMUNE, 0.0],
 		"fog_wraith": [CreatureKind.Reaction.FADE, 0.5], "glass_crawler": [CreatureKind.Reaction.IMMUNE, 0.0],
 		"drowned_knight": [CreatureKind.Reaction.IMMUNE, 0.0], "werewolf": [CreatureKind.Reaction.ROAR, 0.5],
@@ -1472,10 +1490,12 @@ func run() -> void:
 		if reaction != CreatureKind.Reaction.IMMUNE:
 			ok = foe.state == Dummy.State.BLINDED and foe.blind_reaction == reaction \
 				and is_equal_approx(foe.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * want[1])
-		var humanoid_arms := (foe.arms != null) == (reaction == CreatureKind.Reaction.RUB_EYES)
+		# Руки есть у всех гуманоидов: graybox или манекен.
+		var has_arms := foe.arms != null or foe.model != null
+		var humanoid_arms := has_arms == (reaction in [CreatureKind.Reaction.RUB_EYES, CreatureKind.Reaction.DISORIENT])
 		check(ok and humanoid_arms, "%s: %s, %.1f с" % [id, CreatureKind.Reaction.keys()[reaction], foe.statuses.time_left(Statuses.BLIND)])
-		# Поза слепоты отыгрывается без ошибок.
-		await seconds(0.4)
+		# Поза слепоты отыгрывается без ошибок; оружие не покидает руку (общий счётчик теста).
+		await seconds(1.4)
 		foe.queue_free()
 	await frames(2)
 	soldier.health.heal_full()
@@ -2891,6 +2911,9 @@ func run() -> void:
 	game_state.save_path = real_save
 	fresh.queue_free()
 	await frames(2)
+
+	# Допуск — кадр твина: сцены Кузнеца поворачивают молот твином, кисть догоняет в следующем кадре.
+	check(weapon_gap < 0.02, "оружие врагов всегда в руке: разрыв кисти и рукояти %.3f м %s" % [weapon_gap, weapon_gap_who])
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures else 0)

@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/dummy.tscn" id="1_dummy"]
+[ext_resource type="Script" path="res://actors/enemies/vampire.gd" id="2_vampire"]
+
+[node name="Vampire" instance=ExtResource("1_dummy")]
+script = ExtResource("2_vampire")
+mannequin_look = &"vampire"
+creature = 2
+unholy = true
+body_color = Color(0.78, 0.74, 0.76, 1)
+chase_speed = 3.8
+attack_range = 1.6
+windup_time = 0.45
+max_poise = 40.0
+turn_time = 0.2
+echoes = 60

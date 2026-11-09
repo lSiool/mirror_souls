@@ -104,19 +104,27 @@ func _ready() -> void:
 		visual.position.y = -0.95
 		body_mesh.rotation.z = -0.35
 		hammer.rotation.z = POSE_OVERHEAD * 0.4
+		# Сидит с молотом в руках.
+		_update_arms(0.0)
 
 
+## Молот двумя руками за рукоять; ослепнув, Кузнец придерживает его одной рукой навершием
+## в землю, а другой трёт глаза (§6.2).
 func _grip_node() -> Node3D:
 	return get_node_or_null(^"Visual/Hammer") as Node3D
 
 
-func _two_handed_grip() -> bool:
-	return true
+func _grip_points() -> Array[Vector3]:
+	return [Vector3(0.0, 0.15, 0.0), Vector3(0.0, 0.7, 0.0)]
 
 
-## Ослеп: молот отпущен, руки к глазам.
-func _carry_grip_when_blind() -> bool:
-	return false
+## Почти отвесно, навершием вниз: рука держит рукоять у плеча.
+func _blind_weapon_angle() -> float:
+	return -2.8
+
+
+func _weapon_tip() -> Vector3:
+	return Vector3(0.0, 2.4, 0.0)
 
 
 # --- Вступление и вторая фаза --------------------------------------------------
@@ -788,8 +796,7 @@ func _update_extra(delta: float) -> void:
 		State.OFF_BALANCE:
 			pose = POSE_FLOOR
 			speed = 6.0
-		State.BLINDED:
-			# Отпустил молот: тот встал навершием в землю.
-			pose = POSE_FLOOR
-			speed = 4.0
+	# Слепота: молот в одной руке навершием в землю — позу ведёт Dummy._update_arms.
+	if state == State.BLINDED:
+		return
 	hammer.rotation.z = lerpf(hammer.rotation.z, pose, 1.0 - exp(-speed * delta))

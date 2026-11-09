@@ -135,6 +135,10 @@ const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
 ## Руки-капсулы graybox у гуманоида (до моделей): держат оружие, трут глаза.
 @export var graybox_arms := true
 
+@export_group("Облик")
+## Манекен героя вместо примитивов (EnemyModel, §3.3): &"soldier", &"vampire". Пусто — graybox.
+@export var mannequin_look: StringName
+
 ## Остаётся в мире статуей (босс): комната не забывает его как убитого, его хранит флаг босса.
 var leaves_statue := false
 ## Чьё оружие нанесло последний удар; пусто — не герой (ловушка, падение).
@@ -148,8 +152,10 @@ var _bleed_flash := 0.0
 var statuses: Statuses
 ## Как враг переживает нынешнюю слепоту (по классу, CreatureKind).
 var blind_reaction := CreatureKind.Reaction.IMMUNE
-## Руки graybox; null — не гуманоид или руки свои (оборотень, Утопленник).
+## Руки graybox; null — не гуманоид или руки свои (оборотень, Утопленник, манекен).
 var arms: GrayboxArms
+## Манекен героя в облике врага; null — graybox.
+var model: EnemyModel
 
 var state := State.PATROL
 var poise := 0.0
@@ -176,6 +182,7 @@ var _eye_point := Vector3.ZERO
 ## Оружие в руке (узел прямо под Visual) и его место: в слепоте его несёт кисть, потом оно возвращается.
 var _grip: Node3D
 var _grip_rest := Vector3.ZERO
+var _grip_rest_angle := 0.0
 var _grip_return := 0.0
 
 @onready var health: Health = $Health
@@ -202,11 +209,21 @@ func _ready() -> void:
 	statuses.started.connect(_on_status_started)
 	statuses.ended.connect(_on_status_ended)
 	_eye_point = _find_eye_point()
-	if graybox_arms and CreatureKind.humanoid(creature):
+	if mannequin_look != &"":
+		model = EnemyModel.build(self, visual, _material, mannequin_look)
+		# Примитивы остаются для чисел (рост, наклон), но не видны.
+		body_mesh.visible = false
+		var eye := visual.get_node_or_null(^"Eye") as Node3D
+		if eye:
+			eye.visible = false
+	elif graybox_arms and CreatureKind.humanoid(creature):
 		arms = GrayboxArms.build(visual, body_mesh, _material)
 		_grip = _grip_node()
 		if _grip:
 			_grip_rest = _grip.position
+			_grip_rest_angle = _grip.rotation.z
+		# Оружие в руке с первого кадра.
+		_update_arms(0.0)
 	Events.noise_made.connect(_on_noise)
 	state = State.DORMANT if dormant else State.PATROL
 
@@ -252,6 +269,8 @@ func on_revealed() -> void:
 func _physics_process(delta: float) -> void:
 	if state == State.DORMANT:
 		_wake_check(delta)
+		# Спящий (в засаде, на камне) тоже держит оружие в руке.
+		_update_arms(delta)
 		return
 	# В смоле всё медленнее: и шаг, и замах, и откат.
 	_state_time += delta * statuses.time_mult()
@@ -325,6 +344,8 @@ func _physics_process(delta: float) -> void:
 	_update_material(delta)
 	_update_extra(delta)
 	_update_arms(delta)
+	if model:
+		model.update(delta)
 
 
 ## Шаг с учётом смолы: скорость гасится только на сам шаг, падение — как обычно.
@@ -367,18 +388,35 @@ func _on_blinded() -> void:
 
 
 ## Оружие в руке graybox-гуманоида: узел прямо под Visual. Нет — руки свободны.
+## Держит его рука того же бока (правая — +Z).
 func _grip_node() -> Node3D:
 	return null
 
 
-## Держит ли оружие обеими руками.
-func _two_handed_grip() -> bool:
+## Где оружие держат кисти, в пространстве оружия: первая — держащая рука,
+## вторая (у двуручного) — выше по древку.
+func _grip_points() -> Array[Vector3]:
+	return [Vector3.ZERO]
+
+
+## Вдоль чего лежит оружие (от рукояти к острию) в пространстве оружия.
+func _weapon_axis() -> Vector3:
+	return Vector3.UP
+
+
+## Двуручное в слепоте: угол, под которым его придерживают одной рукой опущенным.
+func _blind_weapon_angle() -> float:
+	return -2.85
+
+
+## Конец оружия (в пространстве оружия): им опущенное двуручное упирается в землю.
+func _weapon_tip() -> Vector3:
+	return Vector3(0.0, 1.0, 0.0)
+
+
+## Позу оружия ведёт сам наследник (и возвращает его после слепоты).
+func _weapon_posed_by_self() -> bool:
 	return false
-
-
-## Несёт ли кисть оружие к глазам в слепоте. false — отпускает: оружие остаётся в своей позе.
-func _carry_grip_when_blind() -> bool:
-	return true
 
 
 func _brake(rate: float, delta: float) -> void:
@@ -591,56 +629,106 @@ func blind_recoiling() -> bool:
 	return state == State.BLINDED and _state_time < _blind_recoil
 
 
-## Руки graybox: держат оружие, в замахе отводят кулак, в слепоте трут глаза.
+## Руки graybox (§6.3, 2026-11-09). Правило: оружие всегда в руке — не дотянулась кисть до
+## рукояти, рукоять подтягивается к кисти. В слепоте одноручное оружие ложится вдоль
+## предплечья, а обе кисти трут глаза; двуручное придерживается одной рукой опущенным,
+## другая трёт глаза.
 func _update_arms(delta: float) -> void:
 	if arms == null:
 		return
 	var t := _state_time
-	var carry := _grip != null and _carry_grip_when_blind()
-	if state == State.BLINDED and blind_reaction == CreatureKind.Reaction.RUB_EYES:
-		var eye := _eye_point + Vector3(0.1, 0.0, 0.0)
-		if blind_recoiling():
-			# Ладони к глазам — рывком.
-			arms.reach(arms.front, eye + Vector3(0.06, 0.03, 0.0), delta, 16.0)
-			arms.reach(arms.back, eye + Vector3(0.1, -0.03, 0.0), delta, 16.0)
-		else:
-			# Трёт глаза: кисти ходят по кругу вразнобой.
-			var rub := Vector3(cos(t * 9.0) * 0.03, sin(t * 9.0) * 0.05, 0.0)
-			arms.reach(arms.front, eye + rub, delta, 18.0)
-			arms.reach(arms.back, eye - rub, delta, 18.0)
-		if carry:
-			var hand := arms.hand(arms.front)
-			_grip.position = Vector3(hand.x, hand.y, _grip.position.z)
+	var rubbing := state == State.BLINDED and blind_reaction == CreatureKind.Reaction.RUB_EYES
+	var eye := _eye_point + Vector3(0.1, 0.0, 0.0)
+	# Ладони к глазам рывком, потом кисти ходят по кругу вразнобой.
+	var rub := Vector3(cos(t * 9.0) * 0.03, sin(t * 9.0) * 0.05, 0.0)
+	if blind_recoiling():
+		rub = Vector3(0.06, 0.03, 0.0)
+	if _grip == null:
+		_update_free_arms(delta, rubbing, eye, rub)
 		return
-	if carry and _grip_return > 0.0:
-		# Слепота прошла: оружие возвращается на место.
+	var points := _grip_points()
+	var main := arms.arm_at(_grip.position)
+	var off := arms.other(main)
+	if rubbing:
+		if points.size() > 1:
+			# Двуручное: одна рука держит его опущенным, конец упирается в землю; другая трёт глаза.
+			var lowered := _blind_weapon_angle()
+			var down := Basis(Vector3.BACK, lowered) * (_weapon_tip() - points[0])
+			arms.reach(off, eye + rub, delta, 16.0)
+			arms.reach(main, Vector3(main.position.x + arms.length * 0.3, -down.y, main.position.z), delta, 10.0)
+			_grip.rotation.z = lerp_angle(_grip.rotation.z, lowered, 1.0 - exp(-8.0 * delta))
+		else:
+			# Одноручное: обе кисти у глаз, оружие вдоль предплечья.
+			arms.reach(main, eye + rub, delta, 16.0)
+			arms.reach(off, eye - rub, delta, 16.0)
+			var along := _angle_of(arms.forearm(main)) - _angle_of(_weapon_axis())
+			_grip.rotation.z = lerp_angle(_grip.rotation.z, along, 1.0 - exp(-14.0 * delta))
+		_attach_grip(main, points[0], main.position.z)
+		return
+	if _grip_return > 0.0 and not _weapon_posed_by_self():
+		# Слепота прошла: оружие возвращается на место (кисть не отпускает рукоять).
 		_grip_return -= delta
-		var rest := Vector3(_grip_rest.x, _grip_rest.y, _grip.position.z)
-		_grip.position = _grip.position.lerp(rest, 1.0 - exp(-12.0 * delta))
+		var k := 1.0 - exp(-10.0 * delta)
+		_grip.position = _grip.position.lerp(_grip_rest, k)
+		if points.size() == 1:
+			_grip.rotation.z = lerp_angle(_grip.rotation.z, _grip_rest_angle, k)
+	arms.hold(main, _grip_point(points[0]))
+	_attach_grip(main, points[0], _grip.position.z)
 	if state == State.BLINDED and blind_reaction == CreatureKind.Reaction.DISORIENT:
-		# Руки вразлёт: ловит равновесие.
-		arms.swing(arms.front, 1.1 + sin(t * 4.5) * 0.4, delta, 6.0)
-		arms.swing(arms.back, -0.9 + sin(t * 4.5 + 1.3) * 0.4, delta, 6.0)
+		# Свободной рукой ловит равновесие.
+		arms.swing(off, -0.9 + sin(t * 4.5 + 1.3) * 0.4, delta, 6.0)
+	elif points.size() > 1:
+		# Вторая кисть — выше по древку.
+		arms.hold(off, _grip_point(points[1]))
+	else:
+		arms.swing(off, -0.1, delta)
+
+
+## Руки без оружия (кулаки): трут глаза, ловят равновесие, в замахе отводят кулак.
+func _update_free_arms(delta: float, rubbing: bool, eye: Vector3, rub: Vector3) -> void:
+	if rubbing:
+		arms.reach(arms.right, eye + rub, delta, 16.0)
+		arms.reach(arms.left, eye - rub, delta, 16.0)
 		return
-	if _grip and state != State.DEAD:
-		# Кисть на рукояти, вторая — выше по древку у двуручного.
-		arms.reach(arms.front, _grip.position + _grip.basis.y * 0.1, delta, 20.0)
-		if _two_handed_grip():
-			arms.reach(arms.back, _grip.position + _grip.basis.y * 0.45, delta, 20.0)
-		else:
-			arms.swing(arms.back, -0.1, delta)
+	var t := _state_time
+	if state == State.BLINDED and blind_reaction == CreatureKind.Reaction.DISORIENT:
+		arms.swing(arms.right, 1.1 + sin(t * 4.5) * 0.4, delta, 6.0)
+		arms.swing(arms.left, -0.9 + sin(t * 4.5 + 1.3) * 0.4, delta, 6.0)
 		return
-	# Без оружия (солдат): кулак назад в замахе, вперёд в ударе.
 	match state:
 		State.WINDUP:
-			arms.swing(arms.front, -1.0, delta, 8.0)
-			arms.swing(arms.back, 0.3, delta, 8.0)
+			arms.swing(arms.right, -1.0, delta, 8.0)
+			arms.swing(arms.left, 0.3, delta, 8.0)
 		State.ATTACK:
-			arms.swing(arms.front, 1.6, delta, 30.0)
-			arms.swing(arms.back, -0.3, delta, 30.0)
+			arms.swing(arms.right, 1.6, delta, 30.0)
+			arms.swing(arms.left, -0.3, delta, 30.0)
 		_:
-			arms.swing(arms.front, 0.12, delta)
-			arms.swing(arms.back, -0.08, delta)
+			arms.swing(arms.right, 0.12, delta)
+			arms.swing(arms.left, -0.08, delta)
+
+
+## Точка хвата оружия (в пространстве оружия) — в пространстве Visual.
+func _grip_point(local: Vector3) -> Vector3:
+	return _grip.position + _grip.basis * local
+
+
+## Оружие к кисти: точка хвата ложится в кисть, оружие на глубине z.
+func _attach_grip(arm: Node3D, local: Vector3, z: float) -> void:
+	var gap := arms.hand(arm) - _grip_point(local)
+	_grip.position = Vector3(_grip.position.x + gap.x, _grip.position.y + gap.y, z)
+
+
+## Насколько рукоять оружия разошлась с держащей её кистью (в плоскости кадра); 0 — в руке.
+## Для тестов: правило «оружие всегда в руке».
+func weapon_gap() -> float:
+	if arms == null or _grip == null:
+		return 0.0
+	var gap := arms.hand(arms.arm_at(_grip.position)) - _grip_point(_grip_points()[0])
+	return Vector2(gap.x, gap.y).length()
+
+
+static func _angle_of(v: Vector3) -> float:
+	return atan2(v.y, v.x)
 
 
 ## Глаза в пространстве Visual: узел глаза, иначе лицевая сторона головы, иначе макушка.
