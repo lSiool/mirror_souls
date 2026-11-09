@@ -1616,6 +1616,19 @@ func run() -> void:
 	check(game_state.quick_item(3) == &"throwing_knife" and not equip.list_open(), "нож в нижнюю ячейку из «Снаряжения»")
 	equip._choose(EquipmentScreen.Slot.ARROW_1)
 	check(not equip.list_open(), "стрелы вне осколка не меняются")
+	# Левая рука: щит снимается и надевается в гнездо I.
+	var shield_slots_was: Array = game_state.shield_slots.duplicate()
+	game_state.add_item(GameState.SHIELD_ITEM)
+	game_state.shield_slots = [GameState.SHIELD_ITEM, &""]
+	equip._put(EquipmentScreen.Slot.SHIELD, EquipmentScreen.NONE)
+	check(not player.has_shield() and player.arms.shield_at == PlayerArms.ShieldAt.NONE, "щит снят в «Снаряжении»")
+	equip._put(EquipmentScreen.Slot.SHIELD_2, GameState.SHIELD_ITEM)
+	check(not player.has_shield() and game_state.shield_slots[1] == GameState.SHIELD_ITEM, "щит в гнезде II — не в руке")
+	equip._put(EquipmentScreen.Slot.SHIELD, GameState.SHIELD_ITEM)
+	check(player.has_shield() and game_state.shield_slots == [GameState.SHIELD_ITEM, &""], "щит снова в руке, гнездо II пусто")
+	game_state.shield_slots = shield_slots_was
+	game_state.items.erase(GameState.SHIELD_ITEM)
+	player.refresh_shield()
 	pause_menu.back()
 	check(pause_menu._page == LevelMenu.Page.ROOT and pause_menu.pause_panel.visible, "«Назад» — снова панель паузы")
 	game_state.items.erase(&"throwing_knife")

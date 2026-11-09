@@ -24,7 +24,7 @@ const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_worn", "spells", "spell_slots", "active_spell"]
+	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_slots", "spells", "spell_slots", "active_spell"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -44,8 +44,11 @@ var quick_slots := [&"", &"", &"", &""]
 ## Выбранная ячейка (2026-11-09, как в Dark Souls): 1–4 / правый курок + крестовина только
 ## выбирают, бросает «использовать» — G / тап правого курка.
 var active_quick := 0
-## Щит надет (снимается в «Снаряжении»); купленный сразу в руке.
-var shield_worn := true
+## Левая рука, как в Dark Souls: два гнезда щита, I и II; в руке — щит из I. Пусто — снят.
+## Купленный щит сразу в I (по умолчанию там гоплон: пока его нет у героя, гнездо пусто).
+const SHIELD_SLOTS := 2
+var shield_slots := [SHIELD_ITEM, &""]
+
 ## Стрелы (§6.2), как в Dark Souls: два гнезда лука, I и II; в каждом id особых стрел
 ## (data/arrows) или пусто — обычные, бесконечные. Что в гнёздах — выбирается у осколка,
 ## в бою «сменить стрелы» переключает active_arrow. Кончились особые — гнездо стреляет обычными.
@@ -339,6 +342,21 @@ func set_quick_slot(slot: int, id: StringName) -> void:
 			quick_slots[was] = &""
 	quick_slots[slot] = id
 	Events.quick_items_changed.emit()
+
+
+## Щит в гнездо 0…1; из другого гнезда он уходит. Пустой id — снять.
+func set_shield_slot(slot: int, id: StringName) -> void:
+	if slot < 0 or slot >= SHIELD_SLOTS:
+		return
+	if id != &"" and shield_slots.has(id):
+		shield_slots[shield_slots.find(id)] = &""
+	shield_slots[slot] = id
+
+
+## Щит в руке (гнездо I), если он у героя есть.
+func worn_shield() -> StringName:
+	var id: StringName = shield_slots[0]
+	return id if id != &"" and item_count(id) > 0 else &""
 
 
 ## Выбрать ячейку крестовины 0…3 (верх, лево, право, низ).

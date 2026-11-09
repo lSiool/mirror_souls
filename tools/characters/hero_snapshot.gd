@@ -14,6 +14,9 @@ func _ready() -> void:
 	GameState.saves_enabled = false
 	GameState.weapon_id = &"sword"
 	GameState.set_flag(&"got_sword")
+	GameState.add_item(GameState.SHIELD_ITEM)
+	GameState.add_item(&"bow_hunter")
+	GameState.own_weapon(&"candlestick")
 	_main = load("res://main.tscn").instantiate()
 	_main.get_node("RoomManager").start_room = &"room_001"
 	get_tree().root.add_child.call_deferred(_main)
@@ -63,6 +66,16 @@ func _ready() -> void:
 	await _wait(0.4)
 	await _shot("block")
 	Input.action_release("block")
+	await _wait(0.4)
+	Input.action_press("shoot")
+	await _wait(0.6)
+	await _shot("bow")
+	Input.action_release("shoot")
+	await _wait(0.8)
+	# Двуручное: щит за спиной.
+	_player.equip(&"candlestick")
+	await _wait(0.5)
+	await _shot("back")
 	print("snapshots: ", ProjectSettings.globalize_path(OUT))
 	get_tree().quit()
 

@@ -22,6 +22,12 @@ const COMBO_ANIMS: Array[StringName] = [&"Sword_Regular_B", &"Sword_Regular_A", 
 ## Меч в кулаке: поворот и сдвиг от кости кисти (подобраны по снимкам tools/characters/hero_snapshot.gd).
 const GRIP_ROTATION := Vector3(0.0, 0.0, -PI * 0.5)
 const GRIP_OFFSET := Vector3(0.0, 0.08, 0.02)
+## Щит и лук на модели (подобраны по снимкам tools/characters/hero_snapshot.gd): лицо щита —
+## его ось +X, клинок лука — ось +Y.
+## Поворот (рад) и сдвиг от кости.
+const SHIELD_ON_ARM := [Vector3(0.0, PI, 0.0), Vector3(-0.1, 0.16, 0.0)]
+const SHIELD_ON_BACK := [Vector3(0.0, PI * 0.5, 0.0), Vector3(0.0, 0.05, -0.2)]
+const BOW_IN_HAND := [Vector3(0.0, 0.0, PI * 0.5), Vector3(0.0, 0.06, 0.0)]
 ## Удар в воздухе (2026-11-09, по замечанию автора): вертикальный, снизу вверх, и только
 ## верхом тела — ноги держат позу прыжка. Клип без костей ног собирается на лету.
 const AIR_CLIP := &"Sword_Regular_A"
@@ -35,6 +41,11 @@ var anim: AnimationPlayer
 var skeleton: Skeleton3D
 ## Держатель оружия в правой руке — туда PlayerArms кладёт видимую копию клинка.
 var hand: Node3D
+## Щит на левом предплечье, щит за спиной, лук в левой руке — туда PlayerArms переносит
+## свои щит и лук (§3.3).
+var shield_mount: Node3D
+var back_mount: Node3D
+var bow_grip: Node3D
 var _clip := &""
 var _clip_end := 0.0
 
@@ -54,18 +65,28 @@ func _ready() -> void:
 	# Кости без дорожки в клипе держат прежнюю позу, а не встают в покой: удар верхом тела
 	# в воздухе оставляет ноги в позе прыжка.
 	anim.deterministic = false
-	hand = skeleton.find_child("Grip", true, false) as Node3D
-	if hand == null:
-		var bone := BoneAttachment3D.new()
-		bone.name = &"RightHand"
-		bone.bone_name = "RightHand"
-		skeleton.add_child(bone)
-		hand = Node3D.new()
-		hand.name = &"Grip"
-		hand.rotation = GRIP_ROTATION
-		hand.position = GRIP_OFFSET
-		bone.add_child(hand)
+	hand = _mount(&"RightHand", &"Grip", [GRIP_ROTATION, GRIP_OFFSET])
+	shield_mount = _mount(&"LeftLowerArm", &"ShieldMount", SHIELD_ON_ARM)
+	back_mount = _mount(&"UpperChest", &"BackMount", SHIELD_ON_BACK)
+	bow_grip = _mount(&"LeftHand", &"BowGrip", BOW_IN_HAND)
 	play(&"Idle")
+
+
+## Точка на кости: узел-держатель со сдвигом. У копии облика она уже есть — берём её.
+func _mount(bone_name: StringName, mount_name: StringName, at: Array) -> Node3D:
+	var mount := skeleton.find_child(String(mount_name), true, false) as Node3D
+	if mount:
+		return mount
+	var bone := BoneAttachment3D.new()
+	bone.name = bone_name
+	bone.bone_name = String(bone_name)
+	skeleton.add_child(bone)
+	mount = Node3D.new()
+	mount.name = mount_name
+	mount.rotation = at[0]
+	mount.position = at[1]
+	bone.add_child(mount)
+	return mount
 
 
 ## Клипы второго набора — в общую библиотеку: скелет у них один.
@@ -158,7 +179,11 @@ func update(player: Player) -> void:
 			if not player.is_on_floor():
 				play(&"Jump_Start" if player.velocity.y > 2.0 else &"Jump")
 			elif vx < 0.3:
-				play(&"Sword_Idle" if player.arms.armed else &"Idle")
+				# Со щитом — щитовая стойка: предплечье со щитом поднято перед корпусом.
+				if player.shield_in_hand():
+					play(&"Idle_Shield")
+				else:
+					play(&"Sword_Idle" if player.arms.armed else &"Idle")
 			elif vx < WALK_SPEED * 1.3:
 				play(&"Walk", vx / WALK_SPEED)
 			else:
@@ -182,7 +207,8 @@ func update(player: Player) -> void:
 			play(&"Idle_Shield_Break")
 		Player.State.BLOCK:
 			if player.shield_in_hand():
-				play(&"Idle_Shield")
+				# Щит выставлен вперёд на вытянутой руке.
+				hold(&"Shield_OneShot", 0.5)
 			else:
 				hold(&"Sword_Block", 0.35)
 		Player.State.DEAD:
@@ -197,7 +223,9 @@ func update(player: Player) -> void:
 			if _clip != &"Spell_Simple_Shoot":
 				play_span(&"Spell_Simple_Shoot", 0.0, 0.0, player._cast_spell.duration, 0.06)
 		Player.State.BOW:
-			play(&"Pistol_Aim_Neutral")
+			# Поза прицела: вверх, прямо, вниз.
+			var aim := player._aim_angle()
+			hold(&"Pistol_Aim_Up" if aim > 0.4 else (&"Pistol_Aim_Down" if aim < -0.4 else &"Pistol_Aim_Neutral"), 0.0)
 		Player.State.CHARGE:
 			hold(&"Sword_Dash", 0.25)
 		Player.State.PLUNGE:

@@ -249,8 +249,8 @@ func _ready() -> void:
 	body = PlayerBody.new(body_mesh, body_shape.shape as CapsuleShape3D)
 	model = HeroModel.new()
 	visual.add_child(model)
-	arms.attach_hand(model.hand)
-	PlayerArms._set_layers(body_mesh, 0)
+	arms.attach_model(model)
+	PlayerArms.ghost(body_mesh, true)
 	attack_step_started.connect(func(step: AttackStep, index: int, _total: int) -> void: model.attack(step, index, not is_on_floor()))
 	stats.changed.connect(_on_stats_changed)
 	_on_stats_changed()
@@ -1071,7 +1071,7 @@ func _menu_state(delta: float) -> void:
 
 
 func has_shield() -> bool:
-	return GameState.item_count(GameState.SHIELD_ITEM) > 0 and GameState.shield_worn
+	return GameState.worn_shield() != &""
 
 
 ## Щит надели или сняли в «Снаряжении».

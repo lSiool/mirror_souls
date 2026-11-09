@@ -1,34 +1,36 @@
 class_name EquipmentScreen
 extends HBoxContainer
-## Экран «Снаряжение» (§8.12, 2026-11-09) — в духе Dark Souls 3: слева ряды ячеек, справа герой
+## Экран «Снаряжение» (§8.12, 2026-11-09) — в духе Dark Souls 3: слева ряды ячеек (правая рука —
+## оружие I и II, левая — щиты I и II, отдельно лук и стрелы), справа герой
 ## в том, что надето. Ячейка выбрана — внизу имя и описание; нажата — рядом список того, что можно
 ## надеть. Меняется где угодно, кроме стрел: их гнёзда выбираются только у осколка (§6.2).
 ## Броня — пустые ячейки на будущее.
 
-enum Slot { WEAPON_1, WEAPON_2, SHIELD, BOW, ARROW_1, ARROW_2, ITEM_1, ITEM_2, ITEM_3, ITEM_4, HEAD, BODY, HANDS, LEGS }
+enum Slot { WEAPON_1, WEAPON_2, SHIELD, BOW, ARROW_1, ARROW_2, ITEM_1, ITEM_2, ITEM_3, ITEM_4, HEAD, BODY, HANDS, LEGS, SHIELD_2 }
 
 ## Ряды: подпись и ячейки.
 const ROWS := [
-	["Оружие", [Slot.WEAPON_1, Slot.WEAPON_2]],
-	["Щит · Лук", [Slot.SHIELD, Slot.BOW]],
-	["Стрелы", [Slot.ARROW_1, Slot.ARROW_2]],
+	["Правая рука", [Slot.WEAPON_1, Slot.WEAPON_2]],
+	["Левая рука", [Slot.SHIELD, Slot.SHIELD_2]],
+	["Лук · Стрелы", [Slot.BOW, Slot.ARROW_1, Slot.ARROW_2]],
 	["Расходники", [Slot.ITEM_1, Slot.ITEM_2, Slot.ITEM_3, Slot.ITEM_4]],
 	["Броня", [Slot.HEAD, Slot.BODY, Slot.HANDS, Slot.LEGS]],
 ]
 const SLOT_NAMES := {
-	Slot.WEAPON_1: "Оружие I", Slot.WEAPON_2: "Оружие II", Slot.SHIELD: "Щит", Slot.BOW: "Лук",
+	Slot.WEAPON_1: "Оружие I", Slot.WEAPON_2: "Оружие II", Slot.SHIELD: "Щит I", Slot.SHIELD_2: "Щит II", Slot.BOW: "Лук",
 	Slot.ARROW_1: "Стрелы I", Slot.ARROW_2: "Стрелы II", Slot.ITEM_1: "Расходник · верх",
 	Slot.ITEM_2: "Расходник · лево", Slot.ITEM_3: "Расходник · право", Slot.ITEM_4: "Расходник · низ",
 	Slot.HEAD: "Голова", Slot.BODY: "Тело", Slot.HANDS: "Руки", Slot.LEGS: "Ноги",
 }
 ## Подпись в углу ячейки.
 const SLOT_TAGS := {
-	Slot.WEAPON_1: "I", Slot.WEAPON_2: "II", Slot.ARROW_1: "I", Slot.ARROW_2: "II",
+	Slot.WEAPON_1: "I", Slot.WEAPON_2: "II", Slot.SHIELD: "I", Slot.SHIELD_2: "II", Slot.ARROW_1: "I", Slot.ARROW_2: "II",
 	Slot.ITEM_1: "1", Slot.ITEM_2: "2", Slot.ITEM_3: "3", Slot.ITEM_4: "4",
 }
 ## Значок пустой ячейки.
 const EMPTY_ICONS := {
-	Slot.WEAPON_1: &"slot_weapon", Slot.WEAPON_2: &"slot_weapon", Slot.SHIELD: &"slot_shield", Slot.BOW: &"slot_bow",
+	Slot.WEAPON_1: &"slot_weapon", Slot.WEAPON_2: &"slot_weapon", Slot.SHIELD: &"slot_shield",
+	Slot.SHIELD_2: &"slot_shield", Slot.BOW: &"slot_bow",
 	Slot.ARROW_1: &"slot_arrow", Slot.ARROW_2: &"slot_arrow", Slot.ITEM_1: &"slot_item", Slot.ITEM_2: &"slot_item",
 	Slot.ITEM_3: &"slot_item", Slot.ITEM_4: &"slot_item", Slot.HEAD: &"slot_head", Slot.BODY: &"slot_body",
 	Slot.HANDS: &"slot_hands", Slot.LEGS: &"slot_legs",
@@ -193,7 +195,9 @@ func _item_in(slot: Slot) -> StringName:
 	match slot:
 		Slot.WEAPON_1: return GameState.weapon_id
 		Slot.WEAPON_2: return GameState.second_weapon_id
-		Slot.SHIELD: return GameState.SHIELD_ITEM if _player.has_shield() else &""
+		Slot.SHIELD, Slot.SHIELD_2:
+			var id: StringName = GameState.shield_slots[0 if slot == Slot.SHIELD else 1]
+			return id if id != &"" and GameState.item_count(id) > 0 else &""
 		Slot.BOW: return GameState.bow_id if GameState.has_flag(&"has_bow") else &""
 		Slot.ARROW_1, Slot.ARROW_2:
 			if not GameState.has_flag(&"has_bow"):
@@ -227,9 +231,10 @@ func _choices(slot: Slot) -> Array[StringName]:
 			for id in GameState.owned_weapons():
 				if id != GameState.weapon_id:
 					result.append(id)
-		Slot.SHIELD:
+		Slot.SHIELD, Slot.SHIELD_2:
+			result.append(NONE)
 			if GameState.item_count(GameState.SHIELD_ITEM) > 0:
-				result.append_array([GameState.SHIELD_ITEM, NONE])
+				result.append(GameState.SHIELD_ITEM)
 		Slot.BOW:
 			if GameState.has_flag(&"has_bow"):
 				result.append_array(GameState.owned_bows())
@@ -312,8 +317,8 @@ func _put(slot: Slot, id: StringName) -> void:
 				_player.equip(item)
 		Slot.WEAPON_2:
 			GameState.second_weapon_id = item
-		Slot.SHIELD:
-			GameState.shield_worn = item != &""
+		Slot.SHIELD, Slot.SHIELD_2:
+			GameState.set_shield_slot(0 if slot == Slot.SHIELD else 1, item)
 			_player.refresh_shield()
 		Slot.BOW:
 			GameState.bow_id = item
@@ -336,4 +341,17 @@ func _dress_figure() -> void:
 	for part in _player.model.hand.get_children():
 		_figure.hand.add_child(part.duplicate())
 	_figure.hand.visible = _player.weapon != null
-	_figure.play(&"Sword_Idle" if _player.weapon else &"Idle")
+	# Щит — на предплечье, с двуручным — за спиной.
+	for mount in [_figure.shield_mount, _figure.back_mount]:
+		for old in mount.get_children():
+			old.free()
+	var on_arm := _player.shield_in_hand()
+	if _player.has_shield():
+		var shield := _player.arms.shield_node().duplicate() as Node3D
+		(_figure.shield_mount if on_arm else _figure.back_mount).add_child(shield)
+		shield.transform = Transform3D.IDENTITY
+		shield.visible = true
+	if on_arm:
+		_figure.play(&"Idle_Shield")
+	else:
+		_figure.play(&"Sword_Idle" if _player.weapon else &"Idle")

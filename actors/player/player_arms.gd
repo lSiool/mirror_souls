@@ -38,8 +38,12 @@ var _head: MeshInstance3D
 var _shield: Node3D
 var shield_at := ShieldAt.NONE
 ## Рука модели героя (HeroModel.hand): там видимая копия оружия. Сам sword_pivot тогда
-## невидим камере (слой 0) — его позы остаются для логики и тестов (§3.3, 2026-11-09).
+## полностью прозрачен — его позы остаются для логики и тестов (§3.3, 2026-11-09).
+## Не слой 0: с ним рендер Godot 4.7 падал при смене оружия («did not unpair geometries
+## from light») — так зависала игра на подборе подсвечника.
 var hand: Node3D
+## Модель героя: щит и лук висят на её костях, а не у капсулы.
+var _model: HeroModel
 
 
 func _init(visual: Node3D, sword: Node3D) -> void:
@@ -165,36 +169,56 @@ func set_weapon(weapon: WeaponData) -> void:
 	rest()
 
 
-## Оружие — в руку модели: видимая копия там, у sword_pivot — только позы.
-func attach_hand(node: Node3D) -> void:
-	hand = node
+## Оружие — в руку модели: видимая копия там, у sword_pivot — только позы. Щит — на левое
+## предплечье или за спину, лук — в левую руку.
+func attach_model(model: HeroModel) -> void:
+	_model = model
+	hand = model.hand
 	_sync_hand()
+	_bow.reparent(model.bow_grip, false)
+	_bow.transform = Transform3D.IDENTITY
+	place_shield(shield_at)
 
 
 func _sync_hand() -> void:
 	if hand == null:
 		return
 	for old in hand.get_children():
-		old.free()
+		hand.remove_child(old)
+		old.queue_free()
 	for part in sword_pivot.get_children():
 		var copy := part.duplicate() as Node3D
 		hand.add_child(copy)
-		_set_layers(copy, 1)
-	_set_layers(sword_pivot, 0)
+		ghost(copy, false)
+	ghost(sword_pivot, true)
 	hand.visible = sword_pivot.visible
 
 
-static func _set_layers(node: Node, layers: int) -> void:
-	if node is VisualInstance3D:
-		(node as VisualInstance3D).layers = layers
+## Спрятать от камеры, не выключая узел: полностью прозрачен и без тени.
+static func ghost(node: Node, on: bool) -> void:
+	if node is GeometryInstance3D:
+		var geometry := node as GeometryInstance3D
+		geometry.transparency = 1.0 if on else 0.0
+		geometry.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if on 			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	for child in node.get_children():
-		_set_layers(child, layers)
+		ghost(child, on)
+
+
+## Узел щита — для копии на манекене в «Снаряжении».
+func shield_node() -> Node3D:
+	return _shield
 
 
 ## Где щит: в руке, выставлен в блоке, за спиной или его нет.
 func place_shield(at: ShieldAt) -> void:
 	shield_at = at
 	_shield.visible = at != ShieldAt.NONE
+	if _model:
+		var mount := _model.back_mount if at == ShieldAt.BACK else _model.shield_mount
+		if _shield.get_parent() != mount:
+			_shield.reparent(mount, false)
+		_shield.transform = Transform3D.IDENTITY
+		return
 	match at:
 		ShieldAt.HAND:
 			_shield.position = Vector3(0.32, 1.1, 0.1)
@@ -211,12 +235,16 @@ func place_shield(at: ShieldAt) -> void:
 func show_bow(on: bool) -> void:
 	_bow.visible = on
 	sword_pivot.visible = armed and not on
+	if hand:
+		hand.visible = armed and not on
 
 
 ## Натяжение 0…1 и угол прицела.
 func draw_bow(draw_t: float, angle: float) -> void:
 	_nocked.position.x = 0.3 - 0.35 * draw_t
-	_bow.rotation.z = angle
+	# На модели лук держит рука — прицел задаёт поза (HeroModel), а не поворот лука.
+	if _model == null:
+		_bow.rotation.z = angle
 
 
 ## Смерть: оружие выпадает из руки и ложится плашмя на пол — так ложится любое оружие,
@@ -225,7 +253,7 @@ func drop_weapon(world: Node, facing: float) -> void:
 	restore_weapon()
 	kill()
 	_dropped = sword_pivot.duplicate() as Node3D
-	_set_layers(_dropped, 1)
+	ghost(_dropped, false)
 	world.add_child(_dropped)
 	if hand:
 		hand.visible = false
