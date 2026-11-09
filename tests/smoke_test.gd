@@ -14,10 +14,25 @@ var last_arrow: Arrow
 var last_arrow_speed := 0.0
 ## Надписи игроку (Events.message) по порядку.
 var messages: Array[String] = []
+## Правило «оружие всегда в руке» (§6.3): самый большой разрыв кисти и рукояти у врагов
+## с руками graybox за весь тест и кто это был.
+var weapon_gap := 0.0
+var weapon_gap_who := ""
 
 
 func _ready() -> void:
 	run()
+
+
+func _physics_process(_delta: float) -> void:
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Dummy
+		if enemy == null or enemy.state == Dummy.State.DEAD:
+			continue
+		var gap := enemy.weapon_gap()
+		if gap > weapon_gap:
+			weapon_gap = gap
+			weapon_gap_who = "%s (%s)" % [enemy.name, Dummy.State.keys()[enemy.state]]
 
 
 func frames(n: int) -> void:
@@ -155,6 +170,71 @@ func wait_attack_over(enemy: Dummy) -> void:
 
 ## Ставит героя перед врагом лицом к нему. Враг начинает с чистого листа (патруль),
 ## чтобы проверка не попала на середину старого замаха.
+## Приём вампира «Мышь» (§6.3): взлёт-телеграф, пике на героя, тьма скрывает превращение,
+## мышь пикирует низко сквозь героя, садится и снова человек. Вампир возвращается на место.
+func check_vampire_bat(vampire: Vampire) -> void:
+	var home := vampire.global_position
+	var floor_y := home.y
+	await put(Vector3(home.x - 6.0, 0.1, 0.0), 1.0)
+	player.restore()
+	var hero_x := player.global_position.x
+	vampire.start_bat()
+	check(vampire.move == Vampire.Move.RISE and vampire.state == Dummy.State.WINDUP, "«Мышь»: взлёт — телеграф, как замах")
+	await seconds(vampire.rise_time + 0.1)
+	check(vampire.global_position.y > floor_y + 2.5 and vampire.model.spread > 0.9 and vampire.model.eyes_flare > 0.9,
+		"вампир взмыл, глаза горят, плащ раскрыт крыльями")
+	var dived := false
+	for i in 180:
+		dived = dived or vampire.move == Vampire.Move.DIVE
+		if vampire.move == Vampire.Move.BURST:
+			break
+		await frames(1)
+	check(dived and vampire.move == Vampire.Move.BURST and absf(vampire.global_position.x - hero_x) < 0.8
+		and absf(vampire.global_position.y - floor_y) < 0.05, "пике — туда, где стоял герой, удар о землю")
+	await seconds(0.2)
+	check(vampire.bat.visible and not vampire.model.visible, "из тьмы вылетает огромная мышь, человека нет")
+	# Удары по мыши проходят, но приём не сбивают.
+	var probe := Hitbox.new()
+	rooms.current_room.add_child(probe)
+	probe.global_position = vampire.global_position
+	probe.damage = 1.0
+	probe.poise_damage = 999.0
+	var hp_vampire := vampire.health.current
+	vampire._on_hurt(probe)
+	probe.queue_free()
+	check(vampire.health.current < hp_vampire and vampire.move != Vampire.Move.NONE, "удар по мыши ранит, но не сбивает приём")
+	var lowest := INF
+	var swoop_hit := false
+	var aims := 0
+	var faced := 0
+	for i in 600:
+		var hp_frame := player.health.current
+		await frames(1)
+		if player.health.current < 40.0:
+			player.restore()
+		elif vampire.move == Vampire.Move.BAT_SWOOP and player.health.current < hp_frame:
+			swoop_hit = true
+		if vampire.move == Vampire.Move.BAT_SWOOP:
+			lowest = minf(lowest, vampire.global_position.y + GiantBat.CENTER - floor_y)
+		if vampire.move == Vampire.Move.BAT_AIM and absf(player.global_position.x - vampire.global_position.x) > 0.5:
+			aims += 1
+			if vampire.bat.facing == signf(player.global_position.x - vampire.global_position.x):
+				faced += 1
+		if vampire.move == Vampire.Move.NONE:
+			break
+	check(aims > 0 and faced == aims, "в замахе пике мышь смотрит на героя (%d из %d кадров)" % [faced, aims])
+	check(lowest < 0.8, "мышь пикирует низко — через неё прыгают (центр %.2f м над полом)" % lowest)
+	check(swoop_hit, "пике мыши достаёт героя, который стоит на месте")
+	check(vampire.move == Vampire.Move.NONE and vampire.model.visible and not vampire.bat.visible
+		and absf(vampire.global_position.y - floor_y) < 0.05 and vampire.collision_layer != 0,
+		"мышь села в облаке тьмы и снова стала человеком")
+	check(vampire.state == Dummy.State.RECOVER and vampire.windup_time == vampire._windup_base, "после посадки он открыт, замах когтей прежний")
+	vampire.global_position = home
+	vampire._bat_wait = 999.0
+	player.restore()
+	await frames(2)
+
+
 func face_enemy(enemy: Dummy, distance := 1.5) -> void:
 	enemy._set_state(Dummy.State.PATROL)
 	enemy._turn_t = -1.0
@@ -414,9 +494,9 @@ func run() -> void:
 	check(stats.max_health <= stats.base_health + stats.health_bonus_cap, "здоровье не выше потолка (%.0f)" % stats.max_health)
 	stats.reset_progress()
 
-	print("== Семь характеристик и скалирование")
-	check(PlayerStats.PARAM_ORDER.size() == 7 and PlayerStats.Param.ENDURANCE == 1 and PlayerStats.Param.DEXTERITY == 3,
-		"семь характеристик; первые четыре — прежние ключи сейва")
+	print("== Восемь характеристик и скалирование")
+	check(PlayerStats.PARAM_ORDER.size() == 8 and PlayerStats.Param.ENDURANCE == 1 and PlayerStats.Param.DEXTERITY == 3
+		and PlayerStats.Param.MEMORY == 7, "восемь характеристик; первые четыре — прежние ключи сейва, Память — в конце")
 	var sword_plain := player.weapon_damage(WeaponData.by_id(&"sword"), 0)
 	var hammer_plain := player.weapon_damage(WeaponData.by_id(&"candlestick"), 0)
 	stats.points[PlayerStats.Param.STRENGTH] = 20
@@ -1402,6 +1482,115 @@ func run() -> void:
 	soldier._set_state(Dummy.State.PATROL)
 	await seconds(0.3)
 
+	print("== Слепота: общий эффект, своя реакция у каждого класса врага (§6.2, §6.3)")
+	# Солдат стоит на месте; в конце всё возвращаем.
+	soldier_home = soldier.global_position
+	soldier_look = soldier.facing
+	soldier.patrol_speed = 0.0
+	soldier.chase_speed = 0.0
+	player.restore()
+	await face_enemy(soldier, 1.6)
+	check(soldier.model != null and soldier.model.sword() != null and soldier.creature == CreatureKind.Kind.HUMAN,
+		"солдат-человек — манекен героя с мечом")
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(soldier.state == Dummy.State.BLINDED and soldier.blind_reaction == CreatureKind.Reaction.RUB_EYES
+		and is_equal_approx(soldier.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME), "солдат ослеп на 4 с: человек трёт глаза")
+	await seconds(0.6)
+	var palm_gap := maxf(soldier.model.hand_point(0).distance_to(soldier.model.eye_point()),
+		soldier.model.hand_point(1).distance_to(soldier.model.eye_point()))
+	check(soldier.blind_recoiling() and palm_gap < 0.3, "первую секунду отшатнулся, обе ладони у глаз (%.2f м)" % palm_gap)
+	check(soldier.model.sword().get_parent() == soldier.model.hero.hand and soldier.model.hero.hand.rotation.length() < 0.25,
+		"меч в руке и лежит вдоль кисти и предплечья")
+	var hp_blind := soldier.health.current
+	await tap("attack")
+	await seconds(0.5)
+	check(soldier.health.current < hp_blind and soldier.state == Dummy.State.BLINDED, "удар ранит, но из слепоты не выводит")
+	check(not soldier.can_be_riposted(), "человека в слепоте спереди не добить")
+	await seconds(0.3)
+	check(soldier.state == Dummy.State.BLINDED and not soldier.blind_recoiling(), "дальше трёт глаза и не нападает, хоть герой рядом")
+	for i in 300:
+		if soldier.state != Dummy.State.BLINDED:
+			break
+		await frames(1)
+	check(soldier.state != Dummy.State.BLINDED and not soldier.statuses.has(Statuses.BLIND), "слепота прошла — снова в бою")
+	# Привыкание: второе ослепление за бой короче; сопротивление укорачивает ещё.
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(is_equal_approx(soldier.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * Dummy.BLIND_HABIT),
+		"второй раз за бой — короче (%.1f с)" % soldier.statuses.time_left(Statuses.BLIND))
+	soldier.statuses.remove(Statuses.BLIND)
+	check(soldier.state == Dummy.State.CHASE, "слепоту сняли — враг снова в бою")
+	soldier._blind_count = 0
+	soldier.blind_resistance = 0.5
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(is_equal_approx(soldier.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * 0.5), "сопротивление 0.5 — вдвое короче")
+	soldier.statuses.remove(Statuses.BLIND)
+	soldier.blind_resistance = 0.0
+	soldier._blind_count = 0
+	soldier.creature = CreatureKind.Kind.SKELETON
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(not soldier.statuses.has(Statuses.BLIND) and soldier.state != Dummy.State.BLINDED, "скелета не ослепить: глаз нет")
+	player.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(not player.statuses.has(Statuses.BLIND), "герой пока не слепнет (решено на потом)")
+	# Вампир: слепота дезориентирует — окно для добивания спереди.
+	soldier.creature = CreatureKind.Kind.VAMPIRE
+	await face_enemy(soldier, 1.2)
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(soldier.blind_reaction == CreatureKind.Reaction.DISORIENT and soldier.can_be_riposted()
+		and is_equal_approx(soldier.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * 0.75), "вампир дезориентирован на 3 с: можно добить спереди")
+	await seconds(0.3)
+	await tap("attack")
+	check(player.state == Player.State.CRITICAL, "удар по ослеплённому вампиру спереди — добивание")
+	await seconds(2.5)
+	check(not soldier.statuses.has(Statuses.BLIND), "после добивания слепоты нет")
+	soldier.creature = CreatureKind.Kind.HUMAN
+	soldier._blind_count = 0
+	# Враги леса и босс: у каждого класса своя реакция и своё время.
+	var classes := {
+		"vampire": [CreatureKind.Reaction.DISORIENT, 0.75],
+		"rat": [CreatureKind.Reaction.SHAKE_HEAD, 0.5], "bat": [CreatureKind.Reaction.IMMUNE, 0.0],
+		"fog_wraith": [CreatureKind.Reaction.FADE, 0.5], "glass_crawler": [CreatureKind.Reaction.IMMUNE, 0.0],
+		"drowned_knight": [CreatureKind.Reaction.IMMUNE, 0.0], "werewolf": [CreatureKind.Reaction.ROAR, 0.5],
+		"blacksmith": [CreatureKind.Reaction.RUB_EYES, 0.5], "bandit_heavy": [CreatureKind.Reaction.RUB_EYES, 1.0],
+		"bandit_knife": [CreatureKind.Reaction.RUB_EYES, 1.0],
+	}
+	for id: String in classes:
+		var foe := (load("res://actors/enemies/%s.tscn" % id) as PackedScene).instantiate() as Dummy
+		# Не спит и не уходит: проверяем только реакцию.
+		foe.dormant = false
+		if foe is Werewolf:
+			(foe as Werewolf).gone_flag = &"test_never_set"
+		if foe is Blacksmith:
+			(foe as Blacksmith).boss_flag = &"test_never_set"
+		soldier.get_parent().add_child(foe)
+		foe.global_position = soldier_home + Vector3(60.0, 1.0, 0.0)
+		await frames(2)
+		if foe is Bat:
+			(foe as Bat)._awake = true
+		foe.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+		var want: Array = classes[id]
+		var reaction: CreatureKind.Reaction = want[0]
+		var ok := not foe.statuses.has(Statuses.BLIND) and foe.state != Dummy.State.BLINDED
+		if reaction != CreatureKind.Reaction.IMMUNE:
+			ok = foe.state == Dummy.State.BLINDED and foe.blind_reaction == reaction \
+				and is_equal_approx(foe.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * want[1])
+		# Руки есть у всех гуманоидов: graybox или манекен.
+		var has_arms := foe.arms != null or foe.model != null
+		var humanoid_arms := has_arms == (reaction in [CreatureKind.Reaction.RUB_EYES, CreatureKind.Reaction.DISORIENT])
+		check(ok and humanoid_arms, "%s: %s, %.1f с" % [id, CreatureKind.Reaction.keys()[reaction], foe.statuses.time_left(Statuses.BLIND)])
+		# Поза слепоты отыгрывается без ошибок; оружие не покидает руку (общий счётчик теста).
+		await seconds(1.4)
+		foe.queue_free()
+	await frames(2)
+	soldier.health.heal_full()
+	soldier.patrol_speed = soldier_patrol
+	soldier.chase_speed = soldier_chase
+	soldier.global_position = soldier_home
+	soldier.facing = soldier_look
+	soldier.velocity = Vector3.ZERO
+	soldier._set_state(Dummy.State.PATROL)
+	player.restore()
+	await seconds(0.3)
+
 	print("== Меню паузы и наборы оружия I/II (§8.12)")
 	var pause_menu := rooms.level_menu
 	await put(Vector3(-20, 0.1, 0), 1.0)
@@ -1966,6 +2155,130 @@ func run() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_file))
 	check(not game_state.has_save(), "тестовое сохранение удалено")
 	game_state.saves_enabled = false
+
+	print("== Галерея замка: вампир (§6.3), стеклянная магия: посох, Память, мана, Блик (§6.2)")
+	player.restore()
+	var gallery_door := room_node("Objects/DoorToGallery") as Node3D
+	check(gallery_door != null, "в замке у ниши — дверь в галерею")
+	await put(Vector3(gallery_door.global_position.x, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	for i in 180:
+		if rooms.current_room_id == &"castle_gallery":
+			break
+		await frames(1)
+	await seconds(0.8)
+	check(rooms.current_room_id == &"castle_gallery", "дверь ведёт в галерею замка")
+	var vampire := room_node("Objects/Vampire") as Vampire
+	check(vampire != null and vampire.creature == CreatureKind.Kind.VAMPIRE and vampire.model != null
+		and vampire.model.look == EnemyModel.VAMPIRE and vampire.unholy, "в галерее вампир: бледный манекен в плаще, нечисть")
+	if vampire:
+		# «Мышь» проверяется отдельно ниже: пока она не мешает остальным проверкам галереи.
+		vampire.bat_first_delay = 999.0
+		vampire._bat_wait = 999.0
+		await face_enemy(vampire, 2.4)
+		var clawed := false
+		for i in 240:
+			if vampire.state in [Dummy.State.WINDUP, Dummy.State.ATTACK]:
+				clawed = true
+				break
+			await frames(1)
+		check(clawed, "вампир заметил героя и бьёт когтями")
+		await wait_attack_over(vampire)
+		await check_vampire_bat(vampire)
+	# Посох лежит у гроба за вампиром; пока герой его берёт, вампир стоит.
+	var hero_stats := player.stats
+	hero_stats.reset_progress()
+	player.restore()
+	check(hero_stats.spell_slots == 1 and hero_stats.mana_regen == 0.0 and player.mana == hero_stats.max_mana,
+		"без Памяти: одна ячейка магии, мана сама не восстанавливается (%.0f маны)" % hero_stats.max_mana)
+	var vampire_chase := vampire.chase_speed if vampire else 0.0
+	if vampire:
+		vampire.chase_speed = 0.0
+	var staff_find := room_node("Objects/StaffFind") as Node3D
+	check(staff_find != null, "в галерее у гроба лежит посох")
+	if staff_find:
+		await put(Vector3(staff_find.global_position.x, 0.1, 0.0))
+		await seconds(0.2)
+		await tap("interact")
+		await frames(3)
+	check(player.weapon != null and player.weapon.id == &"staff" and player.weapon.catalyst, "подобрал посох — катализатор в руке")
+	check(&"glint" in game_state.spells and game_state.current_spell(hero_stats.spell_slots) == &"glint", "посох научил Блику: он в первой ячейке магии")
+	await seconds(0.3)
+	check(rooms.hud.spell_line.visible and rooms.hud.spell_line.text.contains("Блик") and rooms.hud.mana_bar.visible,
+		"HUD: полоса маны и активное заклинание")
+	# Память даёт больше маны, чем Интеллект; восстановление — только от Памяти.
+	var mana_base := hero_stats.max_mana
+	for i in 10:
+		hero_stats.add_point(PlayerStats.Param.INTELLIGENCE)
+	var mana_int := hero_stats.max_mana - mana_base
+	check(hero_stats.mana_regen == 0.0 and hero_stats.spell_damage_mult > 1.0, "Интеллект: урон магии ×%.2f, восстановления маны не даёт" % hero_stats.spell_damage_mult)
+	hero_stats.reset_progress()
+	for i in 10:
+		hero_stats.add_point(PlayerStats.Param.MEMORY)
+	var mana_mem := hero_stats.max_mana - mana_base
+	check(mana_mem > mana_int * 1.5 and hero_stats.spell_slots == 2, "Память: маны больше, чем от Интеллекта (+%.0f против +%.0f), вторая ячейка" % [mana_mem, mana_int])
+	check(hero_stats.mana_regen > 0.0 and hero_stats.mana_regen < 1.0, "Память: мана восстанавливается медленно (%.2f в секунду)" % hero_stats.mana_regen)
+	player.restore()
+	# Блик с посоха по вампиру: вспышка дезориентирует, мана тратится; потом — добивание спереди.
+	var casts: Array[GlintFlash] = []
+	var on_cast := func(_spell: SpellData, effect: Node3D) -> void: casts.append(effect as GlintFlash)
+	player.spell_cast.connect(on_cast)
+	if vampire:
+		vampire.chase_speed = vampire_chase
+		vampire._blind_count = 0
+		await face_enemy(vampire, 3.0)
+		var mana_before := player.mana
+		await tap("attack")
+		await frames(2)
+		check(player.state == Player.State.CAST, "удар посохом — заклинание")
+		await seconds(0.5)
+		check(casts.size() == 1 and vampire in casts[0].blinded and vampire.state == Dummy.State.BLINDED and vampire.can_be_riposted(),
+			"Блик дезориентировал вампира: открыт спереди")
+		var glint_cost := SpellData.by_id(&"glint").mana_cost
+		check(is_equal_approx(mana_before - player.mana, glint_cost), "Блик стоит %.0f маны" % glint_cost)
+		await put(Vector3(vampire.global_position.x + vampire.facing * 1.2, 0.1, 0.0), -vampire.facing)
+		await seconds(0.1)
+		var mana_low := player.mana
+		await tap("attack")
+		check(player.state == Player.State.CRITICAL, "добивание дезориентированного вампира спереди")
+		await seconds(2.5)
+		check(player.mana > mana_low, "мана понемногу возвращается (%.1f → %.1f)" % [mana_low, player.mana])
+	player.spell_cast.disconnect(on_cast)
+	# Нет маны — посох бьёт сам, полоса маны мигает.
+	var shorted := [false]
+	var on_short := func() -> void: shorted[0] = true
+	player.mana_short.connect(on_short)
+	player.restore()
+	player.mana = 0.0
+	await put(Vector3(-10.0, 0.1, 0.0), -1.0)
+	await seconds(0.2)
+	await tap("attack")
+	await frames(2)
+	check(player.state == Player.State.ATTACK and shorted[0], "нет маны — посох бьёт сам, полоса маны мигает")
+	player.mana_short.disconnect(on_short)
+	await seconds(0.8)
+	player.restore()
+	check(player.mana == hero_stats.max_mana, "отдых (как у осколка) — мана полная")
+	# Посох и Блик — только в этой проверке: дальше тест идёт как раньше.
+	hero_stats.reset_progress()
+	player.equip(&"sword")
+	game_state.items.erase(&"staff")
+	game_state.spells.clear()
+	game_state.spell_slots = [&"", &"", &"", &"", &""]
+	game_state.flags.erase(&"got_staff")
+	Events.spells_changed.emit()
+	player.restore()
+	await put(room_node("Objects/DoorBack").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	for i in 180:
+		if rooms.current_room_id == &"room_001":
+			break
+		await frames(1)
+	await seconds(0.8)
+	check(rooms.current_room_id == &"room_001", "из галереи — обратно в замок")
+	player.restore()
 
 	print("== Деревня: хижина")
 	player.restore()
@@ -2825,6 +3138,9 @@ func run() -> void:
 	game_state.save_path = real_save
 	fresh.queue_free()
 	await frames(2)
+
+	# Допуск — кадр твина: сцены Кузнеца поворачивают молот твином, кисть догоняет в следующем кадре.
+	check(weapon_gap < 0.02, "оружие врагов всегда в руке: разрыв кисти и рукояти %.3f м %s" % [weapon_gap, weapon_gap_who])
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures else 0)

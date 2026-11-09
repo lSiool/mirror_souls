@@ -4,7 +4,9 @@ extends Node
 ## - яд и горение — урон каждые полсекунды;
 ## - «разъедено» (кислота) — по носителю бьют больнее (Health.taken_mult) и сильнее сбивают стойкость;
 ## - смола — носитель еле двигается, замах и удары медленнее (speed_mult, time_mult);
-## - огонь по смоле — взрыв (TarBlast), смола сгорает.
+## - огонь по смоле — взрыв (TarBlast), смола сгорает;
+## - слепота (Блик, ловушки, расходники) — общий эффект: как её переживает враг, решает его класс
+##   (CreatureKind), здесь — только время и блёстки у глаз. Герой пока не слепнет (позже).
 ## Видно по носителю: язык пламени, капли смолы, пузыри яда, шипение кислоты.
 
 signal started(id: StringName)
@@ -14,6 +16,7 @@ const POISON := &"poison"
 const BURNING := &"burning"
 const CORRODED := &"corroded"
 const TAR := &"tar"
+const BLIND := &"blind"
 
 ## Урон в секунду от яда и огня — черновик.
 const DPS := {POISON: 4.0, BURNING: 6.0}
@@ -23,6 +26,9 @@ const CORRODED_POISE := 1.5
 ## Смола: доля скорости и темпа ударов. Герой вязнет мягче врага (Player.TAR_*).
 const TAR_SPEED := 0.15
 const TAR_TEMPO := 0.4
+## Стандартная слепота (§6.2): у человека — секунда отшатывания и три — трёт глаза.
+## Источник вешает её на это время; класс и сопротивление врага укорачивают (Dummy._resist_status).
+const BLIND_TIME := 4.0
 ## Подкраска тела носителя (враги — Dummy._update_material).
 const TINT := {
 	POISON: Color(0.45, 0.18, 0.55),
@@ -35,6 +41,9 @@ const TINT := {
 var health: Health
 ## Высота носителя: где горит пламя и откуда капает смола.
 var height := 1.8
+## Сопротивление носителя: (id, секунды) → сколько секунд на самом деле; 0 — не подействовало.
+## Так любой источник просто вешает состояние, а невосприимчивость и привыкание — у носителя.
+var resist: Callable
 
 var _left := {}
 var _tick := 0.0
@@ -62,6 +71,10 @@ func apply(id: StringName, time: float) -> void:
 	if id == BURNING and has(TAR):
 		_tar_ignited()
 		return
+	if resist.is_valid():
+		time = resist.call(id, time)
+		if time <= 0.0:
+			return
 	var fresh := not _left.has(id)
 	_left[id] = maxf(_left.get(id, 0.0), time)
 	if fresh:
@@ -172,6 +185,9 @@ func _start_fx(id: StringName) -> void:
 			fx = _drips(Color(0.6, 0.25, 0.75, 0.7), Vector3(0.0, 1.2, 0.0), 0.08, 8)
 		CORRODED:
 			fx = _drips(Color(0.6, 1.0, 0.2, 0.8), Vector3(0.0, 2.0, 0.0), 0.05, 12)
+		BLIND:
+			# Белые блёстки у глаз: свет ещё режет.
+			fx = _drips(Color(1.0, 0.97, 0.85, 0.9), Vector3(0.0, 0.3, 0.0), 0.04, 8, 0.88, 0.08)
 	if fx:
 		carrier.add_child(fx)
 		_fx[id] = fx
@@ -191,8 +207,8 @@ func _stop_fx(id: StringName) -> void:
 		get_tree().create_timer(1.0).timeout.connect(fx.queue_free)
 
 
-## Капли, пузыри или шипение вокруг носителя.
-func _drips(color: Color, gravity: Vector3, size: float, amount: int) -> CPUParticles3D:
+## Капли, пузыри или шипение вокруг носителя; at — доля роста, где их середина, spread — размах по росту.
+func _drips(color: Color, gravity: Vector3, size: float, amount: int, at := 0.5, spread := 0.35) -> CPUParticles3D:
 	var particles := CPUParticles3D.new()
 	var speck := SphereMesh.new()
 	speck.radius = size * 0.5
@@ -214,8 +230,8 @@ func _drips(color: Color, gravity: Vector3, size: float, amount: int) -> CPUPart
 	particles.lifetime = 0.7
 	particles.local_coords = false
 	particles.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	particles.emission_box_extents = Vector3(0.3, height * 0.35, 0.2)
-	particles.position = Vector3(0.0, height * 0.5, 0.2)
+	particles.emission_box_extents = Vector3(0.3, height * spread, 0.2)
+	particles.position = Vector3(0.0, height * at, 0.2)
 	particles.gravity = gravity
 	particles.initial_velocity_min = 0.1
 	particles.initial_velocity_max = 0.5

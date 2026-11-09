@@ -53,6 +53,10 @@ var _drips: CPUParticles3D
 @onready var side_right: MeshInstance3D = $Visual/Body/SideRight
 
 
+func _init() -> void:
+	creature = CreatureKind.Kind.GLASS
+
+
 func _ready() -> void:
 	# Желе из стекла не кричит: голоса нет, звучат только удар и стекло.
 	hurt_voice = &""

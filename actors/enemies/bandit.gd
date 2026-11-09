@@ -53,6 +53,34 @@ func _ready() -> void:
 	if _prop:
 		_prop_base = _prop.position
 		_pose(CANDLESTICK.rest_blade, CANDLESTICK.rest_grip)
+		# Подсвечник встал в позу — кисти на него.
+		_update_arms(0.0)
+
+
+## Руки graybox (§6.3): подсвечник — двумя руками за древко, нож — одной за рукоять.
+func _grip_node() -> Node3D:
+	return get_node_or_null(^"Visual/PropPivot" if kind == Kind.HEAVY else ^"Visual/Prop") as Node3D
+
+
+func _grip_points() -> Array[Vector3]:
+	if kind == Kind.HEAVY:
+		return [Vector3(0.0, 0.1, 0.0), Vector3(0.0, 0.42, 0.0)]
+	return [Vector3(-0.18, 0.0, 0.0)]
+
+
+## Нож лежит вдоль X.
+func _weapon_axis() -> Vector3:
+	return Vector3.UP if kind == Kind.HEAVY else Vector3.RIGHT
+
+
+## Чаша подсвечника — ею он упирается в землю.
+func _weapon_tip() -> Vector3:
+	return Vector3(0.0, 1.12, 0.0)
+
+
+## Подсвечник ведёт поза молота (_update_extra) и сама возвращает его после слепоты.
+func _weapon_posed_by_self() -> bool:
+	return kind == Kind.HEAVY
 
 
 ## Выпустить из засады: сразу в бой.
@@ -151,6 +179,9 @@ func _choose_move() -> void:
 ## потом подсвечник лежит в конце взмаха (волок) и возвращается на плечо.
 func _update_extra(delta: float) -> void:
 	if _prop == null:
+		return
+	# Ослеп и трёт глаза: подсвечник придерживает одной рукой опущенным — это делает Dummy.
+	if state == State.BLINDED and arms and blind_reaction == CreatureKind.Reaction.RUB_EYES:
 		return
 	var rest := Vector3(CANDLESTICK.rest_blade, CANDLESTICK.rest_grip.x, CANDLESTICK.rest_grip.y)
 	var target := rest

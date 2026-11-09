@@ -14,6 +14,9 @@ albedo_color = Color(0.2, 0.13, 0.08, 1.0)
 [sub_resource type="StandardMaterial3D" id="Mat_scar"]
 albedo_color = Color(0.16, 0.14, 0.15, 1.0)
 
+[sub_resource type="StandardMaterial3D" id="Mat_band"]
+albedo_color = Color(0.22, 0.2, 0.19, 1.0)
+
 [sub_resource type="StandardMaterial3D" id="Mat_eye"]
 albedo_color = Color(0.75, 0.35, 1.0, 1.0)
 emission_enabled = true
@@ -40,11 +43,27 @@ size = Vector3(0.1, 0.07, 0.6)
 
 [sub_resource type="BoxMesh" id="Mesh_handle"]
 material = SubResource("Mat_wood")
-size = Vector3(0.16, 2.2, 0.16)
+size = Vector3(0.11, 1.85, 0.11)
+
+[sub_resource type="BoxMesh" id="Mesh_ring"]
+material = SubResource("Mat_band")
+size = Vector3(0.15, 0.05, 0.15)
+
+[sub_resource type="BoxMesh" id="Mesh_pommel"]
+material = SubResource("Mat_band")
+size = Vector3(0.17, 0.1, 0.17)
+
+[sub_resource type="BoxMesh" id="Mesh_socket"]
+material = SubResource("Mat_band")
+size = Vector3(0.2, 0.14, 0.2)
 
 [sub_resource type="BoxMesh" id="Mesh_head"]
 material = SubResource("Mat_iron")
-size = Vector3(1.1, 0.7, 0.7)
+size = Vector3(0.8, 0.56, 0.56)
+
+[sub_resource type="BoxMesh" id="Mesh_plate"]
+material = SubResource("Mat_band")
+size = Vector3(0.07, 0.62, 0.62)
 
 [sub_resource type="BoxShape3D" id="Shape_attack"]
 size = Vector3(3.0, 2.6, 4.0)
@@ -77,6 +96,8 @@ windup_tint = 0.2
 echoes = 0
 rank = 2
 weapon_type = &"hammer"
+blind_resistance = 0.5
+mannequin_look = &"blacksmith"
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)
@@ -112,12 +133,44 @@ mesh = SubResource("Mesh_eye")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 2.0, 0.75)
 
 [node name="Handle" type="MeshInstance3D" parent="Visual/Hammer"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 mesh = SubResource("Mesh_handle")
 
+[node name="Pommel" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.03, 0)
+mesh = SubResource("Mesh_pommel")
+
+[node name="RingA" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+mesh = SubResource("Mesh_ring")
+
+[node name="RingB" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+mesh = SubResource("Mesh_ring")
+
+[node name="RingC" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+mesh = SubResource("Mesh_ring")
+
+[node name="RingD" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
+mesh = SubResource("Mesh_ring")
+
+[node name="Socket" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.78, 0)
+mesh = SubResource("Mesh_socket")
+
 [node name="Head" type="MeshInstance3D" parent="Visual/Hammer"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.05, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
 mesh = SubResource("Mesh_head")
+
+[node name="PlateA" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.39, 2.1, 0)
+mesh = SubResource("Mesh_plate")
+
+[node name="PlateB" type="MeshInstance3D" parent="Visual/Hammer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.39, 2.1, 0)
+mesh = SubResource("Mesh_plate")
 
 [node name="AttackHitbox" type="Area3D" parent="Visual"]
 collision_layer = 0

@@ -24,6 +24,10 @@ var _time := 0.0
 @onready var legs: Array[Node3D] = [$Visual/LegA, $Visual/LegB, $Visual/LegC, $Visual/LegD]
 
 
+func _init() -> void:
+	creature = CreatureKind.Kind.BEAST
+
+
 func _ready() -> void:
 	super()
 	_time = randf() * 5.0
@@ -117,5 +121,14 @@ func _update_extra(delta: float) -> void:
 	# Замерла — принюхивается: морда покачивается.
 	var sniff := sin(_time * 18.0) * 0.12 if not running and state == State.CHASE else 0.0
 	var duck := -0.3 if state == State.WINDUP else 0.0
+	if state == State.BLINDED:
+		# Ослепла (§6.2): трясёт мордой и трёт её передними лапами по очереди.
+		sniff = sin(_time * 34.0) * 0.3
+		duck = 0.25
+		legs[0].rotation.z = 1.9 + sin(_time * 14.0) * 0.35
+		legs[1].rotation.z = 1.9 + sin(_time * 14.0 + PI) * 0.35
 	head.rotation.z = lerpf(head.rotation.z, sniff + duck, k)
+	# Слепая крыса привстаёт на задние лапы: видно, как передние трут морду.
+	var rear := 0.45 if state == State.BLINDED else 0.0
+	visual.rotation.z = lerpf(visual.rotation.z, rear, 1.0 - exp(-8.0 * delta))
 	visual.scale.y = lerpf(visual.scale.y, 0.8 if state == State.WINDUP else 1.0, k)

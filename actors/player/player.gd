@@ -11,6 +11,11 @@ signal attack_step_started(step: AttackStep, index: int, total: int)
 signal arrow_fired(arrow: Arrow)
 signal item_thrown(thrown: Thrown)
 signal flasks_changed(current: int, maximum: int)
+## Мана стеклянной магии (§6.2): сколько есть и сколько всего; не хватило на заклинание.
+signal mana_changed(current: float, maximum: float)
+signal mana_short
+## Заклинание сработало: само заклинание и его след в мире (вспышка Блика).
+signal spell_cast(spell: SpellData, effect: Node3D)
 ## Кувырку не хватило выносливости.
 signal stamina_short
 ## Баффы и дебаффы изменились (§8.12): HUD перерисовывает значки.
@@ -18,7 +23,7 @@ signal effects_changed
 
 enum State {
 	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
-	LEDGE_HANG, LEDGE_CLIMB, DRINK, CHARGE, LADDER, THROW,
+	LEDGE_HANG, LEDGE_CLIMB, DRINK, CHARGE, LADDER, THROW, CAST,
 }
 
 ## С какой скоростью выдавливает из босса, если перекат сорвали внутри него.
@@ -87,6 +92,11 @@ const QUICK_PAD := {JOY_BUTTON_DPAD_UP: 0, JOY_BUTTON_DPAD_LEFT: 1, JOY_BUTTON_D
 var state := State.MOVE
 var facing := 1.0
 var stamina := 0.0
+## Мана (§6.2): от Памяти и Интеллекта; восстанавливается медленно, только от Памяти, и у осколка.
+var mana := 0.0
+var _mana_delay := 0.0
+var _cast_spell: SpellData
+var _cast_done := false
 ## Пока true — игрок не управляется (переход через зеркало, затемнение).
 var frozen := false
 ## Позы меча и лук.
@@ -220,10 +230,13 @@ func _ready() -> void:
 	flasks = max_flasks()
 	health.heal_full()
 	stamina = stats.max_stamina
+	mana = stats.max_mana
 	health.changed.connect(health_changed.emit)
 	health.died.connect(_on_died)
 	hurtbox.hurt.connect(_on_hurt)
 	statuses = Statuses.new(health, 1.7)
+	# Слепота героя (ловушки, склянки врагов) решена на потом (§6.2): пока не слепнет.
+	statuses.resist = func(id: StringName, time: float) -> float: return 0.0 if id == Statuses.BLIND else time
 	add_child(statuses)
 	statuses.started.connect(add_effect)
 	statuses.ended.connect(remove_effect)
@@ -271,6 +284,7 @@ func _physics_process(delta: float) -> void:
 		State.CHARGE: _charge_state(delta)
 		State.LADDER: _ladder_state(delta)
 		State.THROW: _throw_state(delta)
+		State.CAST: _cast_state(delta)
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
@@ -348,7 +362,12 @@ func _tick(delta: float) -> void:
 			Sfx.play(&"glass_glint", global_position, -14.0)
 		if Input.is_action_just_pressed("weapon_swap") and not quick_held:
 			_swap_buffer = stats.input_buffer
+		if Input.is_action_just_pressed("spell_swap") and not quick_held:
+			# Как стрелы: ячейки магии листаются в бою, раскладываются у осколка.
+			GameState.swap_spell(stats.spell_slots)
+			Sfx.play(&"glass_glint", global_position, -14.0)
 
+	_regen_mana(delta)
 	if _stamina_delay > 0.0:
 		_stamina_delay -= delta
 	elif stamina < stats.max_stamina:
@@ -461,8 +480,16 @@ func _move_state(delta: float) -> void:
 	elif _attack_buffer > 0.0 and _swap_t <= 0.0:
 		if not on_floor and weapon and Input.is_action_pressed("move_down"):
 			_start_plunge()
+		elif weapon and weapon.catalyst and stamina > 0.0 and _try_critical():
+			# Посох: добивание и удар в спину важнее заклинания, как в Souls.
+			pass
 		else:
-			_start_attack()
+			# Посох колдует заклинание из активной ячейки; нечем или нет маны — бьёт сам.
+			var spell := _ready_spell() if weapon and weapon.catalyst else null
+			if spell:
+				_start_cast(spell)
+			else:
+				_start_attack()
 	elif _quick_buffer > 0.0:
 		_start_throw()
 	elif _shoot_buffer > 0.0:
@@ -506,6 +533,8 @@ func _on_stats_changed() -> void:
 		health.changed.emit(health.current, health.max_health)
 	stamina = minf(stamina, stats.max_stamina)
 	stamina_changed.emit(stamina, stats.max_stamina)
+	mana = minf(mana, stats.max_mana)
+	mana_changed.emit(mana, stats.max_mana)
 	body.set_hair_color(AgeLook.hair_color(stats.current_age))
 
 
@@ -1314,6 +1343,74 @@ func _release_throw(item: ConsumableData) -> void:
 	item_thrown.emit(thrown)
 
 
+# --- Стеклянная магия (§6.2) -----------------------------------------------
+
+## Заклинание из активной ячейки, если его можно сотворить; не хватает маны — HUD мигает,
+## а посох бьёт своими ударами.
+func _ready_spell() -> SpellData:
+	var spell := SpellData.by_id(GameState.current_spell(stats.spell_slots))
+	if spell == null:
+		return null
+	if mana < spell.mana_cost:
+		mana_short.emit()
+		return null
+	return spell
+
+
+func _start_cast(spell: SpellData) -> void:
+	_attack_buffer = 0.0
+	_cast_spell = spell
+	_cast_done = false
+	_set_state(State.CAST)
+
+
+## Посох поднят — заклинание срабатывает на cast_time; после этого кувырок отменяет каст.
+func _cast_state(delta: float) -> void:
+	var x := _input_x()
+	var accel := stats.acceleration if is_on_floor() else stats.air_acceleration
+	velocity.x = move_toward(velocity.x, x * stats.move_speed * _cast_spell.move_mult, accel * delta)
+	_apply_gravity(delta)
+	if not _cast_done and _state_time >= _cast_spell.cast_time:
+		_release_cast(_cast_spell)
+	elif _cast_done and _roll_buffer > 0.0 and is_on_floor() and not roll_cooling():
+		_start_roll()
+		return
+	if _state_time >= _cast_spell.duration:
+		_set_state(State.MOVE)
+
+
+## Мана тратится в момент заклинания: сбили на замахе — мана осталась.
+func _release_cast(spell: SpellData) -> void:
+	_cast_done = true
+	if mana < spell.mana_cost:
+		mana_short.emit()
+		return
+	mana -= spell.mana_cost
+	_mana_delay = stats.mana_regen_delay
+	mana_changed.emit(mana, stats.max_mana)
+	var effect: Node3D = null
+	match spell.effect:
+		SpellData.Effect.GLINT:
+			effect = GlintFlash.flash(get_parent(), spell_tip(), facing, spell, stats.spell_damage_mult)
+	spell_cast.emit(spell, effect)
+
+
+## Навершие посоха — откуда идёт заклинание: кисть модели и вперёд по древку.
+func spell_tip() -> Vector3:
+	var hand := model.hand.global_position if model and model.hand else global_position + Vector3(0.0, 1.2, 0.0)
+	return Vector3(hand.x + facing * 0.45, hand.y + 0.45, 0.0)
+
+
+func _regen_mana(delta: float) -> void:
+	if _mana_delay > 0.0:
+		_mana_delay -= delta
+		return
+	var top := stats.max_mana
+	if mana < top and stats.mana_regen > 0.0:
+		mana = minf(mana + stats.mana_regen * delta, top)
+		mana_changed.emit(mana, top)
+
+
 # --- Лук --------------------------------------------------------------------
 
 func _start_draw() -> void:
@@ -1751,6 +1848,8 @@ func restore() -> void:
 	health.heal_full()
 	stamina = stats.max_stamina
 	stamina_changed.emit(stamina, stats.max_stamina)
+	mana = stats.max_mana
+	mana_changed.emit(mana, stats.max_mana)
 	flasks = max_flasks()
 	flasks_changed.emit(flasks, max_flasks())
 

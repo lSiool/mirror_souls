@@ -187,18 +187,29 @@ dive_speed = 12.0"""
 # ---------------------------------------------------------------- Безмолвный Кузнец
 def blacksmith():
     subs = [material("Mat_iron", (0.32, 0.31, 0.33)), material("Mat_wood", (0.2, 0.13, 0.08)), material("Mat_scar", (0.16, 0.14, 0.15)),
+            material("Mat_band", (0.22, 0.2, 0.19)),
             material("Mat_eye", (0.75, 0.35, 1.0), 5.0),
             box_shape("Shape_body", (1.3, 2.8, 1.0)), box_mesh("Mesh_body", (1.6, 2.3, 1.1)),
             box_mesh("Mesh_shoulders", (2.0, 0.6, 1.2), "Mat_scar"), box_mesh("Mesh_skull", (0.55, 0.6, 0.55), "Mat_scar"),
-            box_mesh("Mesh_eye", (0.1, 0.07, 0.6), "Mat_eye"), box_mesh("Mesh_handle", (0.16, 2.2, 0.16), "Mat_wood"),
-            box_mesh("Mesh_head", (1.1, 0.7, 0.7), "Mat_iron"), box_shape("Shape_attack", (3.0, 2.6, 4.0)), box_shape("Shape_hurt", (1.7, 3.0, 1.2))]
+            box_mesh("Mesh_eye", (0.1, 0.07, 0.6), "Mat_eye"),
+            # Молот по концепту автора (2026-11-09): кованая рукоять с кольцами и навершием, на конце —
+            # железный блок с накладками. Ось Hammer — конец рукояти, где её держит кисть; древко вдоль +Y.
+            box_mesh("Mesh_handle", (0.11, 1.85, 0.11), "Mat_wood"), box_mesh("Mesh_ring", (0.15, 0.05, 0.15), "Mat_band"),
+            box_mesh("Mesh_pommel", (0.17, 0.1, 0.17), "Mat_band"), box_mesh("Mesh_socket", (0.2, 0.14, 0.2), "Mat_band"),
+            box_mesh("Mesh_head", (0.8, 0.56, 0.56), "Mat_iron"), box_mesh("Mesh_plate", (0.07, 0.62, 0.62), "Mat_band"),
+            box_shape("Shape_attack", (3.0, 2.6, 4.0)), box_shape("Shape_hurt", (1.7, 3.0, 1.2))]
     nodes = [collision_node("Shape_body", 1.4),
              '[node name="Visual" type="Node3D" parent="."]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.15)',
              mesh_node("Body", "Visual", "Mesh_body", (0, 1.15, 0)), mesh_node("Shoulders", "Visual", "Mesh_shoulders", (-0.1, 2.35, 0)),
              node3d("Head", "Visual", (0.35, 2.85, 0)), mesh_node("Skull", "Visual/Head", "Mesh_skull", (0, 0, 0)),
              mesh_node("EyeA", "Visual/Head", "Mesh_eye", (0.24, 0.06, 0)), mesh_node("EyeB", "Visual/Head", "Mesh_eye", (0.1, 0.06, 0)),
-             node3d("Hammer", "Visual", (0.8, 2.0, 0.75)), mesh_node("Handle", "Visual/Hammer", "Mesh_handle", (0, 1.0, 0)),
-             mesh_node("Head", "Visual/Hammer", "Mesh_head", (0, 2.05, 0)),
+             node3d("Hammer", "Visual", (0.8, 2.0, 0.75)), mesh_node("Handle", "Visual/Hammer", "Mesh_handle", (0, 0.9, 0)),
+             mesh_node("Pommel", "Visual/Hammer", "Mesh_pommel", (0, -0.03, 0)),
+             mesh_node("RingA", "Visual/Hammer", "Mesh_ring", (0, 0.4, 0)), mesh_node("RingB", "Visual/Hammer", "Mesh_ring", (0, 0.8, 0)),
+             mesh_node("RingC", "Visual/Hammer", "Mesh_ring", (0, 1.2, 0)), mesh_node("RingD", "Visual/Hammer", "Mesh_ring", (0, 1.55, 0)),
+             mesh_node("Socket", "Visual/Hammer", "Mesh_socket", (0, 1.78, 0)),
+             mesh_node("Head", "Visual/Hammer", "Mesh_head", (0, 2.1, 0)),
+             mesh_node("PlateA", "Visual/Hammer", "Mesh_plate", (0.39, 2.1, 0)), mesh_node("PlateB", "Visual/Hammer", "Mesh_plate", (-0.39, 2.1, 0)),
              hitbox_nodes("Visual", "Shape_attack", (2.0, 1.2, 0), 22.0, 8.0), hurtbox_nodes("Shape_hurt", 1.5)]
     props = """body_color = Color(0.24, 0.22, 0.24, 1)
 hurt_voice = &""
@@ -220,7 +231,9 @@ flinch_threshold = 999.0
 windup_tint = 0.2
 echoes = 0
 rank = 2
-weapon_type = &"hammer\""""
+weapon_type = &"hammer"
+blind_resistance = 0.5
+mannequin_look = &"blacksmith\""""
     write("actors/enemies/blacksmith.tscn", enemy_scene("res://actors/enemies/blacksmith.gd",
           '[node name="Blacksmith" type="CharacterBody3D"]\ncollision_layer = 4\ncollision_mask = 3', "\n\n".join(subs), 800.0, props, "\n\n".join(nodes)))
 

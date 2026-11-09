@@ -20,6 +20,8 @@ signal item_found(id: StringName)
 signal quick_items_changed
 ## Сменились стрелы в гнёздах лука, их число или активное гнездо (§6.2).
 signal arrows_changed
+## Выучено заклинание или сменилась активная ячейка магии (§6.2).
+signal spells_changed
 ## Тип оружия достиг новой ступени мастерства.
 signal mastery_step_reached(type: StringName, step: int)
 ## Стекло разбилось: менеджер комнаты запоминает его по виду (GlassSurface.memory).

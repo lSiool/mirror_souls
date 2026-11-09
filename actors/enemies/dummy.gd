@@ -14,10 +14,15 @@ extends CharacterBody3D
 ##   одиночный удар не сбивает, размен ударами; окно — подход и откат;
 ## - стойкость сломана — ошеломлён (STAGGER), отлетает;
 ## - тяжёлый удар не слабее KNOCKDOWN_POISE по сломанной стойкости — сбит с ног.
+##
+## Общие эффекты (§6.2, §6.3, 2026-11-09) — слепота и будущие — каждый класс врага (creature,
+## CreatureKind) переживает по-своему. Слепой враг (BLINDED) не нападает и не видит героя;
+## удары его не выводят из слепоты. Гуманоид отшатывается и трёт глаза, вампир шатается — его
+## можно добить спереди. Свою реакцию наследник рисует сам (Werewolf, Rat, FogWraith).
 
 enum State {
 	DORMANT, PATROL, CHASE, WINDUP, ATTACK, RECOVER, STAGGER,
-	OFF_BALANCE, CRITICAL_HIT, KNOCKDOWN, DEAD, INVESTIGATE, FLINCH,
+	OFF_BALANCE, CRITICAL_HIT, KNOCKDOWN, DEAD, INVESTIGATE, FLINCH, BLINDED,
 }
 
 const WINDUP_COLOR := Color(1.0, 0.35, 0.1)
@@ -42,6 +47,15 @@ const STRIKE_LEAN := -0.28
 ## Вздрог: сколько секунд тело дёргается и насколько отклоняется.
 const JOLT_TIME := 0.14
 const JOLT_TILT := 0.22
+## Слепота (§6.2): каждое следующее ослепление за бой короче (привыкание, ×BLIND_HABIT);
+## через BLIND_FORGET секунд без слепоты враг это забывает. Вышло короче BLIND_MIN — уже
+## не слепнет, только вздрогнул.
+const BLIND_HABIT := 0.6
+const BLIND_FORGET := 20.0
+const BLIND_MIN := 0.5
+## Первая четверть слепоты — отшатнулся (у стандартной слепоты — секунда), дальше трёт глаза.
+const BLIND_RECOIL_SHARE := 0.25
+const BLIND_STEP_BACK := 2.5
 
 ## Кто он для мастерства оружия героя. Кто из врагов мини-босс — решим позже; пока босс один — Кузнец.
 enum Rank { COMMON, MINIBOSS, BOSS }
@@ -112,6 +126,19 @@ const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
 ## Нежить или нечисть: святая склянка бьёт её во много раз сильнее (§6.2).
 @export var unholy := false
 
+@export_group("Класс и сопротивления")
+## Базовый класс (§6.3): от него зависит, как враг переживает общие эффекты — слепоту и будущие.
+## Свой класс наследник ставит в _init, сцена может его переопределить.
+@export var creature := CreatureKind.Kind.HUMAN
+## Сопротивление слепоте 0…1: настолько короче слепота (Кузнец — 0.5, вдвое).
+@export_range(0.0, 1.0) var blind_resistance := 0.0
+## Руки-капсулы graybox у гуманоида (до моделей): держат оружие, трут глаза.
+@export var graybox_arms := true
+
+@export_group("Облик")
+## Манекен героя вместо примитивов (EnemyModel, §3.3): &"soldier", &"vampire". Пусто — graybox.
+@export var mannequin_look: StringName
+
 ## Остаётся в мире статуей (босс): комната не забывает его как убитого, его хранит флаг босса.
 var leaves_statue := false
 ## Чьё оружие нанесло последний удар; пусто — не герой (ловушка, падение).
@@ -121,8 +148,14 @@ var bleed := 0.0
 var _bleed_delay := 0.0
 ## Красная вспышка, когда кровотечение вырвалось: поверх белой вспышки удара.
 var _bleed_flash := 0.0
-## Яд, огонь, кислота, смола (§6.2).
+## Яд, огонь, кислота, смола, слепота (§6.2).
 var statuses: Statuses
+## Как враг переживает нынешнюю слепоту (по классу, CreatureKind).
+var blind_reaction := CreatureKind.Reaction.IMMUNE
+## Руки graybox; null — не гуманоид или руки свои (оборотень, Утопленник, манекен).
+var arms: GrayboxArms
+## Манекен героя в облике врага; null — graybox.
+var model: EnemyModel
 
 var state := State.PATROL
 var poise := 0.0
@@ -139,6 +172,18 @@ var _poise_delay := 0.0
 var _turn_t := -1.0
 var _noise_x := 0.0
 var _jolt := 0.0
+## Сколько раз ослеплён за бой и сколько ещё помнит об этом.
+var _blind_count := 0
+var _blind_forget := 0.0
+## Сколько секунд от начала слепоты длится отшатывание.
+var _blind_recoil := 0.0
+## Глаза в пространстве Visual: к ним тянутся руки в слепоте.
+var _eye_point := Vector3.ZERO
+## Оружие в руке (узел прямо под Visual) и его место: в слепоте его несёт кисть, потом оно возвращается.
+var _grip: Node3D
+var _grip_rest := Vector3.ZERO
+var _grip_rest_angle := 0.0
+var _grip_return := 0.0
 
 @onready var health: Health = $Health
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -159,7 +204,31 @@ func _ready() -> void:
 	hurtbox.hurt.connect(_on_hurt)
 	attack_hitbox.non_lethal = non_lethal
 	statuses = Statuses.new(health, body_height())
+	statuses.resist = _resist_status
 	add_child(statuses)
+	statuses.started.connect(_on_status_started)
+	statuses.ended.connect(_on_status_ended)
+	_eye_point = _find_eye_point()
+	if mannequin_look != &"":
+		# Оружие в руках манекена (молот Кузнеца) — его держат руки модели.
+		_grip = _grip_node()
+		if _grip:
+			_grip_rest = _grip.position
+			_grip_rest_angle = _grip.rotation.z
+		model = EnemyModel.build(self, visual, _material, mannequin_look)
+		# Примитивы остаются для чисел (рост, наклон), но не видны.
+		body_mesh.visible = false
+		var eye := visual.get_node_or_null(^"Eye") as Node3D
+		if eye:
+			eye.visible = false
+	elif graybox_arms and CreatureKind.humanoid(creature):
+		arms = GrayboxArms.build(visual, body_mesh, _material)
+		_grip = _grip_node()
+		if _grip:
+			_grip_rest = _grip.position
+			_grip_rest_angle = _grip.rotation.z
+		# Оружие в руке с первого кадра.
+		_update_arms(0.0)
 	Events.noise_made.connect(_on_noise)
 	state = State.DORMANT if dormant else State.PATROL
 
@@ -205,11 +274,16 @@ func on_revealed() -> void:
 func _physics_process(delta: float) -> void:
 	if state == State.DORMANT:
 		_wake_check(delta)
+		# Спящий (в засаде, на камне) тоже держит оружие в руке; манекен — в позе сцены.
+		_update_arms(delta)
+		if model:
+			model.update(delta)
 		return
 	# В смоле всё медленнее: и шаг, и замах, и откат.
 	_state_time += delta * statuses.time_mult()
 	_find_player()
 	_regen_poise(delta)
+	_forget_blindness(delta)
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	match state:
@@ -255,6 +329,9 @@ func _physics_process(delta: float) -> void:
 			_brake(18.0, delta)
 			if _state_time >= flinch_time:
 				_set_state(State.CHASE)
+		State.BLINDED:
+			# Слепой не нападает и не ищет героя; выходит из слепоты, когда она кончится.
+			_brake(10.0, delta)
 		State.DEAD:
 			_brake(25.0, delta)
 	if _head_slide != 0.0:
@@ -273,6 +350,9 @@ func _physics_process(delta: float) -> void:
 	_update_pose(delta)
 	_update_material(delta)
 	_update_extra(delta)
+	_update_arms(delta)
+	if model:
+		model.update(delta)
 
 
 ## Шаг с учётом смолы: скорость гасится только на сам шаг, падение — как обычно.
@@ -302,6 +382,58 @@ func _on_attack_ended() -> void:
 ## Анимация, своя у типа врага.
 func _update_extra(_delta: float) -> void:
 	pass
+
+
+## Как этот враг переживает эффект: по классу (CreatureKind). Свой случай — переопределить.
+func _status_reaction(id: StringName) -> CreatureKind.Reaction:
+	return CreatureKind.reaction(id, creature)
+
+
+## Враг ослеп (BLINDED уже стоит): голос, звук — у наследника.
+func _on_blinded() -> void:
+	pass
+
+
+## Оружие в руке graybox-гуманоида: узел прямо под Visual. Нет — руки свободны.
+## Держит его рука того же бока (правая — +Z).
+func _grip_node() -> Node3D:
+	return null
+
+
+## Где оружие держат кисти, в пространстве оружия: первая — держащая рука,
+## вторая (у двуручного) — выше по древку.
+func _grip_points() -> Array[Vector3]:
+	return [Vector3.ZERO]
+
+
+## Вдоль чего лежит оружие (от рукояти к острию) в пространстве оружия.
+func _weapon_axis() -> Vector3:
+	return Vector3.UP
+
+
+## Двуручное в слепоте: угол, под которым его придерживают одной рукой опущенным.
+func _blind_weapon_angle() -> float:
+	return -2.85
+
+
+## Конец оружия (в пространстве оружия): им опущенное двуручное упирается в землю.
+func _weapon_tip() -> Vector3:
+	return Vector3(0.0, 1.0, 0.0)
+
+
+## Позу оружия ведёт сам наследник (и возвращает его после слепоты).
+func _weapon_posed_by_self() -> bool:
+	return false
+
+
+## Клип сцены для манекена (сидит, стоит на колене); пусто — по состоянию.
+func _model_pose() -> StringName:
+	return &""
+
+
+## На чём сидит в сцене Sitting_Idle: высота сиденья над ногами (камень Кузнеца).
+func _seat_height() -> float:
+	return 0.0
 
 
 func _brake(rate: float, delta: float) -> void:
@@ -408,7 +540,10 @@ func on_parried() -> bool:
 	return true
 
 
+## Добивание спереди: после парирования, а вампира — и в слепоте (§6.2).
 func can_be_riposted() -> bool:
+	if state == State.BLINDED:
+		return blind_reaction == CreatureKind.Reaction.DISORIENT
 	return state == State.OFF_BALANCE
 
 
@@ -454,6 +589,195 @@ func apply_critical(damage: float, throw: Vector2, from_x: float) -> void:
 		velocity = Vector3(away * throw.x, throw.y, 0.0)
 
 
+# --- Слепота: общий эффект, реакция по классу (§6.2, §6.3) ------------------
+
+## Сколько секунд слепота на самом деле держит этого врага; 0 — не подействовала.
+## Источник вешает стандартную (Statuses.BLIND_TIME), здесь — класс, сопротивление, привыкание.
+func _resist_status(id: StringName, time: float) -> float:
+	if id != Statuses.BLIND:
+		return time
+	# Спящий, в сцене, на клинке героя и мёртвый не слепнет.
+	if state in [State.DORMANT, State.DEAD, State.CRITICAL_HIT]:
+		return 0.0
+	if _status_reaction(id) == CreatureKind.Reaction.IMMUNE:
+		return 0.0
+	# Продление начавшейся слепоты — без нового привыкания.
+	var fresh := not statuses.has(id)
+	var habit := pow(BLIND_HABIT, _blind_count - (0 if fresh else 1))
+	var left := time * CreatureKind.duration_scale(id, creature) * (1.0 - blind_resistance) * habit
+	if fresh:
+		_blind_count += 1
+	_blind_forget = BLIND_FORGET
+	if left < BLIND_MIN:
+		# Привык: свет только резанул.
+		_jolt = JOLT_TIME
+		return 0.0
+	return left
+
+
+func _forget_blindness(delta: float) -> void:
+	if _blind_count == 0 or statuses.has(Statuses.BLIND):
+		return
+	_blind_forget -= delta
+	if _blind_forget <= 0.0:
+		_blind_count = 0
+
+
+func _on_status_started(id: StringName) -> void:
+	if id != Statuses.BLIND:
+		return
+	blind_reaction = _status_reaction(id)
+	_blind_recoil = statuses.time_left(id) * BLIND_RECOIL_SHARE
+	_turn_t = -1.0
+	# Отшатнулся: шаг назад от света.
+	if blind_reaction in [CreatureKind.Reaction.RUB_EYES, CreatureKind.Reaction.SHAKE_HEAD]:
+		velocity.x = -facing * BLIND_STEP_BACK
+	_set_state(State.BLINDED)
+	_on_blinded()
+
+
+func _on_status_ended(id: StringName) -> void:
+	if id == Statuses.BLIND and state == State.BLINDED:
+		_set_state(State.CHASE)
+
+
+## Ещё отшатывается (начало слепоты), а не трёт глаза.
+func blind_recoiling() -> bool:
+	return state == State.BLINDED and _state_time < _blind_recoil
+
+
+## Руки graybox (§6.3, 2026-11-09). Правило: оружие всегда в руке — не дотянулась кисть до
+## рукояти, рукоять подтягивается к кисти. В слепоте одноручное оружие ложится вдоль
+## предплечья, а обе кисти трут глаза; двуручное придерживается одной рукой опущенным,
+## другая трёт глаза.
+func _update_arms(delta: float) -> void:
+	if arms == null:
+		return
+	var t := _state_time
+	var rubbing := state == State.BLINDED and blind_reaction == CreatureKind.Reaction.RUB_EYES
+	var eye := _eye_point + Vector3(0.1, 0.0, 0.0)
+	# Ладони к глазам рывком, потом кисти ходят по кругу вразнобой.
+	var rub := Vector3(cos(t * 9.0) * 0.03, sin(t * 9.0) * 0.05, 0.0)
+	if blind_recoiling():
+		rub = Vector3(0.06, 0.03, 0.0)
+	if _grip == null:
+		_update_free_arms(delta, rubbing, eye, rub)
+		return
+	var points := _grip_points()
+	var main := arms.arm_at(_grip.position)
+	var off := arms.other(main)
+	if rubbing:
+		if points.size() > 1:
+			# Двуручное: одна рука держит его опущенным, конец упирается в землю; другая трёт глаза.
+			var lowered := _blind_weapon_angle()
+			var down := Basis(Vector3.BACK, lowered) * (_weapon_tip() - points[0])
+			arms.reach(off, eye + rub, delta, 16.0)
+			arms.reach(main, Vector3(main.position.x + arms.length * 0.3, -down.y, main.position.z), delta, 10.0)
+			_grip.rotation.z = lerp_angle(_grip.rotation.z, lowered, 1.0 - exp(-8.0 * delta))
+		else:
+			# Одноручное: обе кисти у глаз, оружие вдоль предплечья.
+			arms.reach(main, eye + rub, delta, 16.0)
+			arms.reach(off, eye - rub, delta, 16.0)
+			var along := _angle_of(arms.forearm(main)) - _angle_of(_weapon_axis())
+			_grip.rotation.z = lerp_angle(_grip.rotation.z, along, 1.0 - exp(-14.0 * delta))
+		_attach_grip(main, points[0], main.position.z)
+		return
+	if _grip_return > 0.0 and not _weapon_posed_by_self():
+		# Слепота прошла: оружие возвращается на место (кисть не отпускает рукоять).
+		_grip_return -= delta
+		var k := 1.0 - exp(-10.0 * delta)
+		_grip.position = _grip.position.lerp(_grip_rest, k)
+		if points.size() == 1:
+			_grip.rotation.z = lerp_angle(_grip.rotation.z, _grip_rest_angle, k)
+	arms.hold(main, _grip_point(points[0]))
+	_attach_grip(main, points[0], _grip.position.z)
+	if state == State.BLINDED and blind_reaction == CreatureKind.Reaction.DISORIENT:
+		# Свободной рукой ловит равновесие.
+		arms.swing(off, -0.9 + sin(t * 4.5 + 1.3) * 0.4, delta, 6.0)
+	elif points.size() > 1:
+		# Вторая кисть — выше по древку.
+		arms.hold(off, _grip_point(points[1]))
+	else:
+		arms.swing(off, -0.1, delta)
+
+
+## Руки без оружия (кулаки): трут глаза, ловят равновесие, в замахе отводят кулак.
+func _update_free_arms(delta: float, rubbing: bool, eye: Vector3, rub: Vector3) -> void:
+	if rubbing:
+		arms.reach(arms.right, eye + rub, delta, 16.0)
+		arms.reach(arms.left, eye - rub, delta, 16.0)
+		return
+	var t := _state_time
+	if state == State.BLINDED and blind_reaction == CreatureKind.Reaction.DISORIENT:
+		arms.swing(arms.right, 1.1 + sin(t * 4.5) * 0.4, delta, 6.0)
+		arms.swing(arms.left, -0.9 + sin(t * 4.5 + 1.3) * 0.4, delta, 6.0)
+		return
+	match state:
+		State.WINDUP:
+			arms.swing(arms.right, -1.0, delta, 8.0)
+			arms.swing(arms.left, 0.3, delta, 8.0)
+		State.ATTACK:
+			arms.swing(arms.right, 1.6, delta, 30.0)
+			arms.swing(arms.left, -0.3, delta, 30.0)
+		_:
+			arms.swing(arms.right, 0.12, delta)
+			arms.swing(arms.left, -0.08, delta)
+
+
+## Точка хвата оружия (в пространстве оружия) — в пространстве Visual.
+func _grip_point(local: Vector3) -> Vector3:
+	return _grip.position + _grip.basis * local
+
+
+## Оружие к кисти: точка хвата ложится в кисть, оружие на глубине z.
+func _attach_grip(arm: Node3D, local: Vector3, z: float) -> void:
+	var gap := arms.hand(arm) - _grip_point(local)
+	_grip.position = Vector3(_grip.position.x + gap.x, _grip.position.y + gap.y, z)
+
+
+## Насколько рукоять оружия разошлась с держащей её кистью (в плоскости кадра); 0 — в руке.
+## Для тестов: правило «оружие всегда в руке».
+func weapon_gap() -> float:
+	if model and _grip:
+		# Только что появился: скелет ещё не обновлялся — молот ляжет в ладонь до первого кадра.
+		if not model.holding:
+			return 0.0
+		var held := model.get_parent_node_3d().global_transform.affine_inverse() * model.palm_point(0) - _grip_point(_grip_points()[0])
+		return Vector2(held.x, held.y).length()
+	if arms == null or _grip == null:
+		return 0.0
+	var gap := arms.hand(arms.arm_at(_grip.position)) - _grip_point(_grip_points()[0])
+	return Vector2(gap.x, gap.y).length()
+
+
+static func _angle_of(v: Vector3) -> float:
+	return atan2(v.y, v.x)
+
+
+## Глаза в пространстве Visual: узел глаза, иначе лицевая сторона головы, иначе макушка.
+func _find_eye_point() -> Vector3:
+	for path: NodePath in [^"Head/EyeA", ^"EyeA", ^"Eye", ^"Head/Eye"]:
+		var eye := visual.get_node_or_null(path) as Node3D
+		if eye:
+			return _in_visual(eye)
+	var head := visual.get_node_or_null(^"Head") as Node3D
+	if head:
+		var front := 0.0
+		if head is MeshInstance3D and (head as MeshInstance3D).mesh is BoxMesh:
+			front = ((head as MeshInstance3D).mesh as BoxMesh).size.x * 0.5
+		return _in_visual(head) + Vector3(front, 0.03, 0.0)
+	return Vector3(0.2, body_height(), 0.0)
+
+
+func _in_visual(node: Node3D) -> Vector3:
+	var at := Vector3.ZERO
+	var current := node
+	while current and current != visual:
+		at = current.transform * at
+		current = current.get_parent() as Node3D
+	return at
+
+
 # --- Попадания --------------------------------------------------------------
 
 func _on_hurt(hitbox: Hitbox) -> void:
@@ -469,6 +793,10 @@ func _on_hurt(hitbox: Hitbox) -> void:
 		return
 	Sfx.play(&"enemy_hurt", global_position)
 	Sfx.play(hurt_voice, global_position)
+	# Слепого удар не будит: только вздрагивает.
+	if state == State.BLINDED:
+		_jolt = JOLT_TIME
+		return
 	# В уязвимых состояниях реакции нет: враг и так беззащитен.
 	if state in [State.CRITICAL_HIT, State.KNOCKDOWN, State.OFF_BALANCE]:
 		return
@@ -579,8 +907,13 @@ func _set_state(new_state: State) -> void:
 	if state == State.ATTACK:
 		attack_hitbox.active = false
 		_on_attack_ended()
+	var was_blind := state == State.BLINDED
 	state = new_state
 	_state_time = 0.0
+	# Из слепоты вывели раньше (добивание, сцена босса, смерть) — слепота снята.
+	if was_blind and new_state != State.BLINDED:
+		statuses.remove(Statuses.BLIND)
+		_grip_return = 0.5
 
 
 ## Поза: потерял равновесие — качается назад, сбит с ног — лежит.
@@ -610,6 +943,21 @@ func _update_pose(delta: float) -> void:
 			tilt = PI * 0.5
 		State.FLINCH:
 			tilt = 0.3 * (1.0 - clampf(_state_time / flinch_time, 0.0, 1.0))
+		State.BLINDED:
+			match blind_reaction:
+				CreatureKind.Reaction.RUB_EYES:
+					if blind_recoiling():
+						# Отшатнулся от света — резко назад.
+						tilt = 0.38
+						rate = 20.0
+					else:
+						# Ссутулился и трёт глаза, покачиваясь.
+						tilt = -0.14 + sin(_state_time * 3.0) * 0.04
+						rate = 6.0
+				CreatureKind.Reaction.DISORIENT:
+					# Шатается: потерял, где верх и где герой.
+					tilt = 0.18 + sin(_state_time * 4.5) * 0.16
+					rate = 8.0
 	# Вздрог поверх позы: резкий толчок назад и быстрый возврат.
 	if _jolt > 0.0:
 		_jolt = maxf(_jolt - delta, 0.0)
@@ -631,7 +979,8 @@ func _update_material(delta: float) -> void:
 		var t := clampf(_state_time / windup_time, 0.0, 1.0)
 		color = body_color.lerp(WINDUP_COLOR, t * windup_tint)
 		glow = t * 1.5 * windup_tint
-	elif state == State.OFF_BALANCE:
+	elif state == State.OFF_BALANCE or (state == State.BLINDED and blind_reaction == CreatureKind.Reaction.DISORIENT):
+		# Открыт для добивания: тот же язык, что после парирования.
 		var pulse := 0.5 + 0.5 * sin(_state_time * 18.0)
 		color = body_color.lerp(OFF_BALANCE_COLOR, 0.6 + 0.4 * pulse)
 		glow = 0.8 + pulse

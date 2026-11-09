@@ -192,6 +192,10 @@ func update(player: Player) -> void:
 			play(&"Consume")
 		Player.State.THROW:
 			play(&"OverhandThrow", 1.6)
+		Player.State.CAST:
+			# Посох вперёд — вспышка на cast_time (§6.2).
+			if _clip != &"Spell_Simple_Shoot":
+				play_span(&"Spell_Simple_Shoot", 0.0, 0.0, player._cast_spell.duration, 0.06)
 		Player.State.BOW:
 			play(&"Pistol_Aim_Neutral")
 		Player.State.CHARGE:
