@@ -199,6 +199,8 @@ func check_vampire_bat(vampire: Vampire) -> void:
 	check(vampire.health.current < hp_vampire and vampire.move != Vampire.Move.NONE, "удар по мыши ранит, но не сбивает приём")
 	var lowest := INF
 	var swoop_hit := false
+	var aims := 0
+	var faced := 0
 	for i in 600:
 		var hp_frame := player.health.current
 		await frames(1)
@@ -208,8 +210,13 @@ func check_vampire_bat(vampire: Vampire) -> void:
 			swoop_hit = true
 		if vampire.move == Vampire.Move.BAT_SWOOP:
 			lowest = minf(lowest, vampire.global_position.y + GiantBat.CENTER - floor_y)
+		if vampire.move == Vampire.Move.BAT_AIM and absf(player.global_position.x - vampire.global_position.x) > 0.5:
+			aims += 1
+			if vampire.bat.facing == signf(player.global_position.x - vampire.global_position.x):
+				faced += 1
 		if vampire.move == Vampire.Move.NONE:
 			break
+	check(aims > 0 and faced == aims, "в замахе пике мышь смотрит на героя (%d из %d кадров)" % [faced, aims])
 	check(lowest < 0.8, "мышь пикирует низко — через неё прыгают (центр %.2f м над полом)" % lowest)
 	check(swoop_hit, "пике мыши достаёт героя, который стоит на месте")
 	check(vampire.move == Vampire.Move.NONE and vampire.model.visible and not vampire.bat.visible

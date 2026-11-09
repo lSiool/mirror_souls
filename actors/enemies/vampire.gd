@@ -166,6 +166,11 @@ func _ground_at(x: float, from_y: float) -> float:
 	return maxf(hit.y, _floor_y - 6.0)
 
 
+## С какой стороны герой (по X): к нему мышь поворачивает голову.
+func _to_hero() -> float:
+	return _player.global_position.x - global_position.x if _player else facing
+
+
 func _clamp_x(x: float) -> float:
 	return clampf(x, _left_x, _right_x) if _left_x < _right_x else x
 
@@ -253,7 +258,11 @@ func _burst_out() -> void:
 		model.visible = false
 		bat.visible = true
 		bat.scale = Vector3.ONE * 0.3
-		bat.rotation = Vector3.ZERO
+		# Вылетает из тьмы стоймя, лицом к герою.
+		bat.hover = 1.0
+		bat.tuck = 0.0
+		bat.claws = 0.0
+		bat.steer(Vector3.ZERO, 1.0, _to_hero())
 	if bat.visible:
 		bat.scale = Vector3.ONE * lerpf(0.3, 1.0, clampf((_move_t - 0.05) / 0.3, 0.0, 1.0))
 	if _move_t >= 0.45:
@@ -278,8 +287,9 @@ func _bat_up() -> void:
 	var k := smoothstep(0.0, 1.0, _move_t / time)
 	var last := global_position
 	global_position = _from.lerp(_to, k) + Vector3(0.0, sin(k * PI) * 0.8, 0.0)
-	bat.steer((global_position - last) / maxf(get_physics_process_delta_time(), 0.001), get_physics_process_delta_time())
+	bat.steer((global_position - last) / maxf(get_physics_process_delta_time(), 0.001), get_physics_process_delta_time(), _to_hero())
 	bat.flap = 1.0
+	bat.hover = 1.0 - k * 0.6
 	if _move_t >= time:
 		_set_move(Move.BAT_AIM)
 		_set_state(State.WINDUP)
@@ -291,11 +301,14 @@ func _bat_up() -> void:
 func _bat_aim(delta: float) -> void:
 	var k := clampf(_move_t / swoop_windup, 0.0, 1.0)
 	bat.eyes_flare = k
-	bat.flap = 1.0 - k * 0.6
+	bat.flap = 1.0 - k * 0.3
+	# Зависла стоймя, отпрянула и подобрала когти — сейчас бросится.
+	bat.hover = 1.0
+	bat.claws = k * 0.4
 	var px := _player.global_position.x if _player else global_position.x
 	var away := signf(global_position.x - px)
 	global_position = _to + Vector3(away * 0.4 * k, 0.25 * k, 0.0)
-	bat.steer(Vector3.ZERO, delta)
+	bat.steer(Vector3.ZERO, delta, _to_hero())
 	if _move_t >= swoop_windup:
 		_from = global_position
 		_swoop_x = px
@@ -318,8 +331,12 @@ func _bat_swoop() -> void:
 	var low := _floor_y + swoop_height - GiantBat.CENTER
 	global_position = Vector3(x, low + (_from.y - low) * u * u, 0.0)
 	var delta := get_physics_process_delta_time()
-	bat.steer((global_position - last) / maxf(delta, 0.001), delta)
-	bat.flap = 0.35
+	bat.steer((global_position - last) / maxf(delta, 0.001), delta, _to_hero())
+	# Пике: крылья поджаты, у героя — когти вперёд, на выходе снова машет.
+	bat.flap = 0.25 + absf(u) * 0.5
+	bat.hover = 0.0
+	bat.tuck = clampf(1.0 - absf(u) * 1.2, 0.0, 0.7)
+	bat.claws = clampf(1.0 - absf(u) * 1.5, 0.0, 1.0)
 	bat.eyes_flare = 1.0 - k
 	# Бьёт, пока низко: наверху дуги мышь не опасна.
 	_body_hit.active = global_position.y + GiantBat.CENTER < _floor_y + 1.8
@@ -328,6 +345,8 @@ func _bat_swoop() -> void:
 		_swoops_left -= 1
 		if _swoops_left > 0:
 			_to = global_position
+			# Пролетела за спину — сразу разворачивается к герою.
+			bat.steer(Vector3.ZERO, 0.0, _to_hero())
 			_set_move(Move.BAT_AIM)
 			_set_state(State.WINDUP)
 			windup_time = swoop_windup
@@ -345,7 +364,11 @@ func _bat_land() -> void:
 	var last := global_position
 	global_position = _from.lerp(_to, k * k)
 	var delta := get_physics_process_delta_time()
-	bat.steer((global_position - last) / maxf(delta, 0.001), delta)
+	bat.steer((global_position - last) / maxf(delta, 0.001), delta, _to_hero())
+	bat.flap = 1.0
+	bat.hover = 1.0
+	bat.tuck = 0.0
+	bat.claws = 0.0
 	if k >= 1.0:
 		DarkBurst.spawn(get_parent(), global_position, 0.6)
 		Sfx.play(&"bat_burst", global_position, -4.0)
@@ -360,6 +383,8 @@ func _end_move() -> void:
 	_body_hit.active = false
 	bat.visible = false
 	bat.eyes_flare = 0.0
+	bat.tuck = 0.0
+	bat.claws = 0.0
 	if model:
 		model.visible = true
 		model.spread = 0.0

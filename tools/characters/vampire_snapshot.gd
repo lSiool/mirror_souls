@@ -1,6 +1,6 @@
 extends Node
 ## Снимки приёма вампира «Мышь» (§6.3) в галерее замка: взлёт с плащом-крыльями, вис, пике,
-## тёмный взрыв, мышь, замах пике мыши, пролёт, посадка. Нужен рендер — запускать без --headless.
+## тёмный взрыв, мышь, замах пике мыши, пролёт, посадка; крупно — риг мыши в покое и позах. Нужен рендер — запускать без --headless.
 ## Картинки — в user://vampire_snapshots/.
 
 const OUT := "user://vampire_snapshots"
@@ -54,6 +54,7 @@ func _ready() -> void:
 	await _until(vamp, Vampire.Move.NONE)
 	await _wait(0.1)
 	await _shot("9_human_again", vamp)
+	await _rig_sheet(vamp)
 	print("snapshots: ", ProjectSettings.globalize_path(OUT))
 	get_tree().quit()
 
@@ -69,7 +70,7 @@ func _until(vamp: Vampire, move: Vampire.Move) -> void:
 		await get_tree().physics_frame
 
 
-func _shot(shot_name: String, vamp: Vampire) -> void:
+func _shot(shot_name: String, vamp: Node3D) -> void:
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	var cam := get_viewport().get_camera_3d()
@@ -79,3 +80,26 @@ func _shot(shot_name: String, vamp: Vampire) -> void:
 	var part := img.get_region(crop)
 	part.resize(400, 400 * crop.size.y / maxi(crop.size.x, 1), Image.INTERPOLATE_LANCZOS)
 	part.save_png("%s/%s.png" % [OUT, shot_name])
+
+
+## Риг мыши крупно: покой (T-поза), полёт, вис, пике с когтями — в профиль к герою справа.
+func _rig_sheet(vamp: Vampire) -> void:
+	vamp.visible = false
+	var bat := GiantBat.build(_rooms.current_room)
+	bat.global_position = Vector3(_player.global_position.x + 3.0, vamp.global_position.y + 1.0, 0.0)
+	var poses := {
+		"r1_rest": {"rest_pose": true},
+		"r2_fly": {"flap": 1.0, "hover": 0.0, "tuck": 0.0, "claws": 0.0},
+		"r3_hover": {"flap": 0.6, "hover": 1.0, "tuck": 0.0, "claws": 0.2},
+		"r4_swoop_claws": {"flap": 0.2, "hover": 0.0, "tuck": 0.7, "claws": 1.0},
+	}
+	for shot: String in poses:
+		bat.rest_pose = false
+		for key: String in poses[shot]:
+			bat.set(key, poses[shot][key])
+		bat.steer(Vector3.ZERO, 1.0, -1.0)
+		if bat.rest_pose:
+			bat.skeleton.rotation = Vector3.ZERO
+		await _wait(0.4)
+		await _shot(shot, bat)
+	bat.queue_free()
