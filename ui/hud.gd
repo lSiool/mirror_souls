@@ -21,7 +21,8 @@ const LIGHT_GAIN := 3.0
 const DIM_MIN := 0.62
 const MARK := preload("res://assets/ui/hud/mark.svg")
 const MARK_EMPTY := preload("res://assets/ui/hud/mark_empty.svg")
-const MEDALLION := preload("res://assets/ui/hud/painted/medallion.png")
+## Рамка медальона — картинка автора; дыра кольца: центр (241, 235), поперечник ~200 px.
+const MEDALLION := preload("res://assets/ui/hud/painted/medallion_v2.png")
 ## Нарисованные рамка значка эффекта и треугольники бафф/дебафф (лист автора, tools/ui/cut_hud_sheet.py).
 const BUFF_FRAME := preload("res://assets/ui/hud/painted/buff_frame.png")
 const BUFF_UP := preload("res://assets/ui/hud/painted/tri_up_green.png")
@@ -322,13 +323,19 @@ func _build_weapon_panel() -> void:
 	_weapon_marks.alignment = BoxContainer.ALIGNMENT_END
 	_weapon_marks.add_theme_constant_override("separation", 4)
 	text.add_child(_weapon_marks)
-	var medal := TextureRect.new()
-	medal.texture = MEDALLION
+	var medal := Control.new()
 	medal.custom_minimum_size = Vector2(128, 128)
-	medal.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	medal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(medal)
-	_metal.append(medal)
+	# Рамка шире ячейки (шипы, потёки) — кладём так, чтобы дыра кольца легла на значок.
+	var ring := TextureRect.new()
+	ring.texture = MEDALLION
+	ring.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ring.position = Vector2(-19, -17)
+	ring.size = Vector2(164, 185)
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	medal.add_child(ring)
+	_metal.append(ring)
 	_weapon_icon = TextureRect.new()
 	_weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_weapon_icon.position = Vector2(36, 37)
