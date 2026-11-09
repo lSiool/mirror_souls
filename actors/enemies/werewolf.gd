@@ -61,6 +61,10 @@ var in_scene := false
 @onready var head: Node3D = $Visual/Head
 
 
+func _init() -> void:
+	creature = CreatureKind.Kind.WEREWOLF
+
+
 func _ready() -> void:
 	super()
 	if GameState.has_flag(gone_flag):
@@ -280,6 +284,13 @@ func _on_hurt(hitbox: Hitbox) -> void:
 		_hits_taken += 1
 
 
+## Ослеп: недовольный рёв, руки в стороны (§6.2). Рёв безвредный — это окно для атаки.
+func _on_blinded() -> void:
+	_hits_taken = 0
+	Events.camera_shake_requested.emit(0.25, 0.4)
+	Sfx.play_ui(&"distant_howl", -8.0)
+
+
 func _land() -> void:
 	Events.camera_shake_requested.emit(0.5, 0.3)
 	HitStop.stop(0.05)
@@ -355,8 +366,17 @@ func _update_extra(delta: float) -> void:
 		State.RECOVER:
 			arm = 0.5
 			crouch = 0.9
+	var arm_back_to := arm * 0.6
+	if state == State.BLINDED:
+		# Ревёт, раскинув руки: одна вперёд, другая назад, когти дрожат; морда к небу.
+		var shiver := sin(_state_time * 30.0) * 0.08
+		arm = 1.9 + shiver
+		arm_back_to = -1.9 - shiver
+		crouch = 1.08
+		howl = 0.9
+		speed = 10.0
 	var k := 1.0 - exp(-speed * delta)
 	arm_front.rotation.z = lerpf(arm_front.rotation.z, arm, k)
-	arm_back.rotation.z = lerpf(arm_back.rotation.z, arm * 0.6, k)
+	arm_back.rotation.z = lerpf(arm_back.rotation.z, arm_back_to, k)
 	visual.scale.y = lerpf(visual.scale.y, crouch, k)
 	head.rotation.z = lerpf(head.rotation.z, howl, 1.0 - exp(-6.0 * delta))

@@ -9,6 +9,12 @@ const SEEN_RANGE := 7.0
 
 var _wing_materials: Array[StandardMaterial3D] = []
 
+@onready var eyes: Array[Node3D] = [$Visual/EyeA, $Visual/EyeB]
+
+
+func _init() -> void:
+	creature = CreatureKind.Kind.SPIRIT
+
 
 func _ready() -> void:
 	super()
@@ -29,6 +35,12 @@ func _physics_process(delta: float) -> void:
 		alpha = lerpf(NEAR_ALPHA, FAR_ALPHA, clampf(distance / SEEN_RANGE, 0.0, 1.0))
 	if state == State.WINDUP or state == State.ATTACK:
 		alpha = NEAR_ALPHA
+	# Ослеп (§6.2): глаза зажмурены, тело тает в тумане.
+	var blind := state == State.BLINDED
+	if blind:
+		alpha = FAR_ALPHA * 0.5
+	for eye in eyes:
+		eye.scale.y = lerpf(eye.scale.y, 0.12 if blind else 1.0, 1.0 - exp(-10.0 * delta))
 	body_color.a = alpha
 	for material in _wing_materials:
 		material.albedo_color.a = alpha

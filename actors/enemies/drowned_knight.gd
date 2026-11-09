@@ -41,6 +41,11 @@ var _bash_reply := false
 @onready var blade: Node3D = $Visual/Blade
 
 
+func _init() -> void:
+	creature = CreatureKind.Kind.SKELETON
+	graybox_arms = false
+
+
 func _ready() -> void:
 	super()
 	visual.position.y = UNDERWATER

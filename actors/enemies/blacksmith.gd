@@ -86,6 +86,10 @@ var statue := false
 @onready var eyes: Array[Node3D] = [$Visual/Head/EyeA, $Visual/Head/EyeB]
 
 
+func _init() -> void:
+	creature = CreatureKind.Kind.CURSED
+
+
 func _ready() -> void:
 	super()
 	leaves_statue = true
@@ -100,6 +104,19 @@ func _ready() -> void:
 		visual.position.y = -0.95
 		body_mesh.rotation.z = -0.35
 		hammer.rotation.z = POSE_OVERHEAD * 0.4
+
+
+func _grip_node() -> Node3D:
+	return get_node_or_null(^"Visual/Hammer") as Node3D
+
+
+func _two_handed_grip() -> bool:
+	return true
+
+
+## Ослеп: молот отпущен, руки к глазам.
+func _carry_grip_when_blind() -> bool:
+	return false
 
 
 # --- Вступление и вторая фаза --------------------------------------------------
@@ -771,4 +788,8 @@ func _update_extra(delta: float) -> void:
 		State.OFF_BALANCE:
 			pose = POSE_FLOOR
 			speed = 6.0
+		State.BLINDED:
+			# Отпустил молот: тот встал навершием в землю.
+			pose = POSE_FLOOR
+			speed = 4.0
 	hammer.rotation.z = lerpf(hammer.rotation.z, pose, 1.0 - exp(-speed * delta))

@@ -20,6 +20,10 @@ var _dive_to := Vector3.ZERO
 @onready var wing_right: Node3D = $Visual/WingRight
 
 
+func _init() -> void:
+	creature = CreatureKind.Kind.BEAST
+
+
 func _ready() -> void:
 	super()
 	state = State.PATROL
@@ -60,6 +64,9 @@ func _physics_process(delta: float) -> void:
 			if to_goal.length() < 0.3 or _state_time >= attack_time:
 				attack_hitbox.active = false
 				_set_state(State.RECOVER)
+		State.BLINDED:
+			# Ослеп (призрак): отплывает от героя и вверх, пока слепота не кончится.
+			velocity = velocity.lerp(Vector3(-facing * 1.2, 0.6, 0.0), minf(1.0, 3.0 * delta))
 		_:
 			velocity = velocity.lerp(Vector3(0.0, hover_speed * 0.6, 0.0), minf(1.0, 6.0 * delta))
 			if _state_time >= recover_time:
@@ -77,6 +84,13 @@ func _physics_process(delta: float) -> void:
 	wing_left.rotation.z = -flap
 	wing_right.rotation.z = flap
 	_update_material(delta)
+
+
+## Летучая мышь летает по эхолокации: свет её не слепит (§6.2), хоть она и зверь.
+func _status_reaction(id: StringName) -> CreatureKind.Reaction:
+	if id == Statuses.BLIND and creature == CreatureKind.Kind.BEAST:
+		return CreatureKind.Reaction.IMMUNE
+	return super(id)
 
 
 ## Кружит над героем; пора — замирает перед пике.
@@ -110,4 +124,6 @@ func _on_hurt(hitbox: Hitbox) -> void:
 	_awake = true
 	attack_hitbox.active = false
 	velocity = hitbox.knockback_direction(self) * 4.0 + Vector3(0.0, 3.0, 0.0)
-	_set_state(State.RECOVER)
+	# Слепого удар отбрасывает, но не будит.
+	if state != State.BLINDED:
+		_set_state(State.RECOVER)

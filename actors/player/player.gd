@@ -217,6 +217,8 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 	hurtbox.hurt.connect(_on_hurt)
 	statuses = Statuses.new(health, 1.7)
+	# Слепота героя (ловушки, склянки врагов) решена на потом (§6.2): пока не слепнет.
+	statuses.resist = func(id: StringName, time: float) -> float: return 0.0 if id == Statuses.BLIND else time
 	add_child(statuses)
 	statuses.started.connect(add_effect)
 	statuses.ended.connect(remove_effect)

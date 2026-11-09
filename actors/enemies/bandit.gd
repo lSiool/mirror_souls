@@ -23,6 +23,8 @@ const HEAVY_WINDUP := 0.6
 const OVERHEAD_WINDUP := 0.85
 ## Оружие после удара ещё лежит: столько сверх стадии враг открыт.
 const HEAVY_RECOVER_EXTRA := 0.3
+## Угол подсвечника в слепоте: вниз и чуть вперёд (0 — вверх, «−» — вперёд).
+const BLIND_BLADE := -2.85
 
 @export var kind := Kind.HEAVY
 @export var partner_path: NodePath
@@ -53,6 +55,20 @@ func _ready() -> void:
 	if _prop:
 		_prop_base = _prop.position
 		_pose(CANDLESTICK.rest_blade, CANDLESTICK.rest_grip)
+
+
+## Руки graybox (§6.3): подсвечник — двумя руками, нож — одной.
+func _grip_node() -> Node3D:
+	return get_node_or_null(^"Visual/PropPivot" if kind == Kind.HEAVY else ^"Visual/Prop") as Node3D
+
+
+func _two_handed_grip() -> bool:
+	return kind == Kind.HEAVY
+
+
+## Нож кисть несёт сама; подсвечник ведёт поза молота (_update_extra) — плавно к лицу и обратно.
+func _carry_grip_when_blind() -> bool:
+	return kind == Kind.KNIFE
 
 
 ## Выпустить из засады: сразу в бой.
@@ -154,6 +170,10 @@ func _update_extra(delta: float) -> void:
 		return
 	var rest := Vector3(CANDLESTICK.rest_blade, CANDLESTICK.rest_grip.x, CANDLESTICK.rest_grip.y)
 	var target := rest
+	# Ослеп и трёт глаза: подсвечник повис в руке навершием вниз — не похоже на замах.
+	if state == State.BLINDED and arms and blind_reaction == CreatureKind.Reaction.RUB_EYES:
+		var hand := arms.hand(arms.front)
+		target = Vector3(BLIND_BLADE, hand.x - _prop_base.x, hand.y - _prop_base.y)
 	if _move and state in [State.WINDUP, State.ATTACK, State.RECOVER]:
 		var from := Vector3(_move.blade_from, _move.grip_from.x, _move.grip_from.y)
 		var to := Vector3(_move.blade_to, _move.grip_to.x, _move.grip_to.y)

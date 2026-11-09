@@ -77,6 +77,7 @@ windup_tint = 0.2
 echoes = 0
 rank = 2
 weapon_type = &"hammer"
+blind_resistance = 0.5
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)

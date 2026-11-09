@@ -1384,6 +1384,110 @@ func run() -> void:
 	soldier._set_state(Dummy.State.PATROL)
 	await seconds(0.3)
 
+	print("== Слепота: общий эффект, своя реакция у каждого класса врага (§6.2, §6.3)")
+	# Солдат стоит на месте; в конце всё возвращаем.
+	soldier_home = soldier.global_position
+	soldier_look = soldier.facing
+	soldier.patrol_speed = 0.0
+	soldier.chase_speed = 0.0
+	player.restore()
+	await face_enemy(soldier, 1.6)
+	check(soldier.arms != null and soldier.creature == CreatureKind.Kind.HUMAN, "у солдата-человека руки graybox")
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(soldier.state == Dummy.State.BLINDED and soldier.blind_reaction == CreatureKind.Reaction.RUB_EYES
+		and is_equal_approx(soldier.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME), "солдат ослеп на 4 с: человек трёт глаза")
+	await seconds(0.6)
+	# Ладонь у глаз в плоскости кадра: плечо graybox — сбоку тела, ближе к камере.
+	var palm := soldier.arms.hand(soldier.arms.front)
+	var palm_gap := Vector2(palm.x, palm.y).distance_to(Vector2(soldier._eye_point.x, soldier._eye_point.y))
+	check(soldier.blind_recoiling() and palm_gap < 0.3, "первую секунду отшатнулся, ладони у глаз (%.2f м)" % palm_gap)
+	var hp_blind := soldier.health.current
+	await tap("attack")
+	await seconds(0.5)
+	check(soldier.health.current < hp_blind and soldier.state == Dummy.State.BLINDED, "удар ранит, но из слепоты не выводит")
+	check(not soldier.can_be_riposted(), "человека в слепоте спереди не добить")
+	await seconds(0.3)
+	check(soldier.state == Dummy.State.BLINDED and not soldier.blind_recoiling(), "дальше трёт глаза и не нападает, хоть герой рядом")
+	for i in 300:
+		if soldier.state != Dummy.State.BLINDED:
+			break
+		await frames(1)
+	check(soldier.state != Dummy.State.BLINDED and not soldier.statuses.has(Statuses.BLIND), "слепота прошла — снова в бою")
+	# Привыкание: второе ослепление за бой короче; сопротивление укорачивает ещё.
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(is_equal_approx(soldier.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * Dummy.BLIND_HABIT),
+		"второй раз за бой — короче (%.1f с)" % soldier.statuses.time_left(Statuses.BLIND))
+	soldier.statuses.remove(Statuses.BLIND)
+	check(soldier.state == Dummy.State.CHASE, "слепоту сняли — враг снова в бою")
+	soldier._blind_count = 0
+	soldier.blind_resistance = 0.5
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(is_equal_approx(soldier.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * 0.5), "сопротивление 0.5 — вдвое короче")
+	soldier.statuses.remove(Statuses.BLIND)
+	soldier.blind_resistance = 0.0
+	soldier._blind_count = 0
+	soldier.creature = CreatureKind.Kind.SKELETON
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(not soldier.statuses.has(Statuses.BLIND) and soldier.state != Dummy.State.BLINDED, "скелета не ослепить: глаз нет")
+	player.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(not player.statuses.has(Statuses.BLIND), "герой пока не слепнет (решено на потом)")
+	# Вампир: слепота дезориентирует — окно для добивания спереди.
+	soldier.creature = CreatureKind.Kind.VAMPIRE
+	await face_enemy(soldier, 1.2)
+	soldier.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+	check(soldier.blind_reaction == CreatureKind.Reaction.DISORIENT and soldier.can_be_riposted()
+		and is_equal_approx(soldier.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * 0.75), "вампир дезориентирован на 3 с: можно добить спереди")
+	await seconds(0.3)
+	await tap("attack")
+	check(player.state == Player.State.CRITICAL, "удар по ослеплённому вампиру спереди — добивание")
+	await seconds(2.5)
+	check(not soldier.statuses.has(Statuses.BLIND), "после добивания слепоты нет")
+	soldier.creature = CreatureKind.Kind.HUMAN
+	soldier._blind_count = 0
+	# Враги леса и босс: у каждого класса своя реакция и своё время.
+	var classes := {
+		"rat": [CreatureKind.Reaction.SHAKE_HEAD, 0.5], "bat": [CreatureKind.Reaction.IMMUNE, 0.0],
+		"fog_wraith": [CreatureKind.Reaction.FADE, 0.5], "glass_crawler": [CreatureKind.Reaction.IMMUNE, 0.0],
+		"drowned_knight": [CreatureKind.Reaction.IMMUNE, 0.0], "werewolf": [CreatureKind.Reaction.ROAR, 0.5],
+		"blacksmith": [CreatureKind.Reaction.RUB_EYES, 0.5], "bandit_heavy": [CreatureKind.Reaction.RUB_EYES, 1.0],
+		"bandit_knife": [CreatureKind.Reaction.RUB_EYES, 1.0],
+	}
+	for id: String in classes:
+		var foe := (load("res://actors/enemies/%s.tscn" % id) as PackedScene).instantiate() as Dummy
+		# Не спит и не уходит: проверяем только реакцию.
+		foe.dormant = false
+		if foe is Werewolf:
+			(foe as Werewolf).gone_flag = &"test_never_set"
+		if foe is Blacksmith:
+			(foe as Blacksmith).boss_flag = &"test_never_set"
+		soldier.get_parent().add_child(foe)
+		foe.global_position = soldier_home + Vector3(60.0, 1.0, 0.0)
+		await frames(2)
+		if foe is Bat:
+			(foe as Bat)._awake = true
+		foe.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
+		var want: Array = classes[id]
+		var reaction: CreatureKind.Reaction = want[0]
+		var ok := not foe.statuses.has(Statuses.BLIND) and foe.state != Dummy.State.BLINDED
+		if reaction != CreatureKind.Reaction.IMMUNE:
+			ok = foe.state == Dummy.State.BLINDED and foe.blind_reaction == reaction \
+				and is_equal_approx(foe.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * want[1])
+		var humanoid_arms := (foe.arms != null) == (reaction == CreatureKind.Reaction.RUB_EYES)
+		check(ok and humanoid_arms, "%s: %s, %.1f с" % [id, CreatureKind.Reaction.keys()[reaction], foe.statuses.time_left(Statuses.BLIND)])
+		# Поза слепоты отыгрывается без ошибок.
+		await seconds(0.4)
+		foe.queue_free()
+	await frames(2)
+	soldier.health.heal_full()
+	soldier.patrol_speed = soldier_patrol
+	soldier.chase_speed = soldier_chase
+	soldier.global_position = soldier_home
+	soldier.facing = soldier_look
+	soldier.velocity = Vector3.ZERO
+	soldier._set_state(Dummy.State.PATROL)
+	player.restore()
+	await seconds(0.3)
+
 	print("== Меню паузы и наборы оружия I/II (§8.12)")
 	var pause_menu := rooms.level_menu
 	await put(Vector3(-20, 0.1, 0), 1.0)
