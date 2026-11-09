@@ -32,7 +32,8 @@ const PARAMS := {
 	PlayerStats.Param.VITALITY: ["Крепость", "вес снаряжения, защита"],
 	PlayerStats.Param.STRENGTH: ["Сила", "силовое оружие"],
 	PlayerStats.Param.DEXTERITY: ["Ловкость", "быстрое оружие, лук, добивания"],
-	PlayerStats.Param.INTELLIGENCE: ["Интеллект", "стеклянная магия"],
+	PlayerStats.Param.MEMORY: ["Память", "ячейки магии, мана, её восстановление"],
+	PlayerStats.Param.INTELLIGENCE: ["Интеллект", "урон стеклянной магии, мана"],
 	PlayerStats.Param.LUCK: ["Удача", "находки, кровотечение"],
 }
 const DEFENSE_NAMES := {&"physical": "Физическая", &"glass": "От стекла", &"fire": "От огня", &"cold": "От холода"}
@@ -533,9 +534,12 @@ func _hero_values() -> Array:
 		var bow_after := stats.bow_damage_max * (1.0 + dex * WeaponData.grade_mult(PlayerStats.BOW_GRADE)) * stats.facet_mult(&"bow_damage") * GameState.bow_damage_mult()
 		rows.append(["Урон лука", "%.0f" % (stats.bow_damage_max * stats.bow_damage_mult * GameState.bow_damage_mult()), "%.0f" % bow_after])
 	rows.append(["Добивание", "×%.2f" % stats.critical_mult, "×%.2f" % stats.critical_at(extra.get(PlayerStats.Param.DEXTERITY, 0))])
-	var intel := stats.points_in(PlayerStats.Param.INTELLIGENCE)
-	var intel_after: int = intel + extra.get(PlayerStats.Param.INTELLIGENCE, 0)
-	rows.append(["Стеклянная магия", "—" if intel == 0 else str(100 + 5 * intel), "—" if intel_after == 0 else str(100 + 5 * intel_after)])
+	var memory_more: int = extra.get(PlayerStats.Param.MEMORY, 0)
+	var intel_more: int = extra.get(PlayerStats.Param.INTELLIGENCE, 0)
+	rows.append(["Мана", "%.0f" % stats.max_mana, "%.0f" % stats.mana_at(memory_more, intel_more)])
+	rows.append(["Ячейки магии", str(stats.spell_slots), str(stats.spell_slots_at(memory_more))])
+	rows.append(["Восстановление маны", "%.1f/с" % stats.mana_regen, "%.1f/с" % stats.mana_regen_at(memory_more)])
+	rows.append(["Стеклянная магия", "×%.2f" % stats.spell_damage_mult, "×%.2f" % stats.spell_damage_at(intel_more)])
 	var luck_after: int = stats.points_in(PlayerStats.Param.LUCK) + extra.get(PlayerStats.Param.LUCK, 0)
 	rows.append(["Находчивость", "%.0f" % stats.discovery, "%.0f" % (100.0 + stats.discovery_per_point * luck_after)])
 	rows.append(["Кровотечение", "×%.2f" % stats.bleed_mult, "×%.2f" % (1.0 + stats.bleed_per_point * luck_after)])

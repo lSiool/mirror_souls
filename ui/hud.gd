@@ -35,6 +35,12 @@ const HP_WIDTH_MAX := 1000.0
 const STAMINA_WIDTH_START := 280.0
 const STAMINA_WIDTH_PER_POINT := 2.7
 const STAMINA_WIDTH_MAX := 700.0
+## Мана (§6.2) — третья полоса под выносливостью: та же рама, синяя заливка, ниже на MANA_DROP.
+const MANA_WIDTH_START := 200.0
+const MANA_WIDTH_PER_POINT := 2.7
+const MANA_WIDTH_MAX := 700.0
+const MANA_DROP := 30.0
+const MANA_TINT := Color(0.45, 0.62, 1.0)
 ## Ромб ячейки расходника (заглушка из референса автора, tools/ui/cut_quick_cross.py).
 const QUICK_CELL := preload("res://assets/ui/hud/painted/quick_cell.png")
 ## Крестовина: размер ромба и сдвиг ячеек от середины — по референсу ромбы заходят друг на друга.
@@ -81,6 +87,11 @@ var _quick_icons: Array[TextureRect] = []
 var _health_max_shown := -1.0
 var _stamina_max_shown := -1.0
 var _quick_counts: Array[Label] = []
+var mana_bar: TextureProgressBar
+var mana_frame: BarFrame
+var _mana_max_shown := -1.0
+## Заклинание в активной ячейке (§6.2) — строка в панели оружия.
+var spell_line: Label
 
 @onready var health_bar: TextureProgressBar = %HealthBar
 @onready var stamina_bar: TextureProgressBar = %StaminaBar
@@ -127,6 +138,9 @@ func _ready() -> void:
 	currency_label.pivot_offset = Vector2(320.0, 18.0)
 	_build_weapon_panel()
 	_build_quick_cross()
+	_build_mana_bar()
+	Events.spells_changed.connect(_refresh_spell)
+	_refresh_spell()
 	Events.quick_items_changed.connect(_refresh_quick)
 	for path in ["TopLeft/Medallion", "TopLeft/Badge", "TopLeft/HealthFrame", "TopLeft/StaminaFrame"]:
 		_metal.append(get_node(path))
@@ -273,6 +287,8 @@ func _build_weapon_panel() -> void:
 	text.alignment = BoxContainer.ALIGNMENT_END
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(text)
+	spell_line = _panel_label(text, 18, Color(0.78, 0.86, 1.0))
+	spell_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_second_line = _panel_label(text, 16, Color(0.72, 0.74, 0.76, 0.75))
 	_second_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var bow_row := HBoxContainer.new()
@@ -579,6 +595,49 @@ func cinematic(on: bool, time := 0.5) -> void:
 
 
 ## Не хватило выносливости: полоса коротко вспыхивает красным.
+## Полоса маны — копия полосы выносливости ниже неё; ряд эффектов опускается под неё.
+func _build_mana_bar() -> void:
+	mana_frame = stamina_frame.duplicate() as BarFrame
+	mana_frame.name = &"ManaFrame"
+	mana_bar = stamina_bar.duplicate() as TextureProgressBar
+	mana_bar.name = &"ManaBar"
+	mana_bar.unique_name_in_owner = false
+	mana_bar.tint_progress = MANA_TINT
+	var top := stamina_frame.get_parent()
+	top.add_child(mana_bar)
+	top.add_child(mana_frame)
+	top.move_child(mana_bar, stamina_frame.get_index())
+	mana_frame.position.y += MANA_DROP
+	mana_bar.position.y += MANA_DROP
+	effects_row.position.y += MANA_DROP
+	_metal.append(mana_frame)
+	_player.mana_changed.connect(_on_mana_changed)
+	_player.mana_short.connect(_flash_mana)
+	_on_mana_changed(_player.mana, _player.stats.max_mana)
+
+
+func _on_mana_changed(current: float, maximum: float) -> void:
+	if maximum != _mana_max_shown:
+		_mana_max_shown = maximum
+		var extra := maximum - _player.stats.base_mana
+		_fit_bar(mana_frame, mana_bar, minf(MANA_WIDTH_START + extra * MANA_WIDTH_PER_POINT, MANA_WIDTH_MAX))
+	mana_bar.max_value = maximum
+	mana_bar.value = current
+
+
+func _flash_mana() -> void:
+	var tween := create_tween()
+	tween.tween_property(mana_bar, "modulate", Color(1.0, 0.3, 0.25), 0.06)
+	tween.tween_property(mana_bar, "modulate", Color.WHITE, 0.35)
+
+
+## Активное заклинание: значок и имя над оружием; нечего колдовать — строки нет.
+func _refresh_spell() -> void:
+	var id := GameState.current_spell(_player.stats.spell_slots)
+	spell_line.visible = id != &""
+	spell_line.text = "✦ %s" % ItemCatalog.display_name(id) if id != &"" else ""
+
+
 func _flash_stamina() -> void:
 	var tween := create_tween()
 	tween.tween_property(stamina_bar, "modulate", Color(1.0, 0.3, 0.25), 0.06)

@@ -12,14 +12,16 @@ const AGE_MAX := 22
 const YEARS_PER_LEVEL := 0.25
 const AGING_LEVELS := 120
 
-## Семь характеристик (§8.6). Числа — ключи сохранения: первые четыре совпадают с прежними
-## «здоровье, выносливость, сила, меткость», поэтому старые сейвы читаются как есть.
-enum Param { VIGOR, ENDURANCE, STRENGTH, DEXTERITY, VITALITY, INTELLIGENCE, LUCK }
+## Восемь характеристик (§8.6). Числа — ключи сохранения: первые четыре совпадают с прежними
+## «здоровье, выносливость, сила, меткость», поэтому старые сейвы читаются как есть; Память (2026-11-09)
+## дописана в конец по той же причине.
+enum Param { VIGOR, ENDURANCE, STRENGTH, DEXTERITY, VITALITY, INTELLIGENCE, LUCK, MEMORY }
 ## Порядок в меню и id для скалирования оружия (WeaponData.scaling).
 const PARAM_ORDER: Array[Param] = [Param.VIGOR, Param.ENDURANCE, Param.VITALITY, Param.STRENGTH,
-	Param.DEXTERITY, Param.INTELLIGENCE, Param.LUCK]
+	Param.DEXTERITY, Param.MEMORY, Param.INTELLIGENCE, Param.LUCK]
 const PARAM_IDS := {Param.VIGOR: &"vigor", Param.ENDURANCE: &"endurance", Param.VITALITY: &"vitality",
-	Param.STRENGTH: &"strength", Param.DEXTERITY: &"dexterity", Param.INTELLIGENCE: &"intelligence", Param.LUCK: &"luck"}
+	Param.STRENGTH: &"strength", Param.DEXTERITY: &"dexterity", Param.INTELLIGENCE: &"intelligence", Param.LUCK: &"luck",
+	Param.MEMORY: &"memory"}
 ## Виды защиты и сопротивлений (§8.6): пока числа в меню, броня и стихии придут позже.
 const DEFENSES: Array[StringName] = [&"physical", &"glass", &"fire", &"cold"]
 const RESISTANCES: Array[StringName] = [&"bleed", &"blind", &"cold", &"heat"]
@@ -34,6 +36,10 @@ const HEALTH_STEPS := [[15, 6.0], [15, 4.0], [20, 2.0], [49, 0.5]]
 
 ## Слотов для граней с самого начала; ещё — от находок в мире.
 const BASE_FACET_SLOTS := 3
+
+## Ячейки магии (§6.2): одна с самого начала, ещё по одной на столько очков Памяти.
+const BASE_SPELL_SLOTS := 1
+const MEMORY_SLOT_STEPS: Array[int] = [10, 20, 35, 50]
 
 @export_range(AGE_MIN, AGE_MAX) var age := 17:
 	set(value):
@@ -97,6 +103,19 @@ const BASE_FACET_SLOTS := 3
 @export var mobility_floor := 90.0
 ## За сколько лет после пика подвижность спадает до планки.
 @export var mobility_fall_years := 15.0
+
+@export_group("Магия")
+## Мана (§6.2, 2026-11-09): база, прибавка от Памяти (главная) и от Интеллекта (меньше).
+@export var base_mana := 30.0
+@export var memory_mana_cap := 150.0
+@export var intelligence_mana_cap := 60.0
+## Восстановление маны в секунду — только от Памяти, и медленное: потолок, к которому очки
+## подходят всё медленнее. Без Памяти мана возвращается только у осколка.
+@export var mana_regen_cap := 2.5
+## Урон стеклянных заклинаний от Интеллекта: прибавка, доля (1.5 — плюс 150 %).
+@export var spell_damage_cap := 1.5
+## Сколько секунд после заклинания мана не восстанавливается.
+@export var mana_regen_delay := 1.5
 
 @export_group("Движение")
 @export var gravity := 32.0
@@ -249,6 +268,15 @@ var bleed_mult: float:
 	get: return 1.0 + bleed_per_point * points_in(Param.LUCK)
 var mobility: float:
 	get: return mobility_at(current_age)
+var max_mana: float:
+	get: return mana_at(0, 0)
+var mana_regen: float:
+	get: return mana_regen_at(0)
+var spell_slots: int:
+	get: return spell_slots_at(0)
+## Множитель урона заклинаний от Интеллекта.
+var spell_damage_mult: float:
+	get: return spell_damage_at(0)
 
 var move_speed: float:
 	get: return speed_at(current_age) * facet_mult(&"move_speed")
@@ -294,6 +322,33 @@ func attribute_bonus(scaling: Dictionary, extra := {}) -> float:
 		if grade != "":
 			total += bonus_with(param, extra.get(param, 0)) * WeaponData.grade_mult(grade)
 	return total
+
+
+## Мана с extra очками Памяти и Интеллекта.
+func mana_at(extra_memory: int, extra_intelligence: int) -> float:
+	return base_mana + memory_mana_cap * _soft(points_in(Param.MEMORY) + extra_memory) \
+		+ intelligence_mana_cap * _soft(points_in(Param.INTELLIGENCE) + extra_intelligence)
+
+
+func mana_regen_at(extra_memory: int) -> float:
+	return mana_regen_cap * _soft(points_in(Param.MEMORY) + extra_memory)
+
+
+func spell_slots_at(extra_memory: int) -> int:
+	var memory := points_in(Param.MEMORY) + extra_memory
+	var slots := BASE_SPELL_SLOTS
+	for step in MEMORY_SLOT_STEPS:
+		if memory >= step:
+			slots += 1
+	return slots
+
+
+func spell_damage_at(extra_intelligence: int) -> float:
+	return 1.0 + spell_damage_cap * _soft(points_in(Param.INTELLIGENCE) + extra_intelligence)
+
+
+func _soft(count: int) -> float:
+	return 1.0 - exp(-float(count) / bonus_softness)
 
 
 func critical_at(extra: int) -> float:

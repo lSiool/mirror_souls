@@ -1,8 +1,9 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="1_room"]
 [ext_resource type="Script" path="res://world/common/room_door.gd" id="2_door"]
 [ext_resource type="PackedScene" path="res://actors/enemies/vampire.tscn" id="3_vampire"]
+[ext_resource type="Script" path="res://world/common/item_pickup.gd" id="4_pickup"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_stone"]
 albedo_color = Color(0.3, 0.29, 0.3, 1)
@@ -90,6 +91,9 @@ material = SubResource("Mat_coffin")
 
 [node name="Spawns" type="Node3D" parent="."]
 
+[node name="PlayerStart" type="Marker3D" parent="Spawns"]
+position = Vector3(-13, 0.1, 0)
+
 [node name="FromRoom001" type="Marker3D" parent="Spawns"]
 position = Vector3(-13, 0.1, 0)
 
@@ -106,3 +110,13 @@ open_prompt = "Вернуться"
 position = Vector3(5, 0, 0)
 facing = -1.0
 patrol_distance = 3.0
+
+[node name="StaffFind" type="Area3D" parent="Objects"]
+position = Vector3(12, 0, 0)
+script = ExtResource("4_pickup")
+weapon_id = &"staff"
+spell_id = &"glint"
+flag = &"got_staff"
+pickup_prompt = "Подобрать посох"
+look_size = Vector3(1.6, 0.08, 0.08)
+look_color = Color(0.2, 0.15, 0.11, 1)

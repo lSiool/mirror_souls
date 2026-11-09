@@ -18,13 +18,13 @@ const BOWS := {
 	&"bow_guard": ["лук стражи", 1.2, 1.2],
 }
 ## Оружие ближнего боя, которое герой носит с собой: в руке одно, сменить — у осколка.
-const WEAPONS: Array[StringName] = [&"stick", &"sword", &"candlestick"]
+const WEAPONS: Array[StringName] = [&"stick", &"sword", &"candlestick", &"staff"]
 ## Щит-гоплон: продаёт кузнец часовни (§6.2).
 const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow"]
+	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "spells", "spell_slots", "active_spell"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -47,6 +47,13 @@ var quick_slots := [&"", &"", &"", &""]
 const ARROW_SLOTS := 2
 var arrow_slots := [&"", &""]
 var active_arrow := 0
+## Стеклянная магия (§6.2): выученные заклинания и ячейки магии. Ячеек открыто столько, сколько
+## даёт Память (PlayerStats.spell_slots); здесь — их содержимое по порядку (до MAX_SPELL_SLOTS),
+## пусто — ячейка пуста. В бою «сменить заклинание» листает непустые открытые ячейки.
+const MAX_SPELL_SLOTS := 5
+var spells := []
+var spell_slots := [&"", &"", &"", &"", &""]
+var active_spell := 0
 ## Сохранять ли на диск (тесты отключают) и куда.
 var saves_enabled := true
 var save_path := "user://save.sav"
@@ -90,6 +97,7 @@ func reset() -> void:
 	Events.echoes_changed.emit(echoes)
 	Events.quick_items_changed.emit()
 	Events.arrows_changed.emit()
+	Events.spells_changed.emit()
 
 
 func has_save() -> bool:
@@ -126,6 +134,7 @@ func load_game() -> Dictionary:
 	Events.echoes_changed.emit(echoes)
 	Events.quick_items_changed.emit()
 	Events.arrows_changed.emit()
+	Events.spells_changed.emit()
 	return data.get("extra", {})
 
 
@@ -247,6 +256,46 @@ func current_arrow() -> StringName:
 
 
 ## Кнопка «сменить стрелы»: другое гнездо.
+## Выучить заклинание: само ложится в первую пустую ячейку.
+func learn_spell(id: StringName) -> void:
+	if id in spells:
+		return
+	spells.append(id)
+	var free := spell_slots.find(&"")
+	if free >= 0:
+		spell_slots[free] = id
+	Events.spells_changed.emit()
+
+
+## Заклинание в активной ячейке из открытых open; пусто — колдовать нечем.
+func current_spell(open: int) -> StringName:
+	var slot := _active_slot(open)
+	return spell_slots[slot] if slot >= 0 else &""
+
+
+## Следующая непустая открытая ячейка.
+func swap_spell(open: int) -> void:
+	var count := mini(open, MAX_SPELL_SLOTS)
+	for step in range(1, count + 1):
+		var slot := (active_spell + step) % count
+		if spell_slots[slot] != &"":
+			active_spell = slot
+			break
+	Events.spells_changed.emit()
+
+
+func _active_slot(open: int) -> int:
+	var count := mini(open, MAX_SPELL_SLOTS)
+	if count <= 0:
+		return -1
+	if active_spell < count and spell_slots[active_spell] != &"":
+		return active_spell
+	for slot in count:
+		if spell_slots[slot] != &"":
+			return slot
+	return -1
+
+
 func swap_arrows() -> void:
 	active_arrow = (active_arrow + 1) % ARROW_SLOTS
 	Events.arrows_changed.emit()

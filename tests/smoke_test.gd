@@ -423,9 +423,9 @@ func run() -> void:
 	check(stats.max_health <= stats.base_health + stats.health_bonus_cap, "здоровье не выше потолка (%.0f)" % stats.max_health)
 	stats.reset_progress()
 
-	print("== Семь характеристик и скалирование")
-	check(PlayerStats.PARAM_ORDER.size() == 7 and PlayerStats.Param.ENDURANCE == 1 and PlayerStats.Param.DEXTERITY == 3,
-		"семь характеристик; первые четыре — прежние ключи сейва")
+	print("== Восемь характеристик и скалирование")
+	check(PlayerStats.PARAM_ORDER.size() == 8 and PlayerStats.Param.ENDURANCE == 1 and PlayerStats.Param.DEXTERITY == 3
+		and PlayerStats.Param.MEMORY == 7, "восемь характеристик; первые четыре — прежние ключи сейва, Память — в конце")
 	var sword_plain := player.weapon_damage(WeaponData.by_id(&"sword"), 0)
 	var hammer_plain := player.weapon_damage(WeaponData.by_id(&"candlestick"), 0)
 	stats.points[PlayerStats.Param.STRENGTH] = 20
@@ -2053,7 +2053,7 @@ func run() -> void:
 	check(not game_state.has_save(), "тестовое сохранение удалено")
 	game_state.saves_enabled = false
 
-	print("== Галерея замка: вампир (§6.3)")
+	print("== Галерея замка: вампир (§6.3), стеклянная магия: посох, Память, мана, Блик (§6.2)")
 	player.restore()
 	var gallery_door := room_node("Objects/DoorToGallery") as Node3D
 	check(gallery_door != null, "в замке у ниши — дверь в галерею")
@@ -2079,14 +2079,88 @@ func run() -> void:
 			await frames(1)
 		check(clawed, "вампир заметил героя и бьёт когтями")
 		await wait_attack_over(vampire)
-		player.restore()
-		vampire.statuses.apply(Statuses.BLIND, Statuses.BLIND_TIME)
-		check(vampire.state == Dummy.State.BLINDED and vampire.can_be_riposted(), "Блик по вампиру: дезориентирован, открыт спереди")
+	# Посох лежит у гроба за вампиром; пока герой его берёт, вампир стоит.
+	var hero_stats := player.stats
+	hero_stats.reset_progress()
+	player.restore()
+	check(hero_stats.spell_slots == 1 and hero_stats.mana_regen == 0.0 and player.mana == hero_stats.max_mana,
+		"без Памяти: одна ячейка магии, мана сама не восстанавливается (%.0f маны)" % hero_stats.max_mana)
+	var vampire_chase := vampire.chase_speed if vampire else 0.0
+	if vampire:
+		vampire.chase_speed = 0.0
+	var staff_find := room_node("Objects/StaffFind") as Node3D
+	check(staff_find != null, "в галерее у гроба лежит посох")
+	if staff_find:
+		await put(Vector3(staff_find.global_position.x, 0.1, 0.0))
+		await seconds(0.2)
+		await tap("interact")
+		await frames(3)
+	check(player.weapon != null and player.weapon.id == &"staff" and player.weapon.catalyst, "подобрал посох — катализатор в руке")
+	check(&"glint" in game_state.spells and game_state.current_spell(hero_stats.spell_slots) == &"glint", "посох научил Блику: он в первой ячейке магии")
+	await seconds(0.3)
+	check(rooms.hud.spell_line.visible and rooms.hud.spell_line.text.contains("Блик") and rooms.hud.mana_bar.visible,
+		"HUD: полоса маны и активное заклинание")
+	# Память даёт больше маны, чем Интеллект; восстановление — только от Памяти.
+	var mana_base := hero_stats.max_mana
+	for i in 10:
+		hero_stats.add_point(PlayerStats.Param.INTELLIGENCE)
+	var mana_int := hero_stats.max_mana - mana_base
+	check(hero_stats.mana_regen == 0.0 and hero_stats.spell_damage_mult > 1.0, "Интеллект: урон магии ×%.2f, восстановления маны не даёт" % hero_stats.spell_damage_mult)
+	hero_stats.reset_progress()
+	for i in 10:
+		hero_stats.add_point(PlayerStats.Param.MEMORY)
+	var mana_mem := hero_stats.max_mana - mana_base
+	check(mana_mem > mana_int * 1.5 and hero_stats.spell_slots == 2, "Память: маны больше, чем от Интеллекта (+%.0f против +%.0f), вторая ячейка" % [mana_mem, mana_int])
+	check(hero_stats.mana_regen > 0.0 and hero_stats.mana_regen < 1.0, "Память: мана восстанавливается медленно (%.2f в секунду)" % hero_stats.mana_regen)
+	player.restore()
+	# Блик с посоха по вампиру: вспышка дезориентирует, мана тратится; потом — добивание спереди.
+	var casts: Array[GlintFlash] = []
+	var on_cast := func(_spell: SpellData, effect: Node3D) -> void: casts.append(effect as GlintFlash)
+	player.spell_cast.connect(on_cast)
+	if vampire:
+		vampire.chase_speed = vampire_chase
+		vampire._blind_count = 0
+		await face_enemy(vampire, 3.0)
+		var mana_before := player.mana
+		await tap("attack")
+		await frames(2)
+		check(player.state == Player.State.CAST, "удар посохом — заклинание")
+		await seconds(0.5)
+		check(casts.size() == 1 and vampire in casts[0].blinded and vampire.state == Dummy.State.BLINDED and vampire.can_be_riposted(),
+			"Блик дезориентировал вампира: открыт спереди")
+		var glint_cost := SpellData.by_id(&"glint").mana_cost
+		check(is_equal_approx(mana_before - player.mana, glint_cost), "Блик стоит %.0f маны" % glint_cost)
 		await put(Vector3(vampire.global_position.x + vampire.facing * 1.2, 0.1, 0.0), -vampire.facing)
 		await seconds(0.1)
+		var mana_low := player.mana
 		await tap("attack")
-		check(player.state == Player.State.CRITICAL, "добивание ослеплённого вампира спереди")
+		check(player.state == Player.State.CRITICAL, "добивание дезориентированного вампира спереди")
 		await seconds(2.5)
+		check(player.mana > mana_low, "мана понемногу возвращается (%.1f → %.1f)" % [mana_low, player.mana])
+	player.spell_cast.disconnect(on_cast)
+	# Нет маны — посох бьёт сам, полоса маны мигает.
+	var shorted := [false]
+	var on_short := func() -> void: shorted[0] = true
+	player.mana_short.connect(on_short)
+	player.restore()
+	player.mana = 0.0
+	await put(Vector3(-10.0, 0.1, 0.0), -1.0)
+	await seconds(0.2)
+	await tap("attack")
+	await frames(2)
+	check(player.state == Player.State.ATTACK and shorted[0], "нет маны — посох бьёт сам, полоса маны мигает")
+	player.mana_short.disconnect(on_short)
+	await seconds(0.8)
+	player.restore()
+	check(player.mana == hero_stats.max_mana, "отдых (как у осколка) — мана полная")
+	# Посох и Блик — только в этой проверке: дальше тест идёт как раньше.
+	hero_stats.reset_progress()
+	player.equip(&"sword")
+	game_state.items.erase(&"staff")
+	game_state.spells.clear()
+	game_state.spell_slots = [&"", &"", &"", &"", &""]
+	game_state.flags.erase(&"got_staff")
+	Events.spells_changed.emit()
 	player.restore()
 	await put(room_node("Objects/DoorBack").global_position + Vector3(0.0, 0.1, 0.0))
 	await seconds(0.2)

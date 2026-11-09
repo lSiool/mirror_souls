@@ -26,6 +26,8 @@ ECHO = '<path d="M32 10 C 40 22 46 30 46 38 A 14 14 0 0 1 18 38 C 18 30 24 22 32
 NOTE = '<path d="M18 14 H 42 L 46 18 V 50 H 18 Z" fill="#c9bb98" stroke="#5e4c30" stroke-width="1.5"/><path d="M23 24 H 41 M23 31 H 41 M23 38 H 37" stroke="#5e4c30" stroke-width="1.6"/>'
 MUD = '<path d="M14 42 q 6 -5 12 0 t 12 0 t 12 0 V 52 H 14 Z" fill="#3b2a18"/><path d="M27 14 v 18 l -6 6 h 18 v -6 l -4 -2 v -16 z" fill="#8f8172"/><path d="M14 42 q 6 -5 12 0 t 12 0 t 12 0" stroke="#8a6a3a" stroke-width="2.5" fill="none"/>'
 REGEN = '<path d="M32 12 C 40 24 46 31 46 38 A 14 14 0 0 1 18 38 C 18 31 24 24 32 12 Z" fill="#5f9e84"/><path d="M32 30 V 46 M24 38 H 40" stroke="#e6f4ee" stroke-width="3" stroke-linecap="round"/>'
+STAFF = '<path d="M20 54 L 42 16" stroke="#6e5034" stroke-width="5" stroke-linecap="round"/><circle cx="44" cy="13" r="6" fill="#b8dbff" fill-opacity="0.75" stroke="#e8f4ff" stroke-width="1.5"/>'
+GLINT = '<path d="M32 8 L 36 28 L 56 32 L 36 36 L 32 56 L 28 36 L 8 32 L 28 28 Z" fill="#fff6dc" stroke="#ffffff" stroke-width="1"/><circle cx="32" cy="32" r="5" fill="#ffffff"/>'
 UNKNOWN = '<circle cx="32" cy="32" r="12" fill="none" stroke="#8a847c" stroke-width="2" stroke-dasharray="4 3"/>'
 
 # Боевые расходники (§6.2): без квадратной рамки — лежат в ромбе крестовины HUD.
@@ -100,6 +102,7 @@ ITEMS = {
     "note": ("#1c1712", NOTE), "mud": ("#2a1f14", MUD), "regen": ("#12201c", REGEN), "unknown": ("#141112", UNKNOWN),
     "arrow": ("#1c1712", ARROW), "fire_arrow": ("#24160e", FIRE_ARROW), "poison": ("#1e1224", POISONED),
     "burning": ("#24140c", BURNING), "corroded": ("#16200c", CORRODED), "tar": ("#141110", TARRED),
+    "staff": ("#141a22", STAFF), "glint": ("#1a1a24", GLINT),
 }
 
 
