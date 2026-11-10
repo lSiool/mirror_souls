@@ -186,6 +186,17 @@ target_room = &"castle_gallery"
 target_spawn = NodePath("Spawns/FromRoom001")
 open_prompt = "В галерею замка"
 
+[node name="DoorToRun" type="Area3D" parent="Objects" groups=["normal_only"]]
+position = Vector3(-9, 0, -1.2)
+script = ExtResource("12_door")
+target_room = &"run_village"
+target_spawn = NodePath("Spawns/PlayerStart")
+open_prompt = "В горящую деревню (забег)"
+closed_flag = &"run_village_done"
+closed_text = "Деревни больше нет."
+door_color = Color(0.45, 0.16, 0.08, 1)
+door_glow = 0.6
+
 [node name="SwordFind" type="Area3D" parent="Objects" groups=["normal_only"]]
 position = Vector3(-20.2, 0, 0)
 script = ExtResource("13_pickup")

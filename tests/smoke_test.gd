@@ -3124,6 +3124,177 @@ func run() -> void:
 				"%s/%s: долез и встал на пол (y=%.2f, верх %.2f)" % [ladder_room, each.name, player.global_position.y, each.top_y()])
 	player.hurtbox.invulnerable = false
 
+	print("== Уровень-забег: горящая деревня (§8.11)")
+	var run_flags: Array[StringName] = [&"run_village_done", &"run_village_loft", &"run_village_gallery", &"shard_run_exit"]
+	var kept_checkpoint := [game_state.checkpoint_room, game_state.checkpoint_reality, game_state.checkpoint_path]
+	var kept_echo: Dictionary = game_state.hero_echo.duplicate()
+	var kept_echoes: int = game_state.echoes
+	var kept_items: Dictionary = game_state.items.duplicate()
+	await rooms.travel(&"run_village", ^"Spawns/PlayerStart")
+	var run := RunLevel.of(rooms.current_room)
+	check(run != null, "в комнате есть узел забега")
+	await seconds(1.0)
+	check(not run.running and is_equal_approx(run.front_x, run.start_x - run.head_start), "до линии старта обрушение не идёт")
+	check(run.max_slack <= 5.0 and absf(run.time_between(run.x_behind(100.0, run.max_slack), 100.0) - run.max_slack) < 0.01,
+		"запас героя не больше 5 с хода фронта (%.1f с)" % run.max_slack)
+	var fastest := 0.0
+	for point in run.pace:
+		fastest = maxf(fastest, point.y)
+	check(fastest < player.stats.speed_at(14.0) and fastest < player.stats.speed_at(22.0),
+		"фронт медленнее бегущего героя на обоих краях возраста (%.1f м/с)" % fastest)
+	# Герой далеко впереди: фронт подтягивается на max_slack, настил моста рушится по порядку.
+	for foe in get_tree().get_nodes_in_group("enemy"):
+		foe.process_mode = Node.PROCESS_MODE_DISABLED
+	run.burn_rate = 0.0
+	await put(Vector3(64.0, 0.1, 0))
+	await frames(3)
+	check(run.running and run.front_x >= run.x_behind(64.0, run.max_slack) - 0.01,
+		"герой пересёк старт — фронт идёт и не отстаёт больше чем на запас (x=%.1f)" % run.front_x)
+	var plank_gone := room_node("Objects/Plank0") as Collapsible
+	var plank_back := room_node("Objects/Plank2") as Collapsible
+	var plank_far := room_node("Objects/Roof1") as Collapsible
+	check(plank_gone.phase == Collapsible.Phase.WARNING, "кусок перед падением дрожит — телеграф")
+	await seconds(plank_gone.warn_time + 0.3)
+	check(not plank_gone.is_standing() and plank_far.is_standing() and not plank_far.reached,
+		"пройденный фронтом кусок упал, дальний стоит")
+	var fell := false
+	var rose := false
+	for i in 600:
+		await frames(1)
+		if not plank_back.is_standing():
+			fell = true
+		elif fell:
+			rose = true
+			break
+	check(fell and rose, "обгоревший пролёт упал и встал на место — право на ошибку")
+	check(not plank_gone.is_standing(), "обычный кусок не возвращается")
+	# Падение в овраг: герой очнётся у следующего осколка, отзвук героя ждёт перед ним.
+	run.burn_rate = 0.3
+	game_state.echoes = 300
+	messages.clear()
+	await put(Vector3(48.0, -3.0, 0))
+	for i in 240:
+		await frames(1)
+		if player.is_dead():
+			break
+	check(player.is_dead(), "упал в овраг — погиб")
+	await seconds(RoomManager.DEATH_HOLD + RoomManager.RUN_WAKE_DARK + RoomManager.RUN_WAKE_FADE + RoomManager.RUN_WAKE_SIT + 1.5)
+	var exit_shard := room_node("Objects/MirrorShard") as MirrorShard
+	check(rooms.current_room_id == &"run_exit" and not player.is_dead(), "очнулся в комнате за уровнем")
+	check(player.sitting and player.frozen and absf(player.global_position.x - exit_shard.global_position.x) < 2.0,
+		"сидит у осколка и ждёт игрока")
+	check(exit_shard.lit and game_state.checkpoint_room == &"run_exit" and not rooms.level_menu.is_open,
+		"осколок зажжён сам, меню не открыто")
+	check(game_state.has_flag(&"run_village_done"), "уровень-забег закрыт")
+	check(game_state.echoes == 0 and game_state.hero_echo.get("amount", 0) == 300, "отзвуки — в отзвуке героя")
+	var waiting := nodes_where(rooms.current_room, func(n: Node) -> bool: return n is HeroEcho)
+	check(waiting.size() == 1 and absf((waiting[0] as Node3D).global_position.x - room_node("Spawns/HeroEcho").global_position.x) < 0.1,
+		"отзвук героя ждёт перед осколком")
+	check(game_state.run_leftovers.get(&"tempered_glass", 0) == 1 and game_state.run_leftovers.get(&"fire_flask", 0) == 1,
+		"не забранные награды ушли торговцу")
+	await tap("move_left")
+	await frames(3)
+	check(not player.sitting and not player.frozen, "первое действие — герой встаёт")
+	await put((waiting[0] as Node3D).global_position, 1.0)
+	await tap("interact")
+	check(game_state.echoes == 300 and game_state.hero_echo.is_empty(), "коснулся отзвука — отзвуки вернулись")
+	# Торговец продаёт упущенное по обычной цене.
+	await seconds(0.8)
+	var peddler := room_node("Objects/Peddler") as Npc
+	var first_left: StringName = game_state.run_leftovers.keys()[0]
+	var left_price: int = ItemCatalog.price(first_left)
+	var left_before: int = game_state.item_count(first_left)
+	await put(peddler.global_position + Vector3(0.0, 0.1, 0.0))
+	messages.clear()
+	await tap("interact")
+	check(messages.size() == 1 and messages[0].contains(ItemCatalog.display_name(first_left)) and messages[0].contains(str(left_price)),
+		"торговец предлагает упущенное с ценой (%s)" % [messages])
+	game_state.echoes = left_price - 1
+	await tap("interact")
+	check(game_state.run_leftovers.has(first_left), "не хватает отзвуков — не продаёт")
+	game_state.echoes = left_price + 50
+	await tap("interact")
+	await tap("interact")
+	check(not game_state.run_leftovers.has(first_left) and game_state.item_count(first_left) == left_before + 1 and game_state.echoes == 50,
+		"купил упущенное за обычную цену")
+	# Назад дороги нет: дверь в комнате-прототипе закрыта.
+	await rooms.travel(&"room_001", ^"Spawns/PlayerStart")
+	var run_door := room_node("Objects/DoorToRun") as RoomDoor
+	await put(Vector3(run_door.global_position.x, 0.1, 0))
+	await seconds(0.4)
+	messages.clear()
+	await tap("interact")
+	await seconds(0.8)
+	check(rooms.current_room_id == &"room_001" and messages.has(run_door.closed_text), "пройти забег повторно нельзя")
+	# Любая гибель на уровне — тот же исход.
+	for flag in run_flags:
+		game_state.set_flag(flag, false)
+	game_state.run_leftovers.clear()
+	await rooms.travel(&"run_village", ^"Spawns/PlayerStart")
+	await put(Vector3(12.0, 0.1, 0))
+	player.health.take_damage(INF)
+	await seconds(RoomManager.DEATH_HOLD + RoomManager.RUN_WAKE_DARK + RoomManager.RUN_WAKE_FADE + RoomManager.RUN_WAKE_SIT + 1.5)
+	check(rooms.current_room_id == &"run_exit" and player.sitting, "гибель не от падения — тоже к следующему осколку")
+	await tap("jump")
+	await frames(3)
+	# Бот бежит основную линию без остановок: успевает, но впритык.
+	for flag in run_flags:
+		game_state.set_flag(flag, false)
+	game_state.run_leftovers.clear()
+	game_state.hero_echo = {}
+	game_state.set_checkpoint(kept_checkpoint[0], kept_checkpoint[1], kept_checkpoint[2])
+	await rooms.travel(&"run_village", ^"Spawns/PlayerStart")
+	run = RunLevel.of(rooms.current_room)
+	var edges: Array[float] = [34.0, 40.0, 46.5, 53.0, 59.0, 94.0]
+	var looter := room_node("Objects/Looter") as Dummy
+	var least_lead := INF
+	press("move_right")
+	for i in 60 * 60:
+		await frames(1)
+		var hx := player.global_position.x
+		if player.is_dead() or hx >= 145.0:
+			break
+		if run.running:
+			least_lead = minf(least_lead, hx - run.front_x)
+		var jump := false
+		if player.is_on_floor():
+			for edge in edges:
+				if hx >= edge and hx < edge + 0.7:
+					jump = true
+			if absf(player.velocity.x) < 1.0 and hx > 10.0:
+				jump = true
+		if jump:
+			press("jump")
+		elif player.velocity.y <= 0.0:
+			release("jump")
+		var near_looter := is_instance_valid(looter) and looter.state != Dummy.State.DEAD \
+			and looter.global_position.x - hx > 0.0 and looter.global_position.x - hx < 2.6
+		if near_looter and player.state == Player.State.MOVE and player.is_on_floor():
+			await tap("roll")
+			press("move_right")
+	release_all()
+	check(not player.is_dead() and player.global_position.x >= 145.0,
+		"бот добежал до ворот без остановок (x=%.1f, наименьший отрыв от фронта %.1f м)" % [player.global_position.x, least_lead])
+	check(run.running and run.time_between(run.front_x, player.global_position.x) <= run.max_slack + 0.05,
+		"у ворот запас не больше %.0f с" % run.max_slack)
+	await seconds(0.3)
+	await put(room_node("Objects/DoorOut").global_position + Vector3(0.0, 0.1, 0.0))
+	await tap("interact")
+	await seconds(1.2)
+	check(rooms.current_room_id == &"run_exit" and not player.sitting and game_state.has_flag(&"run_village_done"),
+		"вышел через ворота — забег пройден и закрыт")
+	check(game_state.checkpoint_room != &"run_exit", "пройденный забег осколок сам не зажигает")
+	check(game_state.run_leftovers.size() == 2, "пробежал мимо наград — их продаст торговец")
+	# Мир — как до забега.
+	for flag in run_flags:
+		game_state.set_flag(flag, false)
+	game_state.run_leftovers.clear()
+	game_state.hero_echo = kept_echo
+	game_state.echoes = kept_echoes
+	game_state.items = kept_items
+	game_state.set_checkpoint(kept_checkpoint[0], kept_checkpoint[1], kept_checkpoint[2])
+	player.restore()
+
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path
 	game_state.save_path = "user://smoke_menu.sav"
