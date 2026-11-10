@@ -20,6 +20,11 @@ extends Interactable
 @export var sell_price := 0
 @export var sell_offer := ""
 @export var sell_line := ""
+## Продаёт то, что герой не успел забрать на уровне-забеге (§8.11): по одной находке,
+## по обычной цене; первый разговор — предложение, следующий — покупка.
+@export var sells_leftovers := false
+@export var leftover_offer := "Подобрал на пожарище. Тебе нужнее"
+@export var leftover_line := "Держи. Больше не теряй."
 ## Есть только когда стоит этот флаг (Травница — после спасения). Пусто — всегда.
 @export var appear_flag: StringName
 @export var look_color := Color(0.3, 0.26, 0.22)
@@ -28,6 +33,7 @@ extends Interactable
 
 var _next := 0
 var _offered := false
+var _leftover_offered: StringName
 
 
 func _ready() -> void:
@@ -73,6 +79,19 @@ func interact(by: Player) -> void:
 			Events.item_found.emit(gift_item)
 		_say(gift_line)
 		return
+	if sells_leftovers and not GameState.run_leftovers.is_empty():
+		var id: StringName = GameState.run_leftovers.keys()[0]
+		if _leftover_offered == id and GameState.buy_leftover(id):
+			_leftover_offered = &""
+			Events.item_found.emit(id)
+			_say(leftover_line)
+			return
+		if _leftover_offered != id:
+			_leftover_offered = id
+			var count: int = GameState.run_leftovers[id]
+			var title := ItemCatalog.display_name(id) + (" ×%d" % count if count > 1 else "")
+			_say("%s: %s (%d отзвуков, у тебя %d)" % [leftover_offer, title, ItemCatalog.price(id) * count, GameState.echoes])
+			return
 	# Не хватает отзвуков — предложит один раз, дальше обычные реплики.
 	if sell_item != &"" and GameState.item_count(sell_item) == 0:
 		var affordable := GameState.echoes >= sell_price

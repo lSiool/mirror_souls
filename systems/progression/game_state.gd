@@ -24,7 +24,7 @@ const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_slots", "spells", "spell_slots", "active_spell"]
+	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_slots", "spells", "spell_slots", "active_spell", "run_leftovers"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -78,6 +78,9 @@ var broken_glass := {}
 var broken_forever := {}
 ## Отзвук героя на месте последней гибели: {reality, position, amount, weapon, facing}; пусто — нет.
 var hero_echo := {}
+## Награды уровней-забегов, которые герой не успел забрать (§8.11): id → сколько.
+## Их продаёт торговец по обычной цене предмета.
+var run_leftovers := {}
 ## Опыт мастерства по типам оружия и шаги закалки по предметам.
 var mastery := {}
 var weapon_glass := {}
@@ -414,6 +417,23 @@ func take_item(id: StringName) -> bool:
 		Events.quick_items_changed.emit()
 	if arrow_slots.has(id):
 		Events.arrows_changed.emit()
+	return true
+
+
+## Не забранная награда уровня-забега — торговцу (§8.11).
+func add_leftover(id: StringName, count := 1) -> void:
+	run_leftovers[id] = run_leftovers.get(id, 0) + count
+
+
+## Купить у торговца упущенное: всю стопку разом. false — нет такого или не хватает отзвуков.
+func buy_leftover(id: StringName) -> bool:
+	var count: int = run_leftovers.get(id, 0)
+	var cost := ItemCatalog.price(id) * count
+	if count == 0 or echoes < cost:
+		return false
+	run_leftovers.erase(id)
+	add_echoes(-cost)
+	add_item(id, count)
 	return true
 
 

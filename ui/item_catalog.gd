@@ -41,6 +41,20 @@ const FLASK := &"flask"
 const ARROW := &"arrow"
 
 
+## Обычная цена предмета в отзвуках (черновик): по ней торговец продаёт упущенное
+## на уровне-забеге, без наценки (§8.11).
+const PRICES := {
+	&"throwing_knife": 15, &"throwing_axe": 30, &"fire_flask": 60, &"poison_flask": 60, &"acid_flask": 80,
+	&"holy_flask": 80, &"tar_flask": 50, &"fire_arrow": 20, &"tempered_glass": 400, &"clear_glass": 600,
+	&"facet_slot": 800, &"flask_vessel": 700,
+}
+const DEFAULT_PRICE := 100
+
+
+static func price(id: StringName) -> int:
+	return PRICES.get(id, DEFAULT_PRICE)
+
+
 static func display_name(id: StringName) -> String:
 	if ITEMS.has(id):
 		return ITEMS[id][0]
