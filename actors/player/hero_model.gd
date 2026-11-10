@@ -31,6 +31,8 @@ const BOW_IN_HAND := [Vector3(0.0, 0.0, PI * 0.5), Vector3(0.0, 0.06, 0.0)]
 ## Удар в воздухе (2026-11-09, по замечанию автора): вертикальный, снизу вверх, и только
 ## верхом тела — ноги держат позу прыжка. Клип без костей ног собирается на лету.
 const AIR_CLIP := &"Sword_Regular_A"
+## На сколько манекен на лестнице придвинут к ней (м, в мире).
+const LADDER_CLOSE := 0.22
 const AIR_FROM := 0.15
 const LOWER_BODY: Array[String] = [
 	"Root", "Hips", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftToes",
@@ -48,6 +50,8 @@ var back_mount: Node3D
 var bow_grip: Node3D
 var _clip := &""
 var _clip_end := 0.0
+## Руки и ноги на перекладинах (лестница, §3.3) — создаётся при первом подъёме.
+var _ladder: LadderLimbs
 
 
 func _ready() -> void:
@@ -177,6 +181,10 @@ func update(player: Player) -> void:
 		# Сидит у осколка: очнулся после гибели на уровне-забеге (§8.11).
 		play(&"Sitting_Idle")
 		return
+	if player.state == Player.State.LADDER and player.ladder:
+		_on_ladder(player)
+		return
+	_off_ladder()
 	var vx := absf(player.velocity.x)
 	match player.state:
 		Player.State.MOVE:
@@ -234,3 +242,26 @@ func update(player: Player) -> void:
 			hold(&"Sword_Dash", 0.25)
 		Player.State.PLUNGE:
 			play(&"Jump")
+
+
+## Лестница: лицом к ней, спиной к камере; основа — стойка, руки и ноги — на перекладинах (IK).
+func _on_ladder(player: Player) -> void:
+	if _ladder == null:
+		_ladder = LadderLimbs.new()
+		_ladder.name = &"LadderLimbs"
+		add_child(_ladder)
+		_ladder.rig(skeleton)
+	hold(&"Idle", 0.0)
+	# Модель смотрит в +Z; к лестнице — это мировой -Z, при любом развороте героя.
+	var parent_yaw := (get_parent() as Node3D).global_rotation.y
+	rotation.y = PI - parent_yaw
+	position = (get_parent() as Node3D).global_basis.inverse() * Vector3(0.0, 0.0, -LADDER_CLOSE)
+	_ladder.climb(player.ladder, player.global_position, get_physics_process_delta_time())
+
+
+func _off_ladder() -> void:
+	if _ladder == null or position == Vector3.ZERO:
+		return
+	_ladder.release()
+	rotation.y = PI * 0.5
+	position = Vector3.ZERO
