@@ -52,6 +52,10 @@ var _clip := &""
 var _clip_end := 0.0
 ## Руки и ноги на перекладинах (лестница, §3.3) — создаётся при первом подъёме.
 var _ladder: LadderLimbs
+## Свободная (левая) рука к точке — ладонь на кристалле осколка; создаётся при первом касании.
+var _touch_ik: TwoBoneIK3D
+var _touch_target: Node3D
+var _touch_pole: Node3D
 
 
 func _ready() -> void:
@@ -185,6 +189,7 @@ func update(player: Player) -> void:
 		_on_ladder(player)
 		return
 	_off_ladder()
+	_touch(player.touching)
 	var vx := absf(player.velocity.x)
 	match player.state:
 		Player.State.MOVE:
@@ -192,7 +197,10 @@ func update(player: Player) -> void:
 				play(&"Jump_Start" if player.velocity.y > 2.0 else &"Jump")
 			elif vx < 0.3:
 				# Со щитом — щитовая стойка: предплечье со щитом поднято перед корпусом.
-				if player.shield_in_hand():
+				# У осколка — смирно, ладонь на кристалле.
+				if player.touching:
+					play(&"Idle")
+				elif player.shield_in_hand():
 					play(&"Idle_Shield")
 				else:
 					play(&"Sword_Idle" if player.arms.armed else &"Idle")
@@ -265,3 +273,34 @@ func _off_ladder() -> void:
 	_ladder.release()
 	rotation.y = PI * 0.5
 	position = Vector3.ZERO
+
+
+## Ладонь на кристалле осколка (§8.4, 2026-11-10): герой стоит смирно, левая рука — свободная, меч
+## остаётся в правой — тянется к кристаллу. Нет кристалла — рука отпущена.
+func _touch(crystal: Node3D) -> void:
+	if crystal == null or not is_instance_valid(crystal):
+		if _touch_ik:
+			_touch_ik.influence = 0.0
+		return
+	if _touch_ik == null:
+		_touch_ik = TwoBoneIK3D.new()
+		_touch_ik.name = &"TouchIK"
+		skeleton.add_child(_touch_ik)
+		_touch_ik.set_setting_count(1)
+		_touch_ik.set_root_bone_name(0, "LeftUpperArm")
+		_touch_ik.set_middle_bone_name(0, "LeftLowerArm")
+		_touch_ik.set_end_bone_name(0, "LeftHand")
+		_touch_target = Node3D.new()
+		_touch_target.top_level = true
+		add_child(_touch_target)
+		_touch_pole = Node3D.new()
+		_touch_pole.top_level = true
+		add_child(_touch_pole)
+		_touch_ik.set_target_node(0, _touch_ik.get_path_to(_touch_target))
+		_touch_ik.set_pole_node(0, _touch_ik.get_path_to(_touch_pole))
+	# Ладонь — на ближней к герою грани кристалла, чуть ниже середины; локоть — вниз и наружу.
+	var side := signf(crystal.global_position.x - global_position.x)
+	var at := crystal.global_position + Vector3(-side * 0.18, -0.12, 0.08)
+	_touch_target.global_position = at
+	_touch_pole.global_position = global_position + Vector3(side * 0.1, 0.6, -0.8)
+	_touch_ik.influence = 1.0

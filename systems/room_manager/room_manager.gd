@@ -12,6 +12,8 @@ const NORMAL: StringName = &"normal"
 const ROOM_PATH := "res://world/rooms/%s.tscn"
 ## Сколько секунд после смерти до затемнения.
 const DEATH_HOLD := 1.9
+## У осколка герой стоит сбоку, на таком расстоянии (м), и держит ладонь на кристалле.
+const SHARD_TOUCH_GAP := 0.45
 ## Гибель на уровне-забеге (§8.11): сколько темно, как долго проявляется картинка и сколько
 ## герой сидит у осколка, прежде чем сможет встать.
 const RUN_WAKE_DARK := 1.0
@@ -320,7 +322,9 @@ func _on_checkpoint_activated(shard: MirrorShard) -> void:
 	for other in get_tree().get_nodes_in_group("mirror_shard"):
 		if other != shard:
 			other.set_lit(false)
-	await _rest()
+	# Встаёт с той стороны, откуда подошёл, лицом к осколку.
+	var side := signf(shard.global_position.x - player.global_position.x)
+	await _rest(side if side != 0.0 else player.facing)
 	open_level_menu()
 
 
@@ -329,6 +333,9 @@ func open_level_menu() -> void:
 	_busy = true
 	var shard := current_room.get_node_or_null(GameState.checkpoint_path) as Node3D
 	level_menu.hub_available = can_travel_to_hub()
+	# Пока открыто меню, ладонь героя лежит на кристалле.
+	if shard is MirrorShard:
+		player.touching = (shard as MirrorShard).crystal
 	level_menu.open(player, shard if shard else current_room)
 
 
@@ -380,6 +387,7 @@ func return_to_title() -> void:
 
 
 func _on_level_menu_closed() -> void:
+	player.touching = null
 	_busy = false
 	save_now()
 	if hide_cursor:
@@ -387,8 +395,9 @@ func _on_level_menu_closed() -> void:
 
 
 ## Отдых у осколка — как у костра в Souls: каждое касание пересоздаёт комнату (враги снова
-## на местах), герой встаёт у осколка с полным здоровьем и выносливостью.
-func _rest() -> void:
+## на местах), герой встаёт у осколка с полным здоровьем и выносливостью. Неуязвимого мигания
+## нет: отдых — не возрождение. side — с какой стороны осколка встать (0 — на самом осколке).
+func _rest(side := 0.0) -> void:
 	if _busy:
 		return
 	_busy = true
@@ -396,7 +405,11 @@ func _rest() -> void:
 	await hud.fade_to(1.0, 0.3)
 	GameState.restore_world()
 	_load_room(reality)
-	player.respawn(_checkpoint_position())
+	player.respawn(_checkpoint_position(), false)
+	var shard := current_room.get_node_or_null(GameState.checkpoint_path) as MirrorShard
+	if shard and side != 0.0:
+		player.teleport(shard.get_spawn_position() + Vector3(-side * SHARD_TOUCH_GAP, 0.0, 0.0))
+		player.facing = side
 	camera_rig.snap_to_target()
 	player.frozen = false
 	await hud.fade_to(0.0, 0.4)

@@ -168,6 +168,8 @@ var ladder: Ladder
 var lying := false
 ## Сидит (сцена): очнулся у осколка после гибели на уровне-забеге (§8.11).
 var sitting := false
+## Чего касается ладонь (кристалл осколка, пока открыто меню прокачки) — ведёт HeroModel.
+var touching: Node3D
 ## Сколько зон грязи сейчас под героем.
 var mud_zones := 0
 var _combat_t := 99.0
@@ -1788,11 +1790,12 @@ func stand_up() -> void:
 	frozen = false
 
 
-func respawn(at: Vector3) -> void:
+## guard — короткая неуязвимость с миганием (после смерти); отдых у осколка — без неё.
+func respawn(at: Vector3, guard := true) -> void:
 	wound_t = 0.0
 	teleport(at)
 	restore()
-	_iframes = 1.0
+	_iframes = 1.0 if guard else 0.0
 	body_mesh.rotation = Vector3.ZERO
 	arms.restore_weapon()
 	_set_state(State.MOVE)
