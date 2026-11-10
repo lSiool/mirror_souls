@@ -47,10 +47,11 @@ void fragment() {
 	float sway = fbm(vec2(UV.x * 2.0 + seed, h * 1.6 - t * 0.8));
 	float detail = fbm(vec2(UV.x * 5.5 - seed, h * 3.8 - t * 1.9));
 	float x = (UV.x - 0.5) * 2.0 + (sway - 0.5) * 0.9 * h;
-	// Полное тело внизу, язык сужается к вершине.
-	float width = mix(0.95, 0.0, pow(h, 1.3));
+	// Полное тело внизу, язык сужается к вершине. Ширина не доходит до нуля: smoothstep с равными
+	// краями не определён, и на видеокарте вершина квада светилась мигающей полосой.
+	float width = max(mix(0.95, 0.0, pow(h, 1.3)), 0.02);
 	float body = 1.0 - smoothstep(width * 0.45, width, abs(x));
-	body *= smoothstep(0.0, 0.1, h);
+	body *= smoothstep(0.0, 0.1, h) * (1.0 - smoothstep(0.9, 1.0, h));
 	float heat = clamp((body * (detail * 0.7 + 0.55) - h * 0.45) * 1.45, 0.0, 1.0);
 	vec3 col = mix(tip_color.rgb, flame_color.rgb, smoothstep(0.05, 0.45, heat));
 	col = mix(col, core_color.rgb, smoothstep(0.75, 1.0, heat));
