@@ -5,8 +5,9 @@ extends Node
 ## Картинки — в user://run_snapshots/.
 
 const OUT := "user://run_snapshots"
-## Участки: имя и x героя.
-const SPOTS := {"1_street": 16.0, "2_bridge": 44.5, "3_yard": 70.0, "4_roofs": 91.0, "5_house": 116.0, "6_gate": 140.0}
+## Участки: имя и место героя (x, y).
+const SPOTS := {"1_street": Vector2(14.0, 0.2), "3_roofs": Vector2(92.0, 5.2),
+	"4_road": Vector2(98.0, 0.2), "5_ravine": Vector2(136.0, -5.3), "6_tower": Vector2(173.0, 8.2), "7_meet": Vector2(204.0, 0.2)}
 
 var _main: Node
 var _player: Player
@@ -28,24 +29,30 @@ func _ready() -> void:
 	for foe in get_tree().get_nodes_in_group("enemy"):
 		foe.process_mode = Node.PROCESS_MODE_DISABLED
 	for spot: String in SPOTS:
-		var x: float = SPOTS[spot]
-		var y := 3.4 if spot == "4_roofs" else 0.2
-		_player.teleport(Vector3(x, y, 0.0))
+		var at: Vector2 = SPOTS[spot]
+		_player.teleport(Vector3(at.x, at.y, 0.0))
 		rooms.camera_rig.snap_to_target()
 		await get_tree().create_timer(0.7).timeout
 		await _shot(spot)
+	# Три этажа общим планом: крыши, улица, овраг.
+	_player.teleport(Vector3(88.0, 0.2, 0.0))
+	rooms.camera_rig.zoom(1.9, 0.0)
+	rooms.camera_rig.snap_to_target()
+	await get_tree().create_timer(0.7).timeout
+	await _shot("2_floors")
+	rooms.camera_rig.zoom(1.0, 0.0)
 	# Обрушение: герой на мосту, фронт догоняет.
 	run.burn_rate = 0.0
 	run.set_physics_process(true)
-	_player.teleport(Vector3(57.5, 0.2, 0.0))
+	_player.teleport(Vector3(229.5, 0.2, 0.0))
 	rooms.camera_rig.snap_to_target()
 	await get_tree().create_timer(3.4).timeout
-	await _shot("7_collapse")
+	await _shot("8_collapse")
 	# Гибель: очнулся у следующего осколка.
 	GameState.echoes = 300
 	_player.health.take_damage(INF)
 	await get_tree().create_timer(RoomManager.DEATH_HOLD + RoomManager.RUN_WAKE_DARK + RoomManager.RUN_WAKE_FADE + 1.5).timeout
-	await _shot("8_wake")
+	await _shot("9_wake")
 	get_tree().quit()
 
 

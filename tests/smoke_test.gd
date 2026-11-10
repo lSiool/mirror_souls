@@ -262,6 +262,96 @@ func start_slide_from_ledge(dir: String, at: Vector3) -> void:
 			break
 
 
+## Бот уровня-забега (§8.11): бежит вправо одним из трёх путей «Горящей деревни». Возвращает
+## Vector2: наименьший запас после развилки (секунды хода фронта до героя) и время пути, с.
+func run_route(route: String) -> Vector2:
+	var run := RunLevel.of(rooms.current_room)
+	# Края, с которых прыгают: первый и последний мосты, дальше — свои у каждого пути.
+	var edges: Array[float] = [28.0, 34.0, 218.0, 224.0]
+	match route:
+		"road": edges.append_array([46.5, 67.8, 119.8, 162.8, 196.5])
+		"roofs": edges.append_array([46.5, 65.5, 75.5, 85.5, 97.5, 125.5, 137.5, 151.5, 165.5, 177.5, 196.5])
+		"ravine": edges.append_array([79.5, 117.5])
+	var least := INF
+	var began := Engine.get_physics_frames()
+	var chest_done := false
+	press("move_right")
+	for i in 60 * 90:
+		await frames(1)
+		var at := player.global_position
+		if player.is_dead() or at.x >= 243.0:
+			break
+		if run.running and at.x > 58.0:
+			least = minf(least, run.time_between(run.front_x, at.x) if at.x > run.front_x else 0.0)
+		# Лестницы: на крыши с площади и из оврага к воротам.
+		var ladder_top := INF
+		if route == "roofs" and at.x >= 54.7 and at.x < 55.6 and at.y < 4.5:
+			ladder_top = 4.9
+		elif route == "roofs" and at.x >= 170.2 and at.x < 171.1 and at.y > 4.5 and at.y < 7.4:
+			ladder_top = 7.9
+		elif route == "ravine" and at.x >= 151.2 and at.x < 152.0 and at.y < -3.6:
+			ladder_top = -3.2
+		elif route == "ravine" and at.x >= 199.2 and at.y < -0.5:
+			ladder_top = -0.1
+		if ladder_top < INF:
+			release("move_right")
+			release("jump")
+			press("move_up")
+			for k in 60 * 6:
+				await frames(1)
+				if player.global_position.y >= ladder_top and player.is_on_floor():
+					break
+			release("move_up")
+			press("move_right")
+			continue
+		# Сундук на башенке: остановиться и открыть.
+		if route == "roofs" and not chest_done and at.x >= 174.6 and at.y > 7.5 and player.is_on_floor():
+			chest_done = true
+			release("move_right")
+			await frames(4)
+			await tap("interact")
+			press("move_right")
+			continue
+		if route == "road" and at.x > 148.6 and at.x < 151.4 and not game_state.has_flag(&"run_village_road"):
+			await tap("interact")
+		# Враг на пути и на том же этаже: громилу в погребе — убить, остальных — перекатом.
+		var foe: Dummy = null
+		for node in get_tree().get_nodes_in_group("enemy"):
+			var each := node as Dummy
+			if each == null or each.state == Dummy.State.DEAD:
+				continue
+			var gap := each.global_position.x - at.x
+			if gap > 0.0 and gap < 2.6 and absf(each.global_position.y - at.y) < 1.6:
+				foe = each
+		if foe and foe.name == "Brute":
+			release("move_right")
+			for k in 60 * 12:
+				if not is_instance_valid(foe) or foe.state == Dummy.State.DEAD or player.is_dead():
+					break
+				player.facing = signf(foe.global_position.x - player.global_position.x)
+				await tap("attack")
+				await frames(6)
+			press("move_right")
+			continue
+		if foe and player.state == Player.State.MOVE and player.is_on_floor():
+			await tap("roll")
+			press("move_right")
+			continue
+		var jump := false
+		if player.is_on_floor():
+			for edge in edges:
+				if at.x >= edge and at.x < edge + 0.7:
+					jump = true
+			if absf(player.velocity.x) < 1.0 and at.x > 10.0:
+				jump = true
+		if jump:
+			press("jump")
+		elif player.velocity.y <= 0.0:
+			release("jump")
+	release_all()
+	return Vector2(least, (Engine.get_physics_frames() - began) / 60.0)
+
+
 func run() -> void:
 	main = load("res://main.tscn").instantiate()
 	# Тест идёт в комнате-прототипе, с мечом и луком и без записи на диск.
@@ -3125,7 +3215,7 @@ func run() -> void:
 	player.hurtbox.invulnerable = false
 
 	print("== Уровень-забег: горящая деревня (§8.11)")
-	var run_flags: Array[StringName] = [&"run_village_done", &"run_village_loft", &"run_village_gallery", &"shard_run_exit"]
+	var run_flags: Array[StringName] = [&"run_village_done", &"run_village_tower", &"run_village_road", &"run_village_brute", &"shard_run_exit"]
 	var kept_checkpoint := [game_state.checkpoint_room, game_state.checkpoint_reality, game_state.checkpoint_path]
 	var kept_echo: Dictionary = game_state.hero_echo.duplicate()
 	var kept_echoes: int = game_state.echoes
@@ -3133,6 +3223,7 @@ func run() -> void:
 	await rooms.travel(&"run_village", ^"Spawns/PlayerStart")
 	var run := RunLevel.of(rooms.current_room)
 	check(run != null, "в комнате есть узел забега")
+	var slack_cap: float = run.max_slack
 	await seconds(1.0)
 	check(not run.running and is_equal_approx(run.front_x, run.start_x - run.head_start), "до линии старта обрушение не идёт")
 	check(run.max_slack <= 5.0 and absf(run.time_between(run.x_behind(100.0, run.max_slack), 100.0) - run.max_slack) < 0.01,
@@ -3152,7 +3243,7 @@ func run() -> void:
 		"герой пересёк старт — фронт идёт и не отстаёт больше чем на запас (x=%.1f)" % run.front_x)
 	var plank_gone := room_node("Objects/Plank0") as Collapsible
 	var plank_back := room_node("Objects/Plank2") as Collapsible
-	var plank_far := room_node("Objects/Roof1") as Collapsible
+	var plank_far := room_node("Objects/Final2") as Collapsible
 	check(plank_gone.phase == Collapsible.Phase.WARNING, "кусок перед падением дрожит — телеграф")
 	await seconds(plank_gone.warn_time + 0.3)
 	check(not plank_gone.is_standing() and plank_far.is_standing() and not plank_far.reached,
@@ -3172,7 +3263,7 @@ func run() -> void:
 	run.burn_rate = 0.3
 	game_state.echoes = 300
 	messages.clear()
-	await put(Vector3(48.0, -3.0, 0))
+	await put(Vector3(35.5, -3.0, 0))
 	for i in 240:
 		await frames(1)
 		if player.is_dead():
@@ -3190,8 +3281,9 @@ func run() -> void:
 	var waiting := nodes_where(rooms.current_room, func(n: Node) -> bool: return n is HeroEcho)
 	check(waiting.size() == 1 and absf((waiting[0] as Node3D).global_position.x - room_node("Spawns/HeroEcho").global_position.x) < 0.1,
 		"отзвук героя ждёт перед осколком")
-	check(game_state.run_leftovers.get(&"tempered_glass", 0) == 1 and game_state.run_leftovers.get(&"fire_flask", 0) == 1,
-		"не забранные награды ушли торговцу")
+	check(game_state.run_leftovers.get(&"tempered_glass", 0) == 1 and game_state.run_leftovers.get(&"fire_flask", 0) == 1
+		and game_state.run_leftovers.get(&"fire_arrow", 0) == 10 and game_state.run_leftovers.get(&"throwing_knife", 0) == 5,
+		"не забранные награды всех трёх путей ушли торговцу (%s)" % [game_state.run_leftovers])
 	await tap("move_left")
 	await frames(3)
 	check(not player.sitting and not player.frozen, "первое действие — герой встаёт")
@@ -3202,7 +3294,8 @@ func run() -> void:
 	await seconds(0.8)
 	var peddler := room_node("Objects/Peddler") as Npc
 	var first_left: StringName = game_state.run_leftovers.keys()[0]
-	var left_price: int = ItemCatalog.price(first_left)
+	var left_count: int = game_state.run_leftovers[first_left]
+	var left_price: int = ItemCatalog.price(first_left) * left_count
 	var left_before: int = game_state.item_count(first_left)
 	await put(peddler.global_position + Vector3(0.0, 0.1, 0.0))
 	messages.clear()
@@ -3215,7 +3308,7 @@ func run() -> void:
 	game_state.echoes = left_price + 50
 	await tap("interact")
 	await tap("interact")
-	check(not game_state.run_leftovers.has(first_left) and game_state.item_count(first_left) == left_before + 1 and game_state.echoes == 50,
+	check(not game_state.run_leftovers.has(first_left) and game_state.item_count(first_left) == left_before + left_count and game_state.echoes == 50,
 		"купил упущенное за обычную цену")
 	# Назад дороги нет: дверь в комнате-прототипе закрыта.
 	await rooms.travel(&"room_001", ^"Spawns/PlayerStart")
@@ -3237,54 +3330,53 @@ func run() -> void:
 	check(rooms.current_room_id == &"run_exit" and player.sitting, "гибель не от падения — тоже к следующему осколку")
 	await tap("jump")
 	await frames(3)
-	# Бот бежит основную линию без остановок: успевает, но впритык.
-	for flag in run_flags:
-		game_state.set_flag(flag, false)
-	game_state.run_leftovers.clear()
-	game_state.hero_echo = {}
-	game_state.set_checkpoint(kept_checkpoint[0], kept_checkpoint[1], kept_checkpoint[2])
-	await rooms.travel(&"run_village", ^"Spawns/PlayerStart")
-	run = RunLevel.of(rooms.current_room)
-	var edges: Array[float] = [34.0, 40.0, 46.5, 53.0, 59.0, 94.0]
-	var looter := room_node("Objects/Looter") as Dummy
-	var least_lead := INF
-	press("move_right")
-	for i in 60 * 60:
-		await frames(1)
-		var hx := player.global_position.x
-		if player.is_dead() or hx >= 145.0:
-			break
-		if run.running:
-			least_lead = minf(least_lead, hx - run.front_x)
-		var jump := false
-		if player.is_on_floor():
-			for edge in edges:
-				if hx >= edge and hx < edge + 0.7:
-					jump = true
-			if absf(player.velocity.x) < 1.0 and hx > 10.0:
-				jump = true
-		if jump:
-			press("jump")
-		elif player.velocity.y <= 0.0:
-			release("jump")
-		var near_looter := is_instance_valid(looter) and looter.state != Dummy.State.DEAD \
-			and looter.global_position.x - hx > 0.0 and looter.global_position.x - hx < 2.6
-		if near_looter and player.state == Player.State.MOVE and player.is_on_floor():
-			await tap("roll")
-			press("move_right")
-	release_all()
-	check(not player.is_dead() and player.global_position.x >= 145.0,
-		"бот добежал до ворот без остановок (x=%.1f, наименьший отрыв от фронта %.1f м)" % [player.global_position.x, least_lead])
-	check(run.running and run.time_between(run.front_x, player.global_position.x) <= run.max_slack + 0.05,
-		"у ворот запас не больше %.0f с" % run.max_slack)
-	await seconds(0.3)
-	await put(room_node("Objects/DoorOut").global_position + Vector3(0.0, 0.1, 0.0))
-	await tap("interact")
-	await seconds(1.2)
-	check(rooms.current_room_id == &"run_exit" and not player.sitting and game_state.has_flag(&"run_village_done"),
-		"вышел через ворота — забег пройден и закрыт")
-	check(game_state.checkpoint_room != &"run_exit", "пройденный забег осколок сам не зажигает")
-	check(game_state.run_leftovers.size() == 2, "пробежал мимо наград — их продаст торговец")
+	# Три пути от площади-развилки: бот проходит каждый на чистом мире и берёт его награду.
+	var kept_health: float = player.health.max_health
+	var lead := {}
+	for route: String in ["road", "roofs", "ravine"]:
+		for flag in run_flags:
+			game_state.set_flag(flag, false)
+		game_state.run_leftovers.clear()
+		game_state.hero_echo = {}
+		game_state.items = kept_items.duplicate()
+		game_state.set_checkpoint(kept_checkpoint[0], kept_checkpoint[1], kept_checkpoint[2])
+		await rooms.travel(&"run_village", ^"Spawns/PlayerStart")
+		player.restore()
+		lead[route] = await run_route(route)
+		var arrived := not player.is_dead() and player.global_position.x >= 243.0 and absf(player.global_position.y) < 1.0
+		check(arrived, "путь «%s»: бот добежал до ворот за %.1f с (x=%.1f, y=%.1f, наименьший запас после развилки %.1f с)"
+			% [route, lead[route].y, player.global_position.x, player.global_position.y, lead[route].x])
+		if not arrived:
+			continue
+		await seconds(0.2)
+		await put(room_node("Objects/DoorOut").global_position + Vector3(0.0, 0.1, 0.0))
+		await seconds(0.3)
+		await tap("interact")
+		await seconds(1.2)
+		check(rooms.current_room_id == &"run_exit" and not player.sitting and game_state.has_flag(&"run_village_done"),
+			"путь «%s»: вышел через ворота — забег пройден и закрыт" % route)
+		var left: Dictionary = game_state.run_leftovers
+		match route:
+			"road":
+				check(game_state.item_count(&"fire_flask") == kept_items.get(&"fire_flask", 0) + 1, "улица: находка у дороги взята")
+				check(left.has(&"tempered_glass") and left.has(&"fire_arrow") and not left.has(&"fire_flask"),
+					"улица: награды верха и низа ушли торговцу")
+				check(game_state.checkpoint_room != &"run_exit", "пройденный забег осколок сам не зажигает")
+			"roofs":
+				check(game_state.item_count(&"fire_arrow") == kept_items.get(&"fire_arrow", 0) + 10
+					and game_state.item_count(&"throwing_knife") == kept_items.get(&"throwing_knife", 0) + 5, "крыши: сундук на башенке открыт")
+				check(left.has(&"tempered_glass") and left.has(&"fire_flask") and not left.has(&"fire_arrow"),
+					"крыши: награды улицы и низа ушли торговцу")
+			"ravine":
+				check(game_state.item_count(&"tempered_glass") == kept_items.get(&"tempered_glass", 0) + 1, "овраг: громила убит, стекло получено")
+				check(left.has(&"fire_arrow") and left.has(&"fire_flask") and not left.has(&"tempered_glass"),
+					"овраг: награды улицы и верха ушли торговцу")
+	if lead.size() == 3:
+		check(lead["road"].y < lead["roofs"].y and lead["road"].y < lead["ravine"].y,
+			"улица — самый быстрый путь: %.1f с против %.1f (крыши) и %.1f (овраг)" % [lead["road"].y, lead["roofs"].y, lead["ravine"].y])
+		check(lead["roofs"].x < slack_cap - 1.0 and lead["ravine"].x < slack_cap - 1.0,
+			"боковые пути съедают запас: остаётся %.1f с на крышах и %.1f с в овраге" % [lead["roofs"].x, lead["ravine"].x])
+	check(is_equal_approx(player.health.max_health, kept_health), "здоровье героя после забега прежнее")
 	# Мир — как до забега.
 	for flag in run_flags:
 		game_state.set_flag(flag, false)

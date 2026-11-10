@@ -1,4 +1,4 @@
-[gd_scene load_steps=34 format=3]
+[gd_scene load_steps=35 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -45,6 +45,8 @@
 [ext_resource type="Script" path="res://world/common/burning_ambience.gd" id="ambience"]
 
 [ext_resource type="Script" path="res://world/common/npc.gd" id="npc"]
+
+[ext_resource type="Script" path="res://world/common/background_scene.gd" id="bgscene"]
 
 [ext_resource type="Script" path="res://world/run/run_level.gd" id="run"]
 
