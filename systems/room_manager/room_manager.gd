@@ -481,6 +481,11 @@ func _on_enemy_killed(enemy: Dummy) -> void:
 	GameState.add_mastery(enemy.last_weapon, xp)
 	if enemy.weapon_type != enemy.last_weapon:
 		GameState.add_mastery(enemy.weapon_type, xp / 3.0)
+	if enemy.drop_item != &"" and not (enemy.drop_flag != &"" and GameState.has_flag(enemy.drop_flag)):
+		GameState.add_item(enemy.drop_item, enemy.drop_count)
+		if enemy.drop_flag != &"":
+			GameState.set_flag(enemy.drop_flag)
+		Events.item_found.emit(enemy.drop_item)
 	if enemy.echoes > 0:
 		EchoDrop.spawn(current_room, enemy.global_position + Vector3(0.0, 0.8, 0.0), enemy.echoes, player)
 

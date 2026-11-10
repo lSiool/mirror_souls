@@ -30,15 +30,32 @@ extends Node3D
 ## Не забранное к концу забега уходит торговцу (GameState.run_leftovers).
 @export var reward_flags: Array[StringName] = []
 @export var reward_items: Array[StringName] = []
+## Сколько штук под тем же номером; короче списка наград — по одной.
+@export var reward_counts: Array[int] = []
+## Стена огня идёт вместе с фронтом — игрок видит угрозу, а не угадывает таймер.
+## Высоты этажей, на которых она горит; пусто — стены нет.
+@export var fire_levels := PackedFloat32Array([0.0])
+@export var fire_size := Vector3(1.8, 3.6, 0.6)
 
 var running := false
 var front_x := 0.0
 var _player: Player
+var _wall: Node3D
 
 
 func _ready() -> void:
 	add_to_group(&"run_level")
 	front_x = start_x - head_start
+	_wall = Node3D.new()
+	add_child(_wall)
+	for level in fire_levels:
+		var fire := FireSpot.new()
+		fire.size = fire_size
+		fire.light_energy = 3.0
+		fire.light_range = 10.0
+		fire.position = Vector3(0.0, level, -0.6)
+		_wall.add_child(fire)
+	_wall.visible = false
 
 
 ## Узел забега в комнате; нет — обычная комната.
@@ -61,10 +78,12 @@ func _physics_process(delta: float) -> void:
 		if hero_x < start_x or _player.is_dead():
 			return
 		running = true
+		_wall.visible = true
 		Events.run_started.emit(self)
 	front_x += speed_at(front_x) * delta
 	if not _player.is_dead():
 		front_x = maxf(front_x, x_behind(hero_x, max_slack))
+	_wall.global_position = Vector3(front_x - 1.0, 0.0, 0.0)
 	for piece: Collapsible in get_tree().get_nodes_in_group(&"collapsible"):
 		piece.front_at(front_x)
 	if hero_x < front_x and not _player.is_dead():
@@ -120,8 +139,14 @@ func close() -> void:
 	set_physics_process(false)
 	if done_flag != &"":
 		GameState.set_flag(done_flag)
+	# Одна награда — один флаг, но предметов в ней может быть несколько (сундук).
+	var missed: Array[StringName] = []
+	for flag in reward_flags:
+		if not GameState.has_flag(flag) and flag not in missed:
+			missed.append(flag)
 	for i in mini(reward_flags.size(), reward_items.size()):
-		if not GameState.has_flag(reward_flags[i]):
-			GameState.set_flag(reward_flags[i])
-			GameState.add_leftover(reward_items[i])
+		if reward_flags[i] in missed:
+			GameState.add_leftover(reward_items[i], reward_counts[i] if i < reward_counts.size() else 1)
+	for flag in missed:
+		GameState.set_flag(flag)
 	Events.run_finished.emit(self)

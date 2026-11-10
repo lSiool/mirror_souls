@@ -117,6 +117,11 @@ const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
 @export var death_voice: StringName = &"enemy_death_voice"
 ## Сколько отзвуков прошлого остаётся после врага (летят к герою сами).
 @export var echoes := 30
+## Предмет, который враг носит с собой (§8.11): достаётся герою за победу. Пусто — ничего.
+@export var drop_item: StringName
+@export var drop_count := 1
+## Флаг «забрано»: мир запомнит; он же — награда уровня-забега (RunLevel.reward_flags).
+@export var drop_flag: StringName
 ## Очки мастерства за него: обычный враг — 1, мини-босс — 2, босс — 5.
 @export var rank := Rank.COMMON
 ## Чем он сражается: герой, побеждая его, понемногу учится этому оружию. Пусто — когти, тело, клыки.
