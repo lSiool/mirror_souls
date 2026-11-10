@@ -26,6 +26,10 @@ signal spells_changed
 signal mastery_step_reached(type: StringName, step: int)
 ## Стекло разбилось: менеджер комнаты запоминает его по виду (GlassSurface.memory).
 signal glass_broken(glass: GlassSurface)
+## Уровень-забег (§8.11): герой пересёк линию старта — пошло обрушение.
+signal run_started(run: RunLevel)
+## Забег окончен — пройден или провален; вход закрыт, не забранное ушло торговцу.
+signal run_finished(run: RunLevel)
 signal reality_changed(reality: StringName)
 signal interact_prompt_changed(text: String)
 ## Шум в мире (стрела ударилась о стену): враги, не видящие героя, идут проверить.
