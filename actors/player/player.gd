@@ -166,6 +166,8 @@ var _charge_ready := false
 var ladder: Ladder
 ## Лежит и спит: вступление в хижине.
 var lying := false
+## Сидит (сцена): очнулся у осколка после гибели на уровне-забеге (§8.11).
+var sitting := false
 ## Сколько зон грязи сейчас под героем.
 var mud_zones := 0
 var _combat_t := 99.0
@@ -1771,16 +1773,18 @@ func _on_died() -> void:
 ## Возрождение у осколка: полное здоровье и выносливость, короткая неуязвимость.
 ## Сбит с ног и лежит: сцена ведёт героя сама, ввода нет.
 ## Сцена берёт героя: замер на земле; lie — ещё и лежит.
-func knock_down(lie := true) -> void:
+func knock_down(lie := true, sit := false) -> void:
 	_set_state(State.MOVE)
 	velocity = Vector3.ZERO
 	global_position.y = last_ground.y if not is_on_floor() else global_position.y
 	frozen = true
-	lying = lie
+	lying = lie and not sit
+	sitting = sit
 
 
 func stand_up() -> void:
 	lying = false
+	sitting = false
 	frozen = false
 
 
@@ -1921,6 +1925,10 @@ func _update_visual(delta: float) -> void:
 	if lying:
 		body_mesh.rotation = Vector3(0.0, 0.0, PI * 0.5)
 		body_mesh.position = Vector3(0.0, 0.72, 0.0)
+		return
+	if sitting:
+		body_mesh.rotation = Vector3.ZERO
+		body_mesh.scale = Vector3(1.0, 0.62, 1.0)
 		return
 	var k := 1.0 - exp(-18.0 * delta)
 	var target_scale := Vector3.ONE

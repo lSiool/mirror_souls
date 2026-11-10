@@ -15,6 +15,9 @@ extends Interactable
 @export var needs_clear := false
 @export var clear_flag: StringName
 @export var locked_text := "Заперто."
+## Когда стоит этот флаг, дверь закрыта навсегда: вход на пройденный уровень-забег (§8.11).
+@export var closed_flag: StringName
+@export var closed_text := "Туда больше нет дороги."
 @export var door_size := Vector3(1.3, 2.4, 0.15)
 @export var door_color := Color(0.3, 0.2, 0.12)
 @export var door_glow := 0.0
@@ -60,7 +63,9 @@ func is_locked() -> bool:
 
 
 func interact(_by: Player) -> void:
-	if is_locked():
+	if closed_flag != &"" and GameState.has_flag(closed_flag):
+		Events.message.emit(closed_text)
+	elif is_locked():
 		Events.message.emit(locked_text)
 	else:
 		Events.door_used.emit(self)

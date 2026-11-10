@@ -173,6 +173,10 @@ func update(player: Player) -> void:
 		# Лежит (пробуждение в хижине): первый кадр «встать с пола».
 		hold(&"LayToIdle", 0.0)
 		return
+	if player.sitting:
+		# Сидит у осколка: очнулся после гибели на уровне-забеге (§8.11).
+		play(&"Sitting_Idle")
+		return
 	var vx := absf(player.velocity.x)
 	match player.state:
 		Player.State.MOVE:

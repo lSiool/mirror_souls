@@ -12,6 +12,13 @@ const NORMAL: StringName = &"normal"
 const ROOM_PATH := "res://world/rooms/%s.tscn"
 ## Сколько секунд после смерти до затемнения.
 const DEATH_HOLD := 1.9
+## Гибель на уровне-забеге (§8.11): сколько темно, как долго проявляется картинка и сколько
+## герой сидит у осколка, прежде чем сможет встать.
+const RUN_WAKE_DARK := 1.0
+const RUN_WAKE_FADE := 2.4
+const RUN_WAKE_SIT := 0.8
+## Любое из этих действий поднимает очнувшегося героя.
+const WAKE_ACTIONS: Array[StringName] = [&"move_left", &"move_right", &"move_up", &"jump", &"roll", &"attack", &"interact"]
 ## Музыка комнаты — пока вместо тона комнаты (тихий фон зала ещё не выбран). Играет без перерыва:
 ## смерть и переход через зеркало пересоздают комнату, а не менеджер.
 const MUSIC_PATH := "res://audio/music/room_music.ogg"
@@ -147,6 +154,9 @@ func _begin(resume: bool) -> void:
 func save_now() -> void:
 	if current_room == null or player.is_dead():
 		return
+	# На уровне-забеге игра не пишется (§8.11): продолжение — с места перед входом.
+	if RunLevel.of(current_room):
+		return
 	GameState.save_game({"room": current_room_id, "reality": reality, "position": player.safe_ground,
 		"stats": player.stats.to_dict()})
 
@@ -244,6 +254,10 @@ func travel(room_id: StringName, spawn: NodePath) -> void:
 	player.frozen = true
 	player.velocity = Vector3.ZERO
 	await hud.fade_to(1.0, 0.25)
+	# Вышел с уровня-забега — он пройден, второй раз туда не попасть (§8.11).
+	var run := RunLevel.of(current_room)
+	if run:
+		run.close()
 	_load_room(NORMAL, room_id)
 	var marker := current_room.get_node(spawn) as Node3D
 	player.teleport(marker.global_position)
@@ -396,6 +410,10 @@ func _on_player_died() -> void:
 	if level_menu.is_open:
 		level_menu.close()
 	_busy = true
+	var run := RunLevel.of(current_room)
+	if run and run.next_room != &"":
+		await _wake_after_run(run)
+		return
 	# Отзвук остаётся на последнем безопасном месте — до ловушки, что убила героя.
 	GameState.drop_echoes(_world_key(current_room_id, reality), player.safe_ground, player.death_weapon, player.facing)
 	# Дать телу упасть и прочитать надпись.
@@ -409,6 +427,49 @@ func _on_player_died() -> void:
 	save_now()
 	await hud.fade_to(0.0, 0.5)
 	_busy = false
+
+
+## Гибель на уровне-забеге (§8.11): назад дороги нет. Герой сам появляется у следующего осколка —
+## сидит возле него, будто только открыл глаза после падения. Осколок зажжён, отзвук героя ждёт
+## перед ним, уровень закрыт. Встаёт по первому действию игрока.
+func _wake_after_run(run: RunLevel) -> void:
+	var next_room := run.next_room
+	var shard_path := run.next_shard
+	var echo_path := run.echo_spawn
+	var wake_path := run.wake_spawn
+	var weapon := player.death_weapon
+	await get_tree().create_timer(DEATH_HOLD).timeout
+	await hud.fade_to(1.0, 0.5)
+	run.close()
+	GameState.set_checkpoint(next_room, NORMAL, shard_path)
+	GameState.set_flag(StringName("shard_%s" % next_room))
+	GameState.restore_world()
+	_load_room(NORMAL, next_room)
+	var echo_at := current_room.get_node_or_null(echo_path) as Node3D
+	var at := echo_at.global_position if echo_at else _checkpoint_position()
+	GameState.drop_echoes(_world_key(next_room, NORMAL), at, weapon, -1.0)
+	var wake_at := current_room.get_node_or_null(wake_path) as Node3D
+	player.respawn(wake_at.global_position if wake_at else _checkpoint_position())
+	player.facing = -1.0 if at.x < player.global_position.x else 1.0
+	player.knock_down(false, true)
+	camera_rig.snap_to_target()
+	hud.hide_death()
+	# Записать сразу: вышел из игры, не встав, — уровень всё равно позади.
+	save_now()
+	await get_tree().create_timer(RUN_WAKE_DARK).timeout
+	await hud.fade_to(0.0, RUN_WAKE_FADE)
+	await get_tree().create_timer(RUN_WAKE_SIT).timeout
+	while not _wake_pressed():
+		await get_tree().physics_frame
+	player.stand_up()
+	_busy = false
+
+
+func _wake_pressed() -> bool:
+	for action in WAKE_ACTIONS:
+		if Input.is_action_pressed(action):
+			return true
+	return false
 
 
 ## Враг погиб: мир его запоминает, а отзвук летит к герою.
