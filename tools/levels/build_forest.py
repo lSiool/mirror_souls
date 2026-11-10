@@ -58,8 +58,8 @@ def cemetery_gate():
         s.grave(D, f"Grave{i}", x, -4.0 - (i % 2), tilt=(i % 3 - 1) * 0.12, cross=i % 2 == 0)
     s.crow(D, "CrowA", 5.0, 2.6, -1.9)
     s.crow(D, "CrowB", 12.0, 2.6, -1.9)
-    # Корень обнимает стену: по нему лезут на пост могильщика.
-    s.box(D, "RootClimbA", (-7.7, 2.2, -0.9), (1.1, 4.8, 1.0), "root", rot=(0, 0, 0.18))
+    # Корень обнимает стену позади лестницы могильщика — лестницу он не закрывает.
+    s.box(D, "RootClimbA", (-7.7, 2.2, -1.6), (1.1, 4.8, 1.0), "root", rot=(0, 0, 0.18))
     s.box(D, "RootClimbB", (-4.0, 5.0, -1.2), (7.0, 0.9, 1.0), "root", rot=(0, 0, -0.1))
     s.ladder("RootClimb", -7.8, 0.0, 4.4, 1.0)
     # Пост могильщика: толстый настил, гнилая доска над ямой с кольями, сундук за ней.
@@ -71,9 +71,13 @@ def cemetery_gate():
         s.box(D, f"DeckPost{i}", (x, 1.5, -1.2), (0.3, 3.0, 0.3), "wood_dark")
         s.box(D, f"RoofPost{i}", (x, 5.8, -1.6), (0.2, 2.8, 0.2), "wood_dark")
     s.box(D, "PostRoof", (-1.4, 7.3, -1.0), (9.0, 0.2, 2.6), "wood_dark", rot=(0, 0, 0.05))
-    s.used.add("rotten")
+    # Учебная ловушка (§5.3): гнилая доска выглядит как настил, яма закрыта спереди. Подсказка —
+    # только тонкая трещина по доске и треск под ногой; бегом не проскочить, прыжком — можно.
+    s.box(G, "PitWallFront", (1.0, 3.7, 1.9), (1.6, 1.4, 0.2), "wood", True)
+    s.box(D, "PlankCrack", (0.9, 4.405, 0.4), (1.1, 0.01, 0.04), "wood_dark", rot=(0, 0.12, 0))
+    s.used.add("wood")
     s.instance("RottenPlank", "Objects", "glass", ["position = Vector3(1.0, 4.25, 0)", "size = Vector3(1.6, 0.3, 4)",
-               "crumble_time = 0.35", 'look = SubResource("Mat_rotten")'])
+               "crumble_time = 0.08", 'look = SubResource("Mat_wood")'])
     s.instance("PitSpikes", "Objects", "spikes", ["position = Vector3(1.0, 3.1, 0)", "width = 1.4", "spike_height = 0.5",
                "trap_damage = 18.0", "non_lethal = true"])
     s.chest("PostChest", (3.2, 4.4, -0.8), 120, "cem_gate_chest", ("tempered_glass",) + ("throwing_knife",) * 5)

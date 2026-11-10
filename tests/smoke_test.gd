@@ -2712,9 +2712,13 @@ func run() -> void:
 	check(player.global_position.y > 4.0, "по корню — на пост могильщика (y=%.2f)" % player.global_position.y)
 	var hp_trap := player.health.current
 	var plank := room_node("Objects/RottenPlank") as GlassSurface
-	await put(Vector3(1.0, 4.5, 0.0), 1.0)
-	await seconds(1.3)
-	check(plank._broken and player.global_position.y < 4.0, "гнилая доска провалилась")
+	# Бегом по настилу: доска выглядит как настил и проваливается под бегущим (§5.3).
+	await put(Vector3(-2.5, 4.5, 0.0), 1.0)
+	press("move_right")
+	await seconds(0.9)
+	release("move_right")
+	await seconds(0.6)
+	check(plank._broken and player.global_position.y < 4.0, "гнилая доска провалилась под бегущим — не перебежать")
 	check(player.health.current < hp_trap and not player.is_dead(), "колья ранят, но не убивают (%.0f → %.0f)" % [hp_trap, player.health.current])
 	await put(room_node("Objects/PostChest").global_position + Vector3(0.0, 0.1, 0.8))
 	await seconds(0.2)

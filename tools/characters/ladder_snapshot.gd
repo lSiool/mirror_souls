@@ -1,6 +1,7 @@
 extends Node
 ## Снимки героя на лестнице (§3.3): поза рук и ног на перекладинах по ходу подъёма.
 ## Нужен рендер — запускать без --headless (в облаке — через xvfb-run). Картинки — в user://ladder_snapshots/.
+## Комната — первым аргументом после «--» (по умолчанию стена леса), берётся первая лестница в ней.
 
 const OUT := "user://ladder_snapshots"
 const ROOM := &"forest_wall"
@@ -14,7 +15,8 @@ func _ready() -> void:
 	GameState.weapon_id = &"sword"
 	GameState.set_flag(&"got_sword")
 	_main = load("res://main.tscn").instantiate()
-	_main.get_node("RoomManager").start_room = ROOM
+	var args := OS.get_cmdline_user_args()
+	_main.get_node("RoomManager").start_room = StringName(args[0]) if args.size() > 0 else ROOM
 	get_tree().root.add_child.call_deferred(_main)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	await get_tree().create_timer(2.0).timeout

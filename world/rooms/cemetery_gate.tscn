@@ -1,4 +1,4 @@
-[gd_scene load_steps=43 format=3]
+[gd_scene load_steps=42 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -104,10 +104,6 @@ roughness = 0.95
 
 [sub_resource type="StandardMaterial3D" id="Mat_root"]
 albedo_color = Color(0.14, 0.1, 0.08, 1)
-roughness = 0.95
-
-[sub_resource type="StandardMaterial3D" id="Mat_rotten"]
-albedo_color = Color(0.34, 0.27, 0.17, 1)
 roughness = 0.95
 
 [sub_resource type="StandardMaterial3D" id="Mat_statue"]
@@ -758,7 +754,7 @@ size = Vector3(0.12, 0.12, 0.11)
 material = SubResource("Mat_iron")
 
 [node name="RootClimbA" type="CSGBox3D" parent="Decor"]
-position = Vector3(-7.7, 2.2, -0.9)
+position = Vector3(-7.7, 2.2, -1.6)
 rotation = Vector3(0, 0, 0.18)
 size = Vector3(1.1, 4.8, 1.0)
 material = SubResource("Mat_root")
@@ -844,11 +840,23 @@ rotation = Vector3(0, 0, 0.05)
 size = Vector3(9.0, 0.2, 2.6)
 material = SubResource("Mat_wood_dark")
 
+[node name="PitWallFront" type="CSGBox3D" parent="Geometry"]
+position = Vector3(1.0, 3.7, 1.9)
+use_collision = true
+size = Vector3(1.6, 1.4, 0.2)
+material = SubResource("Mat_wood")
+
+[node name="PlankCrack" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.9, 4.405, 0.4)
+rotation = Vector3(0, 0.12, 0)
+size = Vector3(1.1, 0.01, 0.04)
+material = SubResource("Mat_wood_dark")
+
 [node name="RottenPlank" parent="Objects" instance=ExtResource("glass")]
 position = Vector3(1.0, 4.25, 0)
 size = Vector3(1.6, 0.3, 4)
-crumble_time = 0.35
-look = SubResource("Mat_rotten")
+crumble_time = 0.08
+look = SubResource("Mat_wood")
 
 [node name="PitSpikes" parent="Objects" instance=ExtResource("spikes")]
 position = Vector3(1.0, 3.1, 0)
