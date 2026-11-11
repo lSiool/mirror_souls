@@ -269,9 +269,13 @@ func run_route(route: String) -> Vector2:
 	# Края, с которых прыгают: первый и последний мосты, дальше — свои у каждого пути.
 	var edges: Array[float] = [28.0, 34.0, 218.0, 224.0]
 	match route:
-		"road": edges.append_array([46.5, 67.8, 119.8, 162.8, 196.5])
-		"roofs": edges.append_array([46.5, 65.5, 75.5, 85.5, 97.5, 125.5, 137.5, 151.5, 165.5, 177.5, 196.5])
+		"road": edges.append_array([67.8, 119.8, 162.8, 196.5])
+		"roofs": edges.append_array([65.5, 75.5, 85.5, 97.5, 125.5, 137.5, 165.5, 177.5, 196.5])
 		"ravine": edges.append_array([79.5, 117.5])
+	# Что надо разбить ударом на бегу: стенка теплицы на крышах, перегородка в овраге.
+	var smash: Dictionary = {"roofs": "Objects/Greenhouse", "ravine": "Objects/Barricade"}
+	var wall := room_node(smash[route]) as GlassSurface if smash.has(route) else null
+	var hatch := room_node("Objects/ForkHatch") as GlassSurface
 	var least := INF
 	var began := Engine.get_physics_frames()
 	var chest_done := false
@@ -283,6 +287,27 @@ func run_route(route: String) -> Vector2:
 			break
 		if run.running and at.x > 58.0:
 			least = minf(least, run.time_between(run.front_x, at.x) if at.x > run.front_x else 0.0)
+		# Овраг: стеклянный люк на площади пробивается ударом сверху — прыжок, «вниз» + удар.
+		if route == "ravine" and not hatch._broken and at.x >= 47.6 and at.x < 49.2 and player.is_on_floor():
+			release("move_right")
+			press("jump")
+			await frames(14)
+			release("jump")
+			press("move_down")
+			await tap("attack")
+			release("move_down")
+			for k in 60:
+				await frames(1)
+				if hatch._broken:
+					break
+			press("move_right")
+			continue
+		# Преграда на пути: удар на бегу.
+		if wall and not wall._broken and wall.global_position.x - at.x < 2.0 and wall.global_position.x - at.x > 0.5 \
+				and absf(wall.global_position.y - 1.2 - at.y) < 1.0 and player.state == Player.State.MOVE and player.is_on_floor():
+			await tap("attack")
+			await frames(8)
+			continue
 		# Лестницы: на крыши с площади и из оврага к воротам.
 		var ladder_top := INF
 		if route == "roofs" and at.x >= 54.7 and at.x < 55.6 and at.y < 4.5:
@@ -349,6 +374,10 @@ func run_route(route: String) -> Vector2:
 		elif player.velocity.y <= 0.0:
 			release("jump")
 	release_all()
+	if is_instance_valid(wall):
+		check(wall._broken, "путь «%s»: преграда разбита ударом на бегу (%s)" % [route, wall.name])
+	if is_instance_valid(hatch):
+		check(hatch._broken == (route == "ravine"), "путь «%s»: стеклянный люк %s" % [route, "пробит ударом сверху" if route == "ravine" else "цел — по нему пробежали"])
 	return Vector2(least, (Engine.get_physics_frames() - began) / 60.0)
 
 
@@ -3393,7 +3422,8 @@ func run() -> void:
 				check(left.has(&"tempered_glass") and left.has(&"fire_flask") and not left.has(&"fire_arrow"),
 					"крыши: награды улицы и низа ушли торговцу")
 			"ravine":
-				check(game_state.item_count(&"tempered_glass") == kept_items.get(&"tempered_glass", 0) + 1, "овраг: громила убит, стекло получено")
+				check(game_state.has_flag(&"run_village_brute") and game_state.item_count(&"tempered_glass") == kept_items.get(&"tempered_glass", 0) + 1,
+					"овраг: люк пробит, перегородка разбита, громила убит, стекло получено")
 				check(left.has(&"fire_arrow") and left.has(&"fire_flask") and not left.has(&"tempered_glass"),
 					"овраг: награды улицы и верха ушли торговцу")
 	if lead.size() == 3:

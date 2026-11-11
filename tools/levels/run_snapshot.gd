@@ -6,8 +6,9 @@ extends Node
 
 const OUT := "user://run_snapshots"
 ## Участки: имя и место героя (x, y).
-const SPOTS := {"1_street": Vector2(14.0, 0.2), "3_roofs": Vector2(92.0, 5.2),
-	"4_road": Vector2(98.0, 0.2), "5_ravine": Vector2(136.0, -5.3), "6_tower": Vector2(173.0, 8.2), "7_meet": Vector2(204.0, 0.2)}
+const SPOTS := {"1_fork_hatch": Vector2(45.0, 0.2), "2_greenhouse": Vector2(71.0, 5.2), "3_ravine_slide": Vector2(53.0, -2.6),
+	"4_barricade": Vector2(89.5, -5.3), "5_cellar_boards": Vector2(104.0, -5.3), "6_loft_slide": Vector2(150.0, 6.7),
+	"7_street_boards": Vector2(174.0, 0.2)}
 
 var _main: Node
 var _player: Player

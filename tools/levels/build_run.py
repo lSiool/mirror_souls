@@ -45,7 +45,9 @@ REWARDS = (("run_village_tower", "fire_arrow", 10), ("run_village_tower", "throw
            ("run_village_road", "fire_flask", 1), ("run_village_brute", "tempered_glass", 1))
 # Крыши верхнего пути (x начала, x конца) — рушатся; между ними прыжки.
 ROOFS = ((55.5, 66.0), (68.0, 76.0), (78.5, 86.0), (89.0, 98.0), (100.5, 104.0), (115.0, 126.0),
-         (129.0, 138.0), (141.0, 152.0), (154.5, 166.0), (168.5, 178.0), (180.5, 192.0))
+         (129.0, 138.0), (141.0, 146.0), (155.0, 166.0), (168.5, 178.0), (180.5, 192.0))
+# Наклон стеклянных скатов (рад) — как у ската комнаты-прототипа: 1 м вниз на 2 м вперёд.
+SLOPE = -0.4636
 
 MODE_FOREVER, MODE_RESTORES = 0, 1
 
@@ -92,10 +94,10 @@ def run_village():
     for name, x0, x1 in (("Home", LEFT, 24.0), ("Plaza", 41.0, 46.0), ("Meet", 200.0, 214.0), ("Gate", 232.0, RIGHT)):
         s.box(G, f"Ground{name}", ((x0 + x1) / 2, -4.25, 0), (x1 - x0, 8.5, 4.4), "mud", True)
         s.box(D, f"Bank{name}", ((x0 + x1) / 2, -2.2, 3.7), (x1 - x0, 4, 3.0), "earth_dark")
-    for name, x0, x1 in (("A", 46.0, 47.0), ("B", 50.0, 197.0)):
+    for name, x0, x1 in (("A", 46.0, 47.0), ("B", 50.0, 176.0), ("C", 184.0, 197.0)):
         s.box(G, f"Street{name}", ((x0 + x1) / 2, -0.5, 0), (x1 - x0, 1.0, 4.4), "mud", True)
     # Дно оврага и погреба: два провала насмерть.
-    for i, (x0, x1) in enumerate(((46.0, 80.0), (83.0, 118.0), (121.0, 200.0))):
+    for i, (x0, x1) in enumerate(((46.0, 80.0), (83.0, 100.0), (121.0, 200.0))):
         s.box(G, f"Ravine{i}", ((x0 + x1) / 2, LOW - 1.5, 0), (x1 - x0, 3.0, 4.4), "earth_dark", True)
     s.box(D, "RavineBack", (123.0, -3.3, -2.5), (154.0, 5.6, 0.6), "earth_dark")
 
@@ -120,8 +122,12 @@ def run_village():
         s.box(D, f"PlankPost{i}", ((x0 + x1) / 2, -7.0, -1.7), (0.4, 13.0, 0.4), "wood_dark")
     fire(s, "FirstRavineFire", (32.0, -7.0, -2.4), (8.0, 4.0, 0.6), 2.6, 16.0)
 
-    # --- 2. Площадь-развилка: колодец; вниз — пролом в мостовой, вверх — лестница на крыши,
-    #        прямо — улица. У каждого проёма свой свет и блик награды вдали.
+    # --- 2. Площадь-развилка: колодец; вниз — стеклянный люк в мостовой, который надо пробить
+    #        ударом сверху (прыжок, вниз + удар): под ним скат в овраг. Вверх — лестница на крыши,
+    #        прямо — улица, по люку можно просто пробежать. У каждого проёма свой свет.
+    s.instance("ForkHatch", "Objects", "glass", ["position = Vector3(48.5, -0.15, 0)", "size = Vector3(3, 0.3, 4)"])
+    s.instance("RavineSlide", "Objects", "glass", ["position = Vector3(50.83, -3.68, 0)", f"rotation = Vector3(0, 0, {SLOPE})",
+               "role = 1", "size = Vector3(8.72, 0.3, 3)", "breakable = false"])
     s.cyl(D, "Well", (43.5, 0.5, -1.6), 0.9, 1.0, "stone", sides=10)
     s.box(D, "WellRoof", (43.5, 2.6, -1.6), (2.2, 0.2, 1.6), "wood_dark")
     for i, side in enumerate((-0.8, 0.8)):
@@ -144,7 +150,17 @@ def run_village():
         s.box(D, f"RoofGlow{i}", ((x0 + x1) / 2, 2.4, -2.18), (0.9, 1.1, 0.06), "fire")
     # Чердак-надстройка и стеклянный скат с неё.
     piece(s, "Attic", (108.0, TOP + 0.75, 0), (8.0, 1.5, 3.0), color=(0.22, 0.17, 0.13))
-    s.instance("RoofSlide", "Objects", "glass", ["position = Vector3(113.43, 5.62, 0)", "rotation = Vector3(0, 0, -0.4636)",
+    s.instance("RoofSlide", "Objects", "glass", ["position = Vector3(113.43, 5.62, 0)", f"rotation = Vector3(0, 0, {SLOPE})",
+               "role = 1", "size = Vector3(3.36, 0.3, 3)", "breakable = false"])
+    # Теплица на крыше: стеклянную стенку надо разбить ударом на бегу.
+    s.instance("Greenhouse", "Objects", "glass", [f"position = Vector3(73.5, {TOP + 1.2}, 0)", "size = Vector3(0.3, 2.4, 3)"])
+    s.box(D, "GreenhouseFrame", (73.5, TOP + 2.5, -1.4), (0.4, 0.2, 0.4), "iron")
+    # Стеклянный фонарь между крышами: трескается под ногами — бегом или прыжком, не шагом.
+    s.instance("Skylight", "Objects", "glass", [f"position = Vector3(127.5, {TOP - 0.15}, 0)", "size = Vector3(3, 0.3, 3)",
+               "crumble_time = 0.3", "restore_time = 2.5"])
+    # Вторая надстройка и длинный скат с неё — на разгон перед башенкой.
+    piece(s, "Loft", (149.0, TOP + 0.75, 0), (6.0, 1.5, 3.0), color=(0.22, 0.17, 0.13))
+    s.instance("LoftSlide", "Objects", "glass", ["position = Vector3(153.43, 5.62, 0)", f"rotation = Vector3(0, 0, {SLOPE})",
                "role = 1", "size = Vector3(3.36, 0.3, 3)", "breakable = false"])
     s.enemy("RoofBatA", "bat", (82.0, TOP + 3.2, 0))
     s.enemy("RoofBatB", "bat", (133.0, TOP + 3.2, 0))
@@ -166,15 +182,25 @@ def run_village():
     s.node("RoadFind", 'type="Area3D"', "Objects", ["position = Vector3(150.0, 0.0, 0)", 'script = ExtResource("pickup")',
            'item_id = &"fire_flask"', 'flag = &"run_village_road"', 'pickup_prompt = "Схватить склянку"',
            "look_size = Vector3(0.25, 0.4, 0.25)", "look_color = Color(0.5, 0.2, 0.1, 1)"])
-    for i, x in enumerate((62.0, 88.0, 112.0, 140.0, 178.0)):
+    # Прогоревший настил у конца улицы: провалился — упал в овраг за погребом, к лестнице у ворот.
+    for i, x0 in enumerate((176.0, 180.0)):
+        piece(s, f"StreetBoard{i}", (x0 + 2.0, -0.2, 0), (4.0, 0.4, 4.0), color=(0.2, 0.14, 0.09), warn=0.5)
+    for i, x in enumerate((62.0, 88.0, 112.0, 140.0, 170.0)):
         fire(s, f"RoadFire{i}", (x, 0.0, -1.9), (2.0, 2.4, 0.5))
     s.box(D, "Cart", (84.0, 0.7, -1.8), (2.6, 0.5, 1.2), "wood")
     s.cyl(D, "CartWheel", (83.2, 0.5, -1.1), 0.5, 0.12, "wood_dark", rot=(1.5708, 0, 0))
 
     # --- 3в. Низ — овраг и погреба (бой): крысы, два провала, в тесном погребе громила с наградой.
     s.box(G, "RavineWall", (45.5, -3.25, 0), (1.0, 4.5, 4.4), "earth_dark", True)
-    for i, x in enumerate((66.0, 96.0, 110.0)):
+    for i, x in enumerate((66.0, 74.0, 126.0)):
         s.enemy(f"Rat{i}", "rat", (x, LOW, 0))
+    # Дощатая перегородка погреба: только разбить. За ней — настил над провалом, рушится кусками.
+    s.used.add("wood")
+    s.instance("Barricade", "Objects", "glass", [f"position = Vector3(92, {LOW + 1.2}, 0)", "size = Vector3(0.3, 2.4, 3)",
+               'look = SubResource("Mat_wood")'])
+    for i, (x0, mode) in enumerate(((100.0, MODE_FOREVER), (106.0, MODE_RESTORES), (112.0, MODE_FOREVER))):
+        color = (0.2, 0.2, 0.21) if mode == MODE_RESTORES else (0.22, 0.15, 0.1)
+        piece(s, f"CellarBoard{i}", (x0 + 3.0, LOW - 0.2, 0), (6.0, 0.4, 3.0), mode, color)
     s.enemy("Brute", "bandit_heavy", (140.0, LOW, 0), ['drop_item = &"tempered_glass"', 'drop_flag = &"run_village_brute"'])
     # Погреб: низкий свод — громилу не перепрыгнуть; бочки, свет.
     s.box(G, "CellarVault", (139.0, LOW + 3.3, 0), (20.0, 1.4, 4.4), "stone_dark", True)
@@ -189,7 +215,7 @@ def run_village():
     s.light(D, "CellarLight", (139.0, LOW + 1.8, 0.8), (1.0, 0.55, 0.25), 2.4, 11.0)
     for i, x in enumerate((58.0, 76.0, 100.0, 160.0, 184.0)):
         fire(s, f"RavineFire{i}", (x, LOW, -1.8), (1.8, 2.0, 0.5), 2.0, 9.0)
-    for i, x in enumerate((81.5, 119.5)):
+    for i, x in enumerate((81.5, 109.0, 119.5)):
         s.light(D, f"PitGlow{i}", (x, LOW - 3.0, 0.0), (1.0, 0.4, 0.15), 2.0, 7.0)
     s.ladder("RavineLadder", 199.5, LOW, -LOW, 1.0)
     s.ladder_look("Ravine", 199.5, LOW, -LOW)
