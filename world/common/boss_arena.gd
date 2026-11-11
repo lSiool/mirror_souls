@@ -2,6 +2,13 @@ class_name BossArena
 extends Node3D
 ## Арена босса: когда бой начинается (Events.boss_engaged), по краям встают туманные стены;
 ## когда босс побеждён или ушёл — растворяются. Побеждённый босс стен не ставит.
+## С арены не сбежать (2026-11-11): стена встаёт не мгновенно, и герой успевал выскочить за неё —
+## бой начинался, а он оставался снаружи. Теперь, пока арена закрыта, героя, оказавшегося
+## за стеной, туман втягивает обратно, а изнутри за стену не выйти.
+
+## На сколько от стены внутрь держится герой и как быстро туман втягивает его (м/с).
+const WALL_MARGIN := 0.9
+const PULL_SPEED := 16.0
 
 @export var boss_path: NodePath
 @export var left_x := -12.0
@@ -10,6 +17,8 @@ extends Node3D
 
 var gates: Array[FogGate] = []
 var _boss: Dummy
+var _closed := false
+var _player: Player
 
 
 func _ready() -> void:
@@ -36,6 +45,21 @@ func _on_boss_engaged(who: Dummy) -> void:
 		gate.global_position = Vector3(x, global_position.y, 0.0)
 		gate.rise()
 		gates.append(gate)
+	_closed = true
+	_player = get_tree().get_first_node_in_group(&"player") as Player
+
+
+func _physics_process(delta: float) -> void:
+	if not _closed or _player == null or not is_instance_valid(_player) or _player.is_dead():
+		return
+	var x := _player.global_position.x
+	var inside := clampf(x, left_x + WALL_MARGIN, right_x - WALL_MARGIN)
+	if is_equal_approx(x, inside):
+		return
+	# За стеной: туман тащит внутрь, скорость наружу гасится.
+	_player.global_position.x = move_toward(x, inside, PULL_SPEED * delta)
+	if signf(_player.velocity.x) == signf(x - inside):
+		_player.velocity.x = 0.0
 
 
 func flare() -> void:
@@ -44,6 +68,7 @@ func flare() -> void:
 
 
 func lower() -> void:
+	_closed = false
 	for gate in gates:
 		if is_instance_valid(gate):
 			gate.dissolve()

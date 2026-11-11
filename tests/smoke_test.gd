@@ -3024,6 +3024,12 @@ func run() -> void:
 	await seconds(0.8)
 	release_all()
 	check(player.global_position.x > arena.left_x - 0.2, "сквозь туманную стену не выйти")
+	# Успел выскочить, пока стена вставала: туман втягивает обратно — снаружи не остаться.
+	await put(Vector3(arena.left_x - 3.0, 0.1, 0), -1.0)
+	press("move_left")
+	await seconds(0.8)
+	release_all()
+	check(player.global_position.x > arena.left_x + 0.5, "героя за стеной туман втянул на арену (x=%.1f)" % player.global_position.x)
 	player.restore()
 	await put(Vector3(smith.global_position.x - 2.2, 0.1, 0), 1.0)
 	smith.facing = -1.0
