@@ -33,6 +33,13 @@ const BOW_IN_HAND := [Vector3(0.0, 0.0, PI * 0.5), Vector3(0.0, 0.06, 0.0)]
 const AIR_CLIP := &"Sword_Regular_A"
 ## На сколько манекен на лестнице придвинут к ней (м, в мире).
 const LADDER_CLOSE := 0.22
+## Парирование (§6.1, 2026-11-11): клип, отрезок встречного взмаха [от, до] и до куда доигрывает
+## удачное парирование. Щитом — выпад щита навстречу удару, оружием — отбив снизу вверх.
+## Играет только верх тела: ноги стоят как стояли.
+const PARRY_SHIELD := [&"Shield_OneShot", 0.3, 0.62, 0.83]
+const PARRY_BLADE := [&"Melee_Hook", 0.0, 0.3, 0.47]
+## Сколько держится доигрыш удачного парирования.
+const PARRY_HIT_TIME := 0.3
 const AIR_FROM := 0.15
 const LOWER_BODY: Array[String] = [
 	"Root", "Hips", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftToes",
@@ -52,6 +59,8 @@ var _clip := &""
 var _clip_end := 0.0
 ## Руки и ноги на перекладинах (лестница, §3.3) — создаётся при первом подъёме.
 var _ladder: LadderLimbs
+## Сколько ещё играет взмах парирования — поза блока его не перебивает.
+var _parry_left := 0.0
 ## Свободная (левая) рука к точке — ладонь на кристалле осколка; создаётся при первом касании.
 var _touch_ik: TwoBoneIK3D
 var _touch_target: Node3D
@@ -214,6 +223,11 @@ func update(player: Player) -> void:
 		return
 	_off_ladder()
 	_touch(player.touching)
+	if _parry_left > 0.0:
+		_parry_left -= get_physics_process_delta_time()
+		if player.state in [Player.State.MOVE, Player.State.BLOCK]:
+			return
+		_parry_left = 0.0
 	var vx := absf(player.velocity.x)
 	match player.state:
 		Player.State.MOVE:
@@ -328,3 +342,17 @@ func _touch(crystal: Node3D) -> void:
 	_touch_target.global_position = at
 	_touch_pole.global_position = global_position + Vector3(side * 0.1, 0.6, -0.8)
 	_touch_ik.influence = 1.0
+
+
+## Нажат блок, герой умеет парировать: встречный взмах на окно парирования.
+func parry(shield: bool, window: float) -> void:
+	var move: Array = PARRY_SHIELD if shield else PARRY_BLADE
+	play_span(_upper(move[0]), move[1], move[2], window, 0.04)
+	_parry_left = window
+
+
+## Удар отбит: взмах доигрывает до конца — враг раскрыт.
+func parry_hit(shield: bool) -> void:
+	var move: Array = PARRY_SHIELD if shield else PARRY_BLADE
+	play_span(_upper(move[0]), move[2], move[3], PARRY_HIT_TIME, 0.02)
+	_parry_left = PARRY_HIT_TIME

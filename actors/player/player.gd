@@ -338,6 +338,8 @@ func _tick(delta: float) -> void:
 			_roll_buffer = stats.input_buffer + _roll_wait()
 		if Input.is_action_just_pressed("block") and can_parry():
 			_parry_t = stats.parry_window
+			if state in [State.MOVE, State.BLOCK]:
+				model.parry(shield_in_hand(), stats.parry_window)
 		if Input.is_action_just_pressed("shoot"):
 			_shoot_buffer = stats.input_buffer
 		if Input.is_action_just_pressed("heal"):
@@ -1733,6 +1735,7 @@ func _tick_wound(delta: float) -> void:
 
 func _on_parry(attacker: Dummy) -> void:
 	_parry_t = 0.0
+	model.parry_hit(shield_in_hand())
 	Sfx.play(&"sword_parry", global_position + Vector3(facing * 0.6, 1.2, 0.0))
 	HitStop.stop(0.12)
 	Events.camera_shake_requested.emit(0.3, 0.2)
