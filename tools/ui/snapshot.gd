@@ -50,6 +50,8 @@ func _ready() -> void:
 	await get_tree().create_timer(0.4).timeout
 	await _shot("menu_root")
 	rooms.level_menu.choose(PlayerStats.Param.VIGOR)
+	# Очко Силы: на экране уровня видно, как оно меняет урон оружия.
+	rooms.level_menu.choose(PlayerStats.Param.STRENGTH)
 	for page in [LevelMenu.Page.LEVEL, LevelMenu.Page.FACETS, LevelMenu.Page.WEAPON, LevelMenu.Page.ITEMS]:
 		rooms.level_menu.show_page(page)
 		await get_tree().create_timer(0.3).timeout

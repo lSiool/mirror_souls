@@ -50,6 +50,8 @@ const PLACE_NAMES := {&"village_hut": "Хижина", &"village_street": "Ули
 	&"run_village": "Горящая деревня", &"run_exit": "За воротами деревни"}
 const SCALING_SHOWN: Array[PlayerStats.Param] = [PlayerStats.Param.STRENGTH, PlayerStats.Param.DEXTERITY,
 	PlayerStats.Param.INTELLIGENCE, PlayerStats.Param.LUCK]
+const SCALING_SHORT := {PlayerStats.Param.STRENGTH: "Сил", PlayerStats.Param.DEXTERITY: "Лов",
+	PlayerStats.Param.INTELLIGENCE: "Инт", PlayerStats.Param.LUCK: "Удч"}
 
 const TEXT := Color(0.93, 0.94, 0.95)
 const MUTED := Color(0.6, 0.63, 0.67)
@@ -513,7 +515,7 @@ func _refresh_level() -> void:
 	_respec.visible = GameState.item_count(CLEAR_GLASS) > 0
 	_respec.text = "Чистое стекло (%d): перераспределить очки" % GameState.item_count(CLEAR_GLASS)
 	_respec.disabled = _animating
-	_fill_rows(_hero_rows, _hero_values())
+	_fill_rows(_hero_rows, _hero_values(next_age))
 	_fill_rows(_defense_rows, _defense_values())
 	_fill_rows(_body_rows, _body_values(next_age))
 	# Статус из меню паузы: только смотреть, уровень поднимают у осколка.
@@ -531,11 +533,52 @@ func _base_points(_param: PlayerStats.Param) -> int:
 	return 10
 
 
-## [название, было, станет] — было: сейчас, станет: с набранными очками.
-func _hero_values() -> Array:
+## Пара «было, станет» для числа: если прибавка меньше единицы, показываются десятые (и сотые) —
+## иначе очко Силы «не меняло» урон: 22 → 22 вместо 22.0 → 22.3 (2026-11-11).
+## at_least — сколько знаков показывать всегда (множители — с сотыми).
+static func _was_now(was: float, now: float, pattern := "%s", at_least := 0) -> Array:
+	for digits in range(at_least, 3):
+		var a := String.num(was, digits).pad_decimals(digits)
+		var b := String.num(now, digits).pad_decimals(digits)
+		if a != b or is_equal_approx(was, now) or digits == 2:
+			return [pattern % a, pattern % b]
+	return []
+
+
+## Грейды скалирования оружия короткой строкой: «Сил D · Лов C».
+static func _scaling_text(weapon: WeaponData) -> String:
+	var parts := PackedStringArray()
+	for param: PlayerStats.Param in SCALING_SHOWN:
+		var grade: String = weapon.scaling.get(PlayerStats.PARAM_IDS[param], "")
+		if grade != "":
+			parts.append("%s %s" % [SCALING_SHORT[param], grade])
+	return " · ".join(parts)
+
+
+## [название, было, станет] — было: сейчас, станет: с набранными очками и в новом возрасте.
+## Урон идёт первым, как в Souls: видно, что даёт очко Силы, Ловкости, Интеллекта.
+func _hero_values(next_age: float) -> Array:
 	var stats := _player.stats
 	var extra := _pending
 	var rows := []
+	# Возраст тоже меняет удар (§1.3): старше — сильнее.
+	var aged := stats.damage_at(next_age) / stats.damage_at(stats.current_age)
+	for set_index in 2:
+		var id := GameState.weapon_id if set_index == 0 else GameState.second_weapon_id
+		if id == &"":
+			continue
+		var weapon := WeaponData.by_id(id)
+		var glass := GameState.glass_level(id)
+		var grades := _scaling_text(weapon)
+		rows.append(["Урон %s: %s%s" % ["I" if set_index == 0 else "II", weapon.display_name, " (%s)" % grades if grades != "" else ""]]
+			+ _was_now(_player.weapon_damage(weapon, glass), _player.weapon_damage(weapon, glass, extra) * aged))
+	if GameState.has_flag(&"has_bow"):
+		var dex := stats.bonus_with(PlayerStats.Param.DEXTERITY, extra.get(PlayerStats.Param.DEXTERITY, 0))
+		var bow_after := stats.bow_damage_max * (1.0 + dex * WeaponData.grade_mult(PlayerStats.BOW_GRADE)) * stats.facet_mult(&"bow_damage") * GameState.bow_damage_mult()
+		rows.append(["Урон лука (Лов %s)" % PlayerStats.BOW_GRADE] + _was_now(stats.bow_damage_max * stats.bow_damage_mult * GameState.bow_damage_mult(), bow_after))
+	var intel_more: int = extra.get(PlayerStats.Param.INTELLIGENCE, 0)
+	rows.append(["Стеклянная магия (Инт)"] + _was_now(stats.spell_damage_mult, stats.spell_damage_at(intel_more), "×%s", 2))
+	rows.append(["Добивание (Лов)"] + _was_now(stats.critical_mult, stats.critical_at(extra.get(PlayerStats.Param.DEXTERITY, 0)), "×%s", 2))
 	rows.append(["Здоровье", "%.0f" % stats.max_health,
 		"%.0f" % ((stats.base_health + stats.bonus_with(PlayerStats.Param.VIGOR, extra.get(PlayerStats.Param.VIGOR, 0))) * stats.facet_mult(&"max_health"))])
 	rows.append(["Выносливость", "%.0f" % stats.max_stamina,
@@ -545,25 +588,10 @@ func _hero_values() -> Array:
 	var load_after := stats.equip_load_at(extra.get(PlayerStats.Param.VITALITY, 0))
 	rows.append(["Вес снаряжения", "%.1f / %.1f" % [weight, stats.equip_load], "%.1f / %.1f" % [weight, load_after]])
 	rows.append(["Кувырок", ROLL_NAMES[stats.roll_class(weight, stats.equip_load)], ROLL_NAMES[stats.roll_class(weight, load_after)]])
-	for set_index in 2:
-		var id := GameState.weapon_id if set_index == 0 else GameState.second_weapon_id
-		if id == &"":
-			continue
-		var weapon := WeaponData.by_id(id)
-		var glass := GameState.glass_level(id)
-		rows.append(["Урон %s: %s" % ["I" if set_index == 0 else "II", weapon.display_name],
-			"%.0f" % _player.weapon_damage(weapon, glass), "%.0f" % _player.weapon_damage(weapon, glass, extra)])
-	if GameState.has_flag(&"has_bow"):
-		var dex := stats.bonus_with(PlayerStats.Param.DEXTERITY, extra.get(PlayerStats.Param.DEXTERITY, 0))
-		var bow_after := stats.bow_damage_max * (1.0 + dex * WeaponData.grade_mult(PlayerStats.BOW_GRADE)) * stats.facet_mult(&"bow_damage") * GameState.bow_damage_mult()
-		rows.append(["Урон лука", "%.0f" % (stats.bow_damage_max * stats.bow_damage_mult * GameState.bow_damage_mult()), "%.0f" % bow_after])
-	rows.append(["Добивание", "×%.2f" % stats.critical_mult, "×%.2f" % stats.critical_at(extra.get(PlayerStats.Param.DEXTERITY, 0))])
 	var memory_more: int = extra.get(PlayerStats.Param.MEMORY, 0)
-	var intel_more: int = extra.get(PlayerStats.Param.INTELLIGENCE, 0)
 	rows.append(["Мана", "%.0f" % stats.max_mana, "%.0f" % stats.mana_at(memory_more, intel_more)])
 	rows.append(["Ячейки магии", str(stats.spell_slots), str(stats.spell_slots_at(memory_more))])
 	rows.append(["Восстановление маны", "%.1f/с" % stats.mana_regen, "%.1f/с" % stats.mana_regen_at(memory_more)])
-	rows.append(["Стеклянная магия", "×%.2f" % stats.spell_damage_mult, "×%.2f" % stats.spell_damage_at(intel_more)])
 	var luck_after: int = stats.points_in(PlayerStats.Param.LUCK) + extra.get(PlayerStats.Param.LUCK, 0)
 	rows.append(["Находчивость", "%.0f" % stats.discovery, "%.0f" % (100.0 + stats.discovery_per_point * luck_after)])
 	rows.append(["Кровотечение", "×%.2f" % stats.bleed_mult, "×%.2f" % (1.0 + stats.bleed_per_point * luck_after)])
