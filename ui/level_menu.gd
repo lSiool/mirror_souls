@@ -14,6 +14,8 @@ extends Control
 signal closed
 ## Перенестись к главному осколку у часовни (хаб).
 signal hub_requested
+## «Вернуться к осколку …» у главного осколка (§8.4).
+signal return_requested
 ## «Выйти в главное меню» из меню паузы.
 signal title_requested
 
@@ -44,7 +46,8 @@ const PLACE_NAMES := {&"village_hut": "Хижина", &"village_street": "Ули
 	&"village_square": "Площадь", &"chapel_yard": "Двор часовни", &"chapel": "Часовня",
 	&"cemetery_gate": "Кладбищенские ворота", &"cemetery": "Кладбище", &"forest_wall": "Стена леса",
 	&"fallen_giant": "Поваленный гигант", &"root_maze": "Корневой лабиринт", &"swamp": "Болото",
-	&"cursed_village": "Мёртвая деревня", &"room_001": "Комната-прототип"}
+	&"cursed_village": "Мёртвая деревня", &"room_001": "Комната-прототип", &"castle_gallery": "Галерея замка",
+	&"run_village": "Горящая деревня", &"run_exit": "За воротами деревни"}
 const SCALING_SHOWN: Array[PlayerStats.Param] = [PlayerStats.Param.STRENGTH, PlayerStats.Param.DEXTERITY,
 	PlayerStats.Param.INTELLIGENCE, PlayerStats.Param.LUCK]
 
@@ -70,6 +73,8 @@ var is_open := false
 var at_shard := true
 ## Можно ли отсюда перенестись к главному осколку: выставляет RoomManager перед open().
 var hub_available := false
+## Куда можно вернуться от главного осколка: название места; пусто — некуда.
+var return_place := ""
 var reflection: ShardReflection
 var _player: Player
 var _animating := false
@@ -83,6 +88,7 @@ var _hint: Label
 var _pages := {}
 var _root_buttons: Array[Button] = []
 var _hub: Button
+var _back: Button
 var _leave: Button
 ## Подпись у осколка, которой в паузе нет.
 var _flavor: Label
@@ -241,9 +247,11 @@ func _build_root(page: VBoxContainer) -> void:
 	page.add_child(_spacer(14))
 	_hub = _menu_button(page, "Перенестись к главному осколку", 28)
 	_hub.pressed.connect(go_to_hub)
+	_back = _menu_button(page, "Вернуться к осколку", 28)
+	_back.pressed.connect(go_back)
 	_leave = _menu_button(page, "Отойти", 28)
 	_leave.pressed.connect(close)
-	for button: Button in _root_buttons + [_hub, _leave]:
+	for button: Button in _root_buttons + [_hub, _back, _leave]:
 		button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		button.custom_minimum_size.x = 560
 	page.add_child(_spacer(30))
@@ -292,6 +300,19 @@ func _refresh_settings() -> void:
 	_volume_label.text = "%d" % roundi(Settings.volume * 10.0)
 	_volume_down.disabled = Settings.volume <= 0.0
 	_volume_up.disabled = Settings.volume >= 1.0
+
+
+## Закрыть меню и вернуться к осколку, с которого герой перенёсся сюда.
+func go_back() -> void:
+	if return_place == "" or _animating:
+		return
+	close()
+	return_requested.emit()
+
+
+## Название места комнаты — для подписей («Вернуться к осколку: Кладбище»).
+static func place_name(room_id: StringName) -> String:
+	return PLACE_NAMES.get(room_id, String(room_id).capitalize())
 
 
 ## Закрыть меню и перенестись к главному осколку.
@@ -1213,6 +1234,9 @@ func _refresh() -> void:
 		_hint.text = "[E] выбрать    [Esc] %s" % ("вернуться" if _page == Page.ROOT else "назад")
 	_hub.visible = hub_available and at_shard
 	_hub.disabled = _animating
+	_back.visible = return_place != "" and at_shard
+	_back.text = "Вернуться к осколку: %s" % return_place
+	_back.disabled = _animating
 	_leave.visible = at_shard
 	_leave.disabled = _animating
 	_flavor.visible = at_shard
@@ -1233,7 +1257,7 @@ func _refresh() -> void:
 func _place_name(room: Room) -> String:
 	if room == null:
 		return "Осколок"
-	return PLACE_NAMES.get(room.room_id, String(room.room_id).capitalize())
+	return place_name(room.room_id)
 
 
 func _focus_first() -> void:

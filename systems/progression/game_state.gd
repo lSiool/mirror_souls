@@ -24,7 +24,7 @@ const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_slots", "spells", "spell_slots", "active_spell", "run_leftovers"]
+	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_slots", "spells", "spell_slots", "active_spell", "run_leftovers", "hub_return"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -78,6 +78,9 @@ var broken_glass := {}
 var broken_forever := {}
 ## Отзвук героя на месте последней гибели: {reality, position, amount, weapon, facing}; пусто — нет.
 var hero_echo := {}
+## Осколок, с которого герой перенёсся к главному (§8.4): комната, реальность, путь к осколку.
+## От главного осколка к нему можно вернуться. Пусто — возвращаться некуда.
+var hub_return := {}
 ## Награды уровней-забегов, которые герой не успел забрать (§8.11): id → сколько.
 ## Их продаёт торговец по обычной цене предмета.
 var run_leftovers := {}

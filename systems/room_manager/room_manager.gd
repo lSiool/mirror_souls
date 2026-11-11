@@ -82,6 +82,7 @@ func _ready() -> void:
 	level_menu.title_requested.connect(return_to_title)
 	Settings.apply()
 	level_menu.hub_requested.connect(travel_to_hub)
+	level_menu.return_requested.connect(travel_back)
 	player.died.connect(_on_player_died)
 	_sun_energy = sun.light_energy
 	_setup_picture()
@@ -333,6 +334,7 @@ func open_level_menu() -> void:
 	_busy = true
 	var shard := current_room.get_node_or_null(GameState.checkpoint_path) as Node3D
 	level_menu.hub_available = can_travel_to_hub()
+	level_menu.return_place = LevelMenu.place_name(GameState.hub_return["room"]) if can_travel_back() else ""
 	# Пока открыто меню, ладонь героя лежит на кристалле.
 	if shard is MirrorShard:
 		player.touching = (shard as MirrorShard).crystal
@@ -347,18 +349,39 @@ func can_travel_to_hub() -> bool:
 
 
 ## Перенос к главному осколку — как отдых у него: мир восстановлен, возрождение теперь там.
+## Осколок, от которого ушли, запоминается: от главного к нему можно вернуться (§8.4).
 func travel_to_hub() -> void:
 	if _busy or not can_travel_to_hub():
 		return
+	GameState.hub_return = {"room": current_room_id, "reality": reality, "path": GameState.checkpoint_path}
+	await _travel_to_shard(HUB_ROOM, NORMAL, HUB_SHARD)
+
+
+## От главного осколка можно вернуться к тому, с которого герой сюда перенёсся.
+func can_travel_back() -> bool:
+	return current_room_id == HUB_ROOM and reality == NORMAL and not GameState.hub_return.is_empty() \
+		and ResourceLoader.exists(ROOM_PATH % GameState.hub_return["room"])
+
+
+## Возврат от главного осколка к прежнему — тоже как отдых у него.
+func travel_back() -> void:
+	if _busy or not can_travel_back():
+		return
+	var to: Dictionary = GameState.hub_return
+	GameState.hub_return = {}
+	await _travel_to_shard(to["room"], to["reality"], to["path"])
+
+
+func _travel_to_shard(room_id: StringName, in_reality: StringName, shard: NodePath) -> void:
 	_busy = true
 	player.frozen = true
 	player.velocity = Vector3.ZERO
 	Sfx.play_ui(&"glass_glint", -6.0)
 	await hud.fade_to(1.0, 0.6)
-	GameState.set_checkpoint(HUB_ROOM, NORMAL, HUB_SHARD)
+	GameState.set_checkpoint(room_id, in_reality, shard)
 	GameState.restore_world()
-	_load_room(NORMAL, HUB_ROOM)
-	player.respawn(_checkpoint_position())
+	_load_room(in_reality, room_id)
+	player.respawn(_checkpoint_position(), false)
 	camera_rig.snap_to_target()
 	player.frozen = false
 	save_now()

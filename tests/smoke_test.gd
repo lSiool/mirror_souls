@@ -3164,7 +3164,28 @@ func run() -> void:
 		if rooms.level_menu.is_open:
 			break
 	check(not rooms.level_menu.hub_available and not rooms.level_menu._hub.visible, "у главного осколка переноса нет")
-	rooms.level_menu.close()
+	check(rooms.level_menu._back.visible and rooms.level_menu._back.text.contains("Мёртвая деревня"),
+		"у главного осколка — возврат, подписан местом (%s)" % rooms.level_menu._back.text)
+	rooms.level_menu.go_back()
+	for i in 300:
+		await frames(1)
+		if rooms.current_room_id == &"cursed_village" and not rooms._busy:
+			break
+	var back_shard := room_node("Objects/MirrorShard") as Node3D
+	check(rooms.current_room_id == &"cursed_village" and absf(player.global_position.x - back_shard.global_position.x) < 3.0
+		and game_state.checkpoint_room == &"cursed_village", "вернулся к лесному осколку, возрождение снова там")
+	Events.checkpoint_activated.emit(back_shard)
+	for i in 300:
+		await frames(1)
+		if rooms.level_menu.is_open:
+			break
+	check(not rooms.level_menu._back.visible and rooms.level_menu._hub.visible, "у лесного осколка — снова перенос к главному, возврата нет")
+	rooms.level_menu.go_to_hub()
+	for i in 300:
+		await frames(1)
+		if rooms.current_room_id == &"chapel_yard" and not rooms._busy:
+			break
+	check(rooms.current_room_id == &"chapel_yard", "и снова к главному осколку")
 	await seconds(0.3)
 
 	print("== Возвращение к часовне")
