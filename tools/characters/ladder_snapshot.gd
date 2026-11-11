@@ -39,13 +39,20 @@ func _ready() -> void:
 	rooms.camera_rig.snap_to_target()
 	await get_tree().create_timer(0.5).timeout
 	await _shot("0_room", false)
+	# Вверх: кадры через 0.05 с — виден перехват; потом стоит; потом съезжает вниз.
 	Input.action_press("move_up")
-	for i in 5:
-		await get_tree().create_timer(0.22).timeout
-		await _shot("%d_climb" % (i + 1), true)
+	await get_tree().create_timer(0.3).timeout
+	for i in 6:
+		await _shot("up_%d" % i, true)
+		await get_tree().create_timer(0.05).timeout
 	Input.action_release("move_up")
-	await get_tree().create_timer(0.5).timeout
-	await _shot("6_still", true)
+	await get_tree().create_timer(0.4).timeout
+	await _shot("still", true)
+	Input.action_press("move_down")
+	for i in 3:
+		await get_tree().create_timer(0.12).timeout
+		await _shot("down_%d" % i, true)
+	Input.action_release("move_down")
 	get_tree().quit()
 
 
@@ -54,7 +61,9 @@ func _shot(shot_name: String, crop: bool) -> void:
 	var img := get_viewport().get_texture().get_image()
 	if crop:
 		var cam := get_viewport().get_camera_3d()
-		var at := cam.unproject_position(_player.global_position + Vector3(0.0, 0.9, 0.0))
+		# Окно растянуто от базового разрешения проекта: точку героя переводим в пиксели снимка.
+		var at := cam.unproject_position(_player.global_position + Vector3(0.0, 0.9, 0.0)) \
+			* (Vector2(img.get_size()) / get_viewport().get_visible_rect().size)
 		var rect := Rect2i(int(at.x) - 160, int(at.y) - 170, 320, 340).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
 		img = img.get_region(rect)
 		img.resize(rect.size.x * 2, rect.size.y * 2, Image.INTERPOLATE_LANCZOS)

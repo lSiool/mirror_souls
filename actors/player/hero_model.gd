@@ -302,7 +302,7 @@ func _on_ladder(player: Player) -> void:
 	var parent_yaw := (get_parent() as Node3D).global_rotation.y
 	rotation.y = PI - parent_yaw
 	position = (get_parent() as Node3D).global_basis.inverse() * Vector3(0.0, 0.0, -LADDER_CLOSE)
-	_ladder.climb(player.ladder, player.global_position, get_physics_process_delta_time())
+	_ladder.climb(player.ladder, player.global_position, player.velocity.y, get_physics_process_delta_time())
 
 
 func _off_ladder() -> void:
