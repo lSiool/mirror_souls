@@ -2,7 +2,8 @@ extends Node
 ## Снимки героя по сценарию из командной строки (§3.3) — чтобы проверить позу без нового скрипта.
 ## Нужен рендер — запускать без --headless (в облаке — через xvfb-run):
 ##   godot --path . res://tools/characters/action_snapshot.tscn -- room=room_001 at=-9,0.1 press:block wait:0.1 shot:parry release:block
-## Шаги: press:<действие>, release:<действие>, wait:<секунды>, shot:<имя>, flag:<флаг мира>,
+## Шаги: press:<действие>, release:<действие>, wait:<секунды>, shot:<имя> (герой крупно), wide:<имя> (шире), flag:<флаг мира>,
+## near:<м> (встать слева от ближайшего врага), foestate:<состояние Dummy> (ближайшему врагу),
 ## item:<предмет>, mastery:<тип оружия> (первая ступень), equip:<оружие>, foes:on (враги по умолчанию стоят). Картинки — в user://action_snapshots/.
 
 const OUT := "user://action_snapshots"
@@ -62,16 +63,39 @@ func _ready() -> void:
 			"release": Input.action_release(value)
 			"wait": await get_tree().create_timer(float(value)).timeout
 			"equip": _player.equip(StringName(value))
-			"shot": await _shot(value)
+			"shot": await _shot(value, 150)
+			"wide": await _shot(value, 380)
+			"face": _player.facing = float(value)
+			"near":
+				# Встать слева от ближайшего врага на столько метров, лицом к нему.
+				var foe := _nearest_foe()
+				if foe:
+					_player.teleport(foe.global_position - Vector3(float(value), 0.0, 0.0) + Vector3(0.0, 0.1, 0.0))
+					_player.facing = 1.0
+			"foestate":
+				var foe := _nearest_foe()
+				if foe:
+					foe._set_state(Dummy.State[value])
+			"hp": _player.health.max_health = float(value)
 	get_tree().quit()
 
 
-func _shot(shot_name: String) -> void:
+func _nearest_foe() -> Dummy:
+	var best: Dummy = null
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var foe := node as Dummy
+		if foe and foe.state != Dummy.State.DEAD and (best == null
+				or absf(foe.global_position.x - _player.global_position.x) < absf(best.global_position.x - _player.global_position.x)):
+			best = foe
+	return best
+
+
+func _shot(shot_name: String, half: int) -> void:
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	var cam := get_viewport().get_camera_3d()
 	# Окно растянуто от базового разрешения проекта: точку героя переводим в пиксели снимка.
 	var at := cam.unproject_position(_player.global_position + Vector3(0.0, 1.0, 0.0)) \
 		* (Vector2(img.get_size()) / get_viewport().get_visible_rect().size)
-	var rect := Rect2i(int(at.x) - 150, int(at.y) - 170, 300, 300).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	var rect := Rect2i(int(at.x) - half, int(at.y) - 170, half * 2, 300).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
 	img.get_region(rect).save_png("%s/%s.png" % [OUT, shot_name])

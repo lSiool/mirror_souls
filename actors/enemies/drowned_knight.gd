@@ -44,11 +44,25 @@ var _bash_reply := false
 func _init() -> void:
 	creature = CreatureKind.Kind.SKELETON
 	graybox_arms = false
+	# На манекене (2026-11-11): кости, ржавый шлем, меч и щит — черты облика EnemyModel.DROWNED.
+	mannequin_look = EnemyModel.DROWNED
 
 
 func _ready() -> void:
 	super()
 	visual.position.y = UNDERWATER
+	# Примитивы остаются для чисел (щит, клинок), но не видны.
+	for child in visual.get_children():
+		if child != model and (child is MeshInstance3D or child == shield or child == blade):
+			(child as Node3D).visible = false
+
+
+## Удар манекена по приёму: выпад и серия — мечом, удар щитом — щитом.
+func _model_attack() -> Array:
+	match move:
+		Move.BASH: return [&"Shield_OneShot", 0.62]
+		Move.DOUBLE: return [&"Sword_Regular_B" if _second else &"Sword_Regular_A", 0.42]
+	return [&"Sword_Regular_A", 0.42]
 
 
 func _wake_check(_delta: float) -> void:

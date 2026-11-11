@@ -27,6 +27,13 @@ extends Node3D
 const SOLDIER := &"soldier"
 const VAMPIRE := &"vampire"
 const BLACKSMITH := &"blacksmith"
+## Утопленник (§8.9): скелет в ржавом шлеме, меч и заросший щит; ходит шагом проклятого
+## (Zombie_Walk_Fwd), щит на подходе поднят — левая рука из клипа щитовой стойки.
+const DROWNED := &"drowned"
+## Кости левой руки: в клипах «со щитом» их поза — из Idle_Shield.
+const SHIELD_ARM: Array[String] = ["LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand"]
+## Скорость, под которую снят шаг проклятого.
+const ZOMBIE_SPEED := 1.1
 ## Рост облика и темп клипов: крупный — медленнее.
 const SIZE := {BLACKSMITH: 1.6}
 const TEMPO := {BLACKSMITH: 0.75}
@@ -47,6 +54,9 @@ const KNEEL_BLEND := 0.3
 ## Клип удара по облику и доля клипа, где удар попадает (конец замаха).
 const ATTACKS := {SOLDIER: [&"Sword_Regular_A", 0.42], VAMPIRE: [&"Melee_Hook", 0.45]}
 const JOG_SPEED := 4.0
+## Критический удар: кадр клипа Hit_Chest, где грудь выбита назад сильнее всего, и доля наклона тела.
+const IMPALED_AT := 0.07
+const IMPALED_LEAN := 1.4
 const WALK_SPEED := 1.6
 ## Кисти у глаз: от точки между глаз — вперёд и чуть вниз (запястье, ладонь закрывает глаза).
 const PALM_AHEAD := 0.13
@@ -114,6 +124,8 @@ var _head := -1
 ## Кисти на костях: BoneAttachment3D идёт за позой после IK (поза кости из скелета — до неё).
 var _hands: Array[Node3D] = []
 var _sword: Node3D
+## Щит Утопленника на левом предплечье: поднятый смотрит на героя, опущенный висит на руке.
+var _shield_plate: Node3D
 var _state := -1
 var size := 1.0
 var tempo := 1.0
@@ -196,6 +208,26 @@ func _dress() -> void:
 			hero.hand.add_child(_sword)
 			_sword.add_child(_part(BoxMesh, Vector3(0.05, 0.75, 0.015), Vector3(0.0, 0.45, 0.0), steel))
 			_sword.add_child(_part(BoxMesh, Vector3(0.2, 0.035, 0.04), Vector3(0.0, 0.06, 0.0), _flat(Color(0.3, 0.24, 0.16))))
+		DROWNED:
+			var rust := _flat(Color(0.3, 0.22, 0.14), 0.3)
+			var moss := _flat(Color(0.17, 0.22, 0.1))
+			var head := _bone("Head")
+			head.add_child(_part(CylinderMesh, Vector3(0.25, 0.17, 0.25), Vector3(0.0, 0.17, 0.0), rust))
+			head.add_child(_part(BoxMesh, Vector3(0.03, 0.4, 0.03), Vector3(-0.08, 0.38, -0.04), moss, Vector3(0.0, 0.0, 0.3)))
+			head.add_child(_part(BoxMesh, Vector3(0.03, 0.3, 0.03), Vector3(0.05, 0.36, 0.05), moss, Vector3(0.0, 0.0, -0.2)))
+			var chest := _bone("UpperChest")
+			chest.add_child(_part(BoxMesh, Vector3(0.36, 0.34, 0.24), Vector3(0.0, 0.02, 0.0), rust))
+			chest.add_child(_part(BoxMesh, Vector3(0.1, 0.06, 0.1), Vector3(-0.12, 0.2, 0.06), _flat(Color(0.75, 0.6, 0.4))))
+			_sword = Node3D.new()
+			_sword.name = &"Sword"
+			hero.hand.add_child(_sword)
+			_sword.add_child(_part(BoxMesh, Vector3(0.06, 1.0, 0.02), Vector3(0.0, 0.58, 0.0), _flat(Color(0.42, 0.4, 0.37), 0.4)))
+			_sword.add_child(_part(BoxMesh, Vector3(0.24, 0.04, 0.05), Vector3(0.0, 0.07, 0.0), rust))
+			# Щит на левом предплечье — там же, где у героя (лицо щита — ось +X).
+			var plate := _part(BoxMesh, Vector3(0.06, 0.95, 0.7), Vector3.ZERO, rust)
+			plate.add_child(_part(BoxMesh, Vector3(0.07, 0.4, 0.5), Vector3(0.01, -0.2, 0.05), moss))
+			hero.shield_mount.add_child(plate)
+			_shield_plate = plate
 		BLACKSMITH:
 			# Кожаный фартук кузнеца и наплечник из грубого железа.
 			var leather := _flat(Color(0.2, 0.12, 0.07))
@@ -357,6 +389,8 @@ func update(delta: float) -> void:
 	_state = state
 	var t := enemy._state_time
 	var rubbing := state == Dummy.State.BLINDED and enemy.blind_reaction == CreatureKind.Reaction.RUB_EYES
+	if _shield_plate:
+		_aim_shield(delta)
 	# Сцена (сидит, на колене) — свой клип; таз на месте, хоть Visual и опущен для примитивов.
 	var scene_pose := enemy._model_pose()
 	if look == BLACKSMITH:
@@ -384,7 +418,15 @@ func update(delta: float) -> void:
 		# Наклон всей фигуры не нужен: корпус гнёт SmithBody, а стопы стоят на земле.
 		lean.rotation.z = 0.0
 		return
-	var attack: Array = ATTACKS.get(look, ATTACKS[SOLDIER])
+	if enemy.climb_left > 0.0:
+		# Забирается на уступ: клип подтягивания на всё время подъёма.
+		if hero._clip != &"ClimbUp_1m":
+			hero.play_span(&"ClimbUp_1m", 0.0, 0.0, enemy.climb_time, 0.08)
+		lean.rotation.z = 0.0
+		return
+	var attack: Array = enemy._model_attack()
+	if attack.is_empty():
+		attack = ATTACKS.get(look, ATTACKS[SOLDIER])
 	var clip: StringName = attack[0]
 	var length := hero.anim.get_animation(clip).length
 	var hit: float = length * attack[1]
@@ -404,7 +446,8 @@ func update(delta: float) -> void:
 		Dummy.State.OFF_BALANCE:
 			hero.play(&"Idle_Shield_Break")
 		Dummy.State.CRITICAL_HIT:
-			hero.hold(&"Hit_Chest", 0.25)
+			# На клинке: грудь выбита назад, голова запрокинута, руки и ноги обвисли.
+			hero.hold(&"Hit_Chest", IMPALED_AT, 0.06)
 		Dummy.State.KNOCKDOWN:
 			if fresh:
 				hero.play_span(&"Hit_Knockback", 0.0, 0.0, enemy.knockdown_time, 0.05)
@@ -423,7 +466,13 @@ func update(delta: float) -> void:
 				hero.play(&"Idle_Shield_Break", 0.8)
 		_:
 			var speed := absf(enemy.velocity.x)
-			if speed < 0.3:
+			if look == DROWNED:
+				var guard: bool = enemy.has_method(&"guarding") and enemy.call(&"guarding")
+				if speed < 0.3:
+					hero.play(_shielded(&"Zombie_Idle") if guard else &"Zombie_Idle")
+				else:
+					hero.play(_shielded(&"Zombie_Walk_Fwd") if guard else &"Zombie_Walk_Fwd", clampf(speed / ZOMBIE_SPEED, 0.6, 2.4))
+			elif speed < 0.3:
 				hero.play(&"Sword_Idle" if _sword else &"Idle")
 			elif speed < WALK_SPEED * 1.3:
 				hero.play(&"Walk", speed / WALK_SPEED)
@@ -433,8 +482,8 @@ func update(delta: float) -> void:
 	if hero._clip_end > 0.0 and hero.anim.current_animation_position >= hero._clip_end:
 		hero.anim.speed_scale = 0.0
 	_update_palms(rubbing, t, delta)
-	# Наклон тела врага (вздрог, стойка) — мягче: позу и так даёт клип.
-	lean.rotation.z = enemy.body_mesh.rotation.z * 0.5
+	# Наклон тела врага (вздрог, стойка) — мягче: позу и так даёт клип. На клинке — в полную силу.
+	lean.rotation.z = enemy.body_mesh.rotation.z * (IMPALED_LEAN if state == Dummy.State.CRITICAL_HIT else 0.5)
 
 
 ## Сидит: таз ложится на камень (Dummy._seat_height), а не уходит в него — подъём по позе таза.
@@ -687,3 +736,43 @@ func _update_cloak() -> void:
 				mesh.surface_set_normal(Vector3.BACK)
 				mesh.surface_add_vertex(p + back)
 	mesh.surface_end()
+
+
+## Клип «со щитом»: тот же клип, но левая рука — из щитовой стойки (щит поднят перед телом).
+func _shielded(clip: StringName) -> StringName:
+	var mixed := StringName(String(clip) + "+Shield")
+	var lib := hero.anim.get_animation_library(&"")
+	if lib.has_animation(mixed):
+		return mixed
+	var copy := hero.anim.get_animation(clip).duplicate(true) as Animation
+	for track in range(copy.get_track_count() - 1, -1, -1):
+		if String(copy.track_get_path(track).get_concatenated_subnames()) in SHIELD_ARM:
+			copy.remove_track(track)
+	var stance := hero.anim.get_animation(&"Idle_Shield")
+	for track in stance.get_track_count():
+		if String(stance.track_get_path(track).get_concatenated_subnames()) not in SHIELD_ARM:
+			continue
+		if stance.track_get_type(track) != Animation.TYPE_ROTATION_3D:
+			continue
+		var to := copy.add_track(Animation.TYPE_ROTATION_3D)
+		copy.track_set_path(to, stance.track_get_path(track))
+		copy.rotation_track_insert_key(to, 0.0, stance.rotation_track_interpolate(track, 0.0))
+	lib.add_animation(mixed, copy)
+	return mixed
+
+
+## Щит Утопленника всегда ребром к камере — не закрывает тело: поднят — стоймя перед ним, чуть
+## завален назад; опущен (замах, откат, на клинке) — завален вперёд и вниз. Сбит с ног или мёртв —
+## лежит как рука.
+func _aim_shield(delta: float) -> void:
+	var enemy := _enemy
+	var k := 1.0 - exp(-14.0 * delta)
+	if enemy.state in [Dummy.State.KNOCKDOWN, Dummy.State.DEAD]:
+		_shield_plate.quaternion = _shield_plate.quaternion.slerp(Quaternion.IDENTITY, k)
+		return
+	var raised: bool = enemy.state == Dummy.State.FLINCH or (enemy.has_method(&"guarding") and enemy.call(&"guarding"))
+	var f := enemy.facing
+	var want := Basis(Vector3(f, 0.0, 0.0), Vector3.UP, Vector3(0.0, 0.0, f)) * Basis(Vector3.BACK, 0.12 if raised else -0.95)
+	var now := _shield_plate.global_basis.orthonormalized().get_rotation_quaternion()
+	var scale_of := _shield_plate.get_parent_node_3d().global_basis.get_scale()
+	_shield_plate.global_basis = Basis(now.slerp(want.get_rotation_quaternion(), k)).scaled(scale_of)

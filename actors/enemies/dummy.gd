@@ -117,6 +117,9 @@ const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
 @export var death_voice: StringName = &"enemy_death_voice"
 ## Сколько отзвуков прошлого остаётся после врага (летят к герою сами).
 @export var echoes := 30
+## На какой уступ враг забирается сам, преследуя героя (м); 0 — не умеет: упёрся и стоит.
+## По умолчанию — только перешагнуть порог или мостки; кто умеет подтянуться, задаёт больше.
+@export var climb_height := 0.5
 ## Предмет, который враг носит с собой (§8.11): достаётся герою за победу. Пусто — ничего.
 @export var drop_item: StringName
 @export var drop_count := 1
@@ -189,6 +192,11 @@ var _grip: Node3D
 var _grip_rest := Vector3.ZERO
 var _grip_rest_angle := 0.0
 var _grip_return := 0.0
+## Забирается на уступ: сколько осталось (с), всего и куда.
+var climb_left := 0.0
+var climb_time := 0.0
+var _climb_from := Vector3.ZERO
+var _climb_to := Vector3.ZERO
 
 @onready var health: Health = $Health
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -289,6 +297,9 @@ func _physics_process(delta: float) -> void:
 	_find_player()
 	_regen_poise(delta)
 	_forget_blindness(delta)
+	if climb_left > 0.0:
+		_climb(delta)
+		return
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	match state:
@@ -436,6 +447,11 @@ func _model_pose() -> StringName:
 	return &""
 
 
+## Клип удара для манекена: [клип, доля клипа, где удар попадает]; пусто — по облику.
+func _model_attack() -> Array:
+	return []
+
+
 ## На чём сидит в сцене Sitting_Idle: высота сиденья над ногами (камень Кузнеца).
 func _seat_height() -> float:
 	return 0.0
@@ -478,6 +494,7 @@ func _chase(delta: float) -> void:
 		_set_state(State.WINDUP)
 	else:
 		velocity.x = facing * chase_speed
+		_try_climb()
 
 
 ## Шум: враг, который не видит героя, идёт к месту шума и осматривается.
@@ -875,6 +892,50 @@ func _blocked_by_world() -> bool:
 		if absf(c.get_normal().y) < 0.3 and not c.get_collider() is Player:
 			return true
 	return false
+
+
+## Упёрся в уступ, преследуя героя: если уступ не выше climb_height и наверху есть место —
+## забирается (§6.3, 2026-11-11). Низкий порог перешагивает быстро, высокий — подтягивается.
+func _try_climb() -> void:
+	if climb_height <= 0.0 or not is_on_floor():
+		return
+	# Упёрся именно в мир, а не в героя или другого врага.
+	var wall := false
+	for i in get_slide_collision_count():
+		var c := get_slide_collision(i)
+		if absf(c.get_normal().y) < 0.3 and c.get_normal().x * facing < 0.0 and not c.get_collider() is CharacterBody3D:
+			wall = true
+	if not wall:
+		return
+	var ahead := Vector3(facing * 0.45, 0.0, 0.0)
+	var rise := 0.0
+	while rise < climb_height:
+		rise += 0.15
+		var lifted := global_transform.translated(Vector3(0.0, rise, 0.0))
+		# Над головой потолок — не залезть.
+		if test_move(global_transform, Vector3(0.0, rise, 0.0)):
+			return
+		if not test_move(lifted, ahead):
+			climb_time = lerpf(0.22, 0.7, clampf(rise / 1.1, 0.0, 1.0))
+			climb_left = climb_time
+			_climb_from = global_position
+			_climb_to = global_position + Vector3(facing * 0.5, rise + 0.02, 0.0)
+			velocity = Vector3.ZERO
+			return
+
+
+func _climb(delta: float) -> void:
+	climb_left = maxf(climb_left - delta * statuses.time_mult(), 0.0)
+	var k := 1.0 - climb_left / climb_time
+	# Сначала вверх, потом вперёд — как подтягиваются на уступ.
+	var up := smoothstep(0.0, 0.7, k)
+	var forward := smoothstep(0.5, 1.0, k)
+	global_position = Vector3(lerpf(_climb_from.x, _climb_to.x, forward), lerpf(_climb_from.y, _climb_to.y, up), global_position.z)
+	velocity = Vector3.ZERO
+	_update_material(delta)
+	_update_arms(delta)
+	if model:
+		model.update(delta)
 
 
 ## Враг не стоит на голове героя — соскальзывает в сторону.
