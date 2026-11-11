@@ -135,14 +135,38 @@ func play_span(clip: StringName, from: float, to: float, time: float, blend := 0
 	anim.seek(from, true)
 
 
-## Застыть на кадре клипа (вис на уступе, заряд, блок).
+## Застыть на кадре клипа (вис на уступе, заряд, блок, прицел). Играется клип-поза из одного кадра:
+## у остановленного клипа (speed_scale = 0) не идёт и переход, и модель оставалась в прежней стойке.
 func hold(clip: StringName, at: float, blend := BLEND) -> void:
-	if clip != _clip:
-		_clip = clip
-		anim.play(clip, blend)
-	_clip_end = 0.0
-	anim.speed_scale = 0.0
-	anim.seek(at, true)
+	play(_frozen(clip, at), 1.0, blend)
+
+
+## Клип-поза: кадр клипа на времени at, зацикленный.
+func _frozen(clip: StringName, at: float) -> StringName:
+	var pose := StringName("%s@%.2f" % [clip, at])
+	var lib := anim.get_animation_library(&"")
+	if lib.has_animation(pose) or not anim.has_animation(clip):
+		return pose if lib.has_animation(pose) else clip
+	var from := anim.get_animation(clip)
+	var still := Animation.new()
+	still.length = 0.2
+	still.loop_mode = Animation.LOOP_LINEAR
+	for track in from.get_track_count():
+		var kind := from.track_get_type(track)
+		var value: Variant
+		match kind:
+			Animation.TYPE_POSITION_3D: value = from.position_track_interpolate(track, at)
+			Animation.TYPE_ROTATION_3D: value = from.rotation_track_interpolate(track, at)
+			Animation.TYPE_SCALE_3D: value = from.scale_track_interpolate(track, at)
+			_: continue
+		var to := still.add_track(kind)
+		still.track_set_path(to, from.track_get_path(track))
+		match kind:
+			Animation.TYPE_POSITION_3D: still.position_track_insert_key(to, 0.0, value)
+			Animation.TYPE_ROTATION_3D: still.rotation_track_insert_key(to, 0.0, value)
+			Animation.TYPE_SCALE_3D: still.scale_track_insert_key(to, 0.0, value)
+	lib.add_animation(pose, still)
+	return pose
 
 
 ## Удар: клип стадии, иначе — по номеру в серии.

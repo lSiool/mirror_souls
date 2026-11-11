@@ -29,6 +29,12 @@ var _grip_base: Vector3
 var _tween: Tween
 var _bow: Node3D
 var _nocked: Node3D
+var _string: Array[MeshInstance3D] = []
+## Дуга лука в его плоскости (x — к цели, y — вдоль лука): концы плеч — на линии тетивы.
+const BOW_ARC: Array[Vector2] = [Vector2(0.0, -0.62), Vector2(0.14, -0.32), Vector2(0.18, 0.0), Vector2(0.14, 0.32), Vector2(0.0, 0.62)]
+## Длина стрелы на тетиве и ход тетивы при полном натяжении.
+const BOW_ARROW := 0.8
+const BOW_DRAW := 0.4
 ## Выпавшее при смерти оружие — копия в мире.
 var _dropped: Node3D
 ## Есть ли что-то в руке: безоружный герой клинка не показывает.
@@ -241,7 +247,7 @@ func show_bow(on: bool) -> void:
 
 ## Натяжение 0…1 и угол прицела.
 func draw_bow(draw_t: float, angle: float) -> void:
-	_nocked.position.x = 0.3 - 0.35 * draw_t
+	_string_to(draw_t)
 	# На модели лук держит рука — прицел задаёт поза (HeroModel), а не поворот лука.
 	if _model == null:
 		_bow.rotation.z = angle
@@ -396,23 +402,55 @@ func _shield_part(radius: float, thick: float, mat: Material, x: float) -> MeshI
 
 func _build_bow(visual: Node3D) -> void:
 	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.45, 0.3, 0.18)
+	wood.albedo_color = Color(0.5, 0.33, 0.18)
+	var cord := StandardMaterial3D.new()
+	cord.albedo_color = Color(0.86, 0.82, 0.7)
 	_bow = Node3D.new()
 	_bow.name = &"Bow"
 	_bow.position = Vector3(0.35, 1.25, 0.35)
 	visual.add_child(_bow)
-	var limb := MeshInstance3D.new()
-	var limb_mesh := BoxMesh.new()
-	limb_mesh.size = Vector3(0.06, 1.2, 0.05)
-	limb_mesh.material = wood
-	limb.mesh = limb_mesh
-	limb.position.x = 0.15
-	_bow.add_child(limb)
+	# Дуга из четырёх отрезков: рукоять впереди, плечи загнуты к тетиве — читается как лук,
+	# а не как палка (2026-11-11).
+	for i in BOW_ARC.size() - 1:
+		_bow.add_child(_bow_part(BOW_ARC[i], BOW_ARC[i + 1], 0.07, wood))
+	# Тетива — два отрезка от концов плеч к хвосту стрелы: натягивается вместе с ней.
+	for i in 2:
+		var part := _bow_part(BOW_ARC[0], BOW_ARC[-1], 0.02, cord)
+		_bow.add_child(part)
+		_string.append(part)
 	var nocked := MeshInstance3D.new()
 	var arrow_mesh := BoxMesh.new()
-	arrow_mesh.size = Vector3(0.75, 0.035, 0.035)
-	arrow_mesh.material = wood
+	arrow_mesh.size = Vector3(BOW_ARROW, 0.04, 0.04)
+	arrow_mesh.material = cord
 	nocked.mesh = arrow_mesh
 	_bow.add_child(nocked)
 	_nocked = nocked
+	_string_to(0.0)
 	_bow.visible = false
+
+
+## Отрезок лука между двумя точками его плоскости: брусок единичной длины, растянутый по Y.
+func _bow_part(from: Vector2, to: Vector2, thickness: float, material: Material) -> MeshInstance3D:
+	var part := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(thickness, 1.0, thickness)
+	box.material = material
+	part.mesh = box
+	_stretch(part, from, to)
+	return part
+
+
+func _stretch(part: MeshInstance3D, from: Vector2, to: Vector2) -> void:
+	var along := to - from
+	part.position = Vector3((from.x + to.x) * 0.5, (from.y + to.y) * 0.5, 0.0)
+	part.rotation.z = atan2(-along.x, along.y)
+	part.scale.y = along.length()
+
+
+## Стрела и тетива при натяжении 0…1.
+func _string_to(draw_t: float) -> void:
+	var tail := -BOW_DRAW * draw_t
+	_nocked.position.x = tail + BOW_ARROW * 0.5
+	var nock := Vector2(tail, 0.0)
+	_stretch(_string[0], BOW_ARC[0], nock)
+	_stretch(_string[1], nock, BOW_ARC[-1])
