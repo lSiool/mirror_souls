@@ -2704,12 +2704,20 @@ func run() -> void:
 	check(rooms.current_room_id == &"chapel", "зеркало молчит")
 	# Гнилой пол балкона проламывается ударом вниз, под ним тайник.
 	var stash := room_node("Objects/StashFloor") as GlassSurface
-	await put(Vector3(10.5, 6.5, 0.0), 1.0)
+	# Как играет человек: встал на настил, прыгнул, зажал «вниз» и чуть позже ударил. Под настилом
+	# лестница тайника — «вниз» не должен хвататься за неё вместо удара.
+	await put(Vector3(10.5, stash.global_position.y + 0.25, 0.0), 1.0)
+	await seconds(0.3)
+	press("jump")
+	await frames(10)
+	release("jump")
 	press("move_down")
+	await frames(5)
+	check(player.state != Player.State.LADDER, "над настилом «вниз» в прыжке не хватает лестницу под ним")
 	await tap("attack")
 	await seconds(0.9)
 	release_all()
-	check(stash._broken, "удар вниз проломил пол")
+	check(stash._broken, "прыжок и удар вниз проломили пол")
 	check(player.global_position.y < 1.0, "герой упал в тайник")
 	await put(room_node("Objects/StashChest").global_position + Vector3(0.0, 0.1, 1.2))
 	await seconds(0.2)

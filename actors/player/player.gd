@@ -51,6 +51,8 @@ const SWAP_TIME := 0.35
 ## Сколько добавляет к лечению одно улучшение зелья (Травница).
 const FLASK_POTENCY_STEP := 0.15
 const PLUNGE_LAND_TIME := 0.15
+## На столько ниже верха лестницы должны быть ноги, чтобы за неё схватиться.
+const LADDER_TOP_FREE := 0.3
 ## Блок щитом дешевле блока оружием (§6.2).
 const SHIELD_BLOCK_MULT := 0.6
 ## Вес щита и лука для веса снаряжения (§8.6).
@@ -506,7 +508,10 @@ func _move_state(delta: float) -> void:
 		swap_sets()
 	elif on_floor and weapon and Input.is_action_pressed("block"):
 		_set_state(State.BLOCK)
-	elif ladder and (Input.is_action_pressed("move_up") or (not on_floor and Input.is_action_pressed("move_down"))):
+	elif ladder and global_position.y < ladder.top_y() - LADDER_TOP_FREE \
+			and (Input.is_action_pressed("move_up") or (not on_floor and Input.is_action_pressed("move_down"))):
+		# Выше верха лестницы за неё не хватаются: над настилом, под которым стоит лестница,
+		# «вниз» в прыжке — это удар вниз, а не лазание (тайник часовни, 2026-11-11).
 		_set_state(State.LADDER)
 	elif _wants_climb(x, on_floor):
 		_set_state(State.CLIMB)
