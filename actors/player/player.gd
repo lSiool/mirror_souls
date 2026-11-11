@@ -51,6 +51,18 @@ const SWAP_TIME := 0.35
 ## Сколько добавляет к лечению одно улучшение зелья (Травница).
 const FLASK_POTENCY_STEP := 0.15
 const PLUNGE_LAND_TIME := 0.15
+## Бег (§3, 2026-11-11): перекат зажат дольше SPRINT_AFTER и герой идёт — бежит быстрее в
+## SPRINT_SPEED раз. В бою стоит выносливости в секунду (вне боя, как и кувырок, — бесплатно);
+## выдохся — бежать снова можно, отпустив и зажав кнопку.
+const SPRINT_AFTER := 0.25
+const SPRINT_SPEED := 1.35
+const SPRINT_COST := 14.0
+## Таран плечом: блок на бегу или в прыжке на скорости. Тонкое стекло впереди разбивается само,
+## скорость не теряется. Дотягивается на столько от тела; в бою стоит выносливости за стекло.
+const RAM_REACH := 0.55
+const RAM_COST := 8.0
+## В прыжке таран держится, пока скорость не ниже этой доли обычного бега.
+const RAM_AIR_SPEED := 0.6
 ## На столько ниже верха лестницы должны быть ноги, чтобы за неё схватиться.
 const LADDER_TOP_FREE := 0.3
 ## Блок щитом дешевле блока оружием (§6.2).
@@ -170,6 +182,11 @@ var ladder: Ladder
 var lying := false
 ## Сидит (сцена): очнулся у осколка после гибели на уровне-забеге (§8.11).
 var sitting := false
+## Бежит (зажат перекат) и идёт на таран плечом (блок на бегу или в прыжке) — ведёт _move_state.
+var sprinting := false
+var ramming := false
+var _roll_held := 0.0
+var _sprint_spent := false
 ## Чего касается ладонь (кристалл осколка, пока открыто меню прокачки) — ведёт HeroModel.
 var touching: Node3D
 ## Сколько зон грязи сейчас под героем.
@@ -338,7 +355,7 @@ func _tick(delta: float) -> void:
 			_attack_buffer = stats.attack_buffer
 		if Input.is_action_just_pressed("roll"):
 			_roll_buffer = stats.input_buffer + _roll_wait()
-		if Input.is_action_just_pressed("block") and can_parry():
+		if Input.is_action_just_pressed("block") and can_parry() and not sprinting:
 			_parry_t = stats.parry_window
 			if state in [State.MOVE, State.BLOCK]:
 				model.parry(shield_in_hand(), stats.parry_window)
@@ -384,6 +401,46 @@ func _tick(delta: float) -> void:
 		stamina_changed.emit(stamina, stats.max_stamina)
 
 
+## Бег и таран: считаются в обычном движении каждый кадр.
+func _update_sprint(x: float, on_floor: bool, delta: float) -> void:
+	var held := Input.is_action_pressed("roll")
+	_roll_held = _roll_held + delta if held else 0.0
+	if not held:
+		_sprint_spent = false
+	var fighting := in_combat()
+	if sprinting and on_floor and fighting:
+		stamina = maxf(stamina - SPRINT_COST * delta, 0.0)
+		_stamina_delay = stats.stamina_regen_delay
+		stamina_changed.emit(stamina, stats.max_stamina)
+		if stamina <= 0.0:
+			_sprint_spent = true
+			stamina_short.emit()
+	# В воздухе бег не начинается, но и не кончается: разбег уносит в прыжок.
+	var can_run := held and x != 0.0 and _roll_held >= SPRINT_AFTER and not _sprint_spent and not in_mud() and not in_tar()
+	sprinting = can_run and (on_floor or sprinting)
+	var fast := absf(velocity.x) >= stats.move_speed * RAM_AIR_SPEED
+	ramming = Input.is_action_pressed("block") and (sprinting or (not on_floor and fast))
+
+
+## Таран: тонкое стекло прямо по ходу разбивается раньше, чем герой в него упрётся, — скорость цела.
+func _ram_glass(delta: float) -> void:
+	var dir := signf(velocity.x) if velocity.x != 0.0 else facing
+	var reach := RAM_REACH + absf(velocity.x) * delta * 3.0
+	for node in get_tree().get_nodes_in_group(&"glass_thin"):
+		var glass := node as GlassSurface
+		if glass == null or glass.is_broken():
+			continue
+		var gap := (glass.global_position.x - global_position.x) * dir - glass.size.x * 0.5
+		var low := glass.global_position.y - glass.size.y * 0.5
+		if gap < -0.4 or gap > reach or global_position.y + 1.8 < low or global_position.y > low + glass.size.y:
+			continue
+		if in_combat():
+			_spend_stamina(RAM_COST)
+		Sfx.play(&"sword_hit_glass", glass.global_position, -4.0)
+		glass.shatter()
+		Events.camera_shake_requested.emit(0.15, 0.12)
+
+
 func _input_x() -> float:
 	if _input_lock > 0.0:
 		return 0.0
@@ -414,6 +471,9 @@ func _spend_stamina(amount: float) -> void:
 
 
 func _set_state(new_state: State) -> void:
+	if new_state != State.MOVE:
+		sprinting = false
+		ramming = false
 	if state == State.ATTACK:
 		sword_hitbox.active = false
 		if new_state != State.ATTACK:
@@ -469,7 +529,8 @@ func _move_state(delta: float) -> void:
 	if x != 0.0:
 		facing = signf(x)
 
-	var target := x * stats.move_speed * _slow(MUD_SPEED, TAR_SPEED)
+	_update_sprint(x, on_floor, delta)
+	var target := x * stats.move_speed * _slow(MUD_SPEED, TAR_SPEED) * (SPRINT_SPEED if sprinting else 1.0)
 	var accel := stats.acceleration if on_floor else stats.air_acceleration
 	if x == 0.0:
 		accel = stats.friction if on_floor else stats.air_drag
@@ -478,6 +539,8 @@ func _move_state(delta: float) -> void:
 		accel = stats.momentum_decay
 	velocity.x = move_toward(velocity.x, target, accel * delta)
 	_apply_gravity(delta)
+	if ramming:
+		_ram_glass(delta)
 
 	if _jump_buffer > 0.0 and _coyote > 0.0:
 		_jump()
@@ -506,7 +569,7 @@ func _move_state(delta: float) -> void:
 		_start_drink()
 	elif _swap_buffer > 0.0:
 		swap_sets()
-	elif on_floor and weapon and Input.is_action_pressed("block"):
+	elif on_floor and weapon and Input.is_action_pressed("block") and not sprinting:
 		_set_state(State.BLOCK)
 	elif ladder and global_position.y < ladder.top_y() - LADDER_TOP_FREE \
 			and (Input.is_action_pressed("move_up") or (not on_floor and Input.is_action_pressed("move_down"))):

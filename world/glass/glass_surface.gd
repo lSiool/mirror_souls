@@ -20,6 +20,8 @@ const SHARD_COUNT := 12
 const SHARD_LIFETIME := 1.4
 const SLIDE_CRACKS_HINT := 0.35
 const ROLL_CRUMBLE_RATE := 0.5
+## Толще этого по ходу героя стекло плечом не пробить.
+const RAM_THICK := 0.5
 
 @export var glass_type := GlassType.CLEAR
 @export var role := Role.PANEL
@@ -104,6 +106,7 @@ func shatter() -> void:
 		(_player as Player).fall_through()
 	remove_from_group("glass_slide")
 	remove_from_group("glass_climb")
+	remove_from_group(&"glass_thin")
 	collision.set_deferred("disabled", true)
 	hurtbox.set_deferred("monitorable", false)
 	mesh_instance.visible = false
@@ -212,6 +215,19 @@ func _join_role_group() -> void:
 	match role:
 		Role.SLIDE: add_to_group("glass_slide")
 		Role.CLIMB: add_to_group("glass_climb")
+	# Тонкая стеклянная преграда поперёк пути: её разбивает и таран плечом (Player.ramming).
+	if is_thin():
+		add_to_group(&"glass_thin")
+
+
+## Тонкое стекло: разбиваемая стеклянная панель не толще RAM_THICK по ходу героя. Доски и прочее
+## со своим видом (look) плечом не пробить — только ударом.
+func is_thin() -> bool:
+	return role == Role.PANEL and breakable and look == null and size.x <= RAM_THICK
+
+
+func is_broken() -> bool:
+	return _broken
 
 
 func _configure_material() -> void:

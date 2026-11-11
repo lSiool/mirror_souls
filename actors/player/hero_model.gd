@@ -38,6 +38,10 @@ const LADDER_CLOSE := 0.22
 ## Играет только верх тела: ноги стоят как стояли.
 const PARRY_SHIELD := [&"Shield_OneShot", 0.3, 0.62, 0.83]
 const PARRY_BLADE := [&"Melee_Hook", 0.0, 0.3, 0.47]
+## Бег: скорость, под которую снят цикл Sprint. Таран плечом: верх тела — кадр выпада со щитом
+## (плечо вперёд, голова пригнута), ноги бегут или держат позу прыжка.
+const SPRINT_PACE := 9.0
+const RAM_POSE := [&"Shield_Dash", 0.3]
 ## Сколько держится доигрыш удачного парирования.
 const PARRY_HIT_TIME := 0.3
 const AIR_FROM := 0.15
@@ -232,7 +236,10 @@ func update(player: Player) -> void:
 	match player.state:
 		Player.State.MOVE:
 			if not player.is_on_floor():
-				play(&"Jump_Start" if player.velocity.y > 2.0 else &"Jump")
+				if player.ramming:
+					play(_posed(&"Jump", RAM_POSE[0], RAM_POSE[1]))
+				else:
+					play(&"Jump_Start" if player.velocity.y > 2.0 else &"Jump")
 			elif vx < 0.3:
 				# Со щитом — щитовая стойка: предплечье со щитом поднято перед корпусом.
 				# У осколка — смирно, ладонь на кристалле.
@@ -244,6 +251,10 @@ func update(player: Player) -> void:
 					play(&"Sword_Idle" if player.arms.armed else &"Idle")
 			elif vx < WALK_SPEED * 1.3:
 				play(&"Walk", vx / WALK_SPEED)
+			elif player.ramming:
+				play(_posed(&"Sprint", RAM_POSE[0], RAM_POSE[1]), clampf(vx / SPRINT_PACE, 0.8, 1.6))
+			elif player.sprinting:
+				play(&"Sprint", clampf(vx / SPRINT_PACE, 0.8, 1.6))
 			else:
 				play(&"Jog_Fwd", clampf(vx / JOG_SPEED, 0.7, 1.8))
 		Player.State.ROLL:
@@ -356,3 +367,26 @@ func parry_hit(shield: bool) -> void:
 	var move: Array = PARRY_SHIELD if shield else PARRY_BLADE
 	play_span(_upper(move[0]), move[2], move[3], PARRY_HIT_TIME, 0.02)
 	_parry_left = PARRY_HIT_TIME
+
+
+## Клип base с верхом тела из кадра at клипа pose: ноги и таз идут по base, остальное застыло.
+func _posed(base: StringName, pose: StringName, at: float) -> StringName:
+	var mixed := StringName("%s+%s" % [base, pose])
+	var lib := anim.get_animation_library(&"")
+	if lib.has_animation(mixed):
+		return mixed
+	var copy := anim.get_animation(base).duplicate(true) as Animation
+	for track in range(copy.get_track_count() - 1, -1, -1):
+		if String(copy.track_get_path(track).get_concatenated_subnames()) not in LOWER_BODY:
+			copy.remove_track(track)
+	var from := anim.get_animation(pose)
+	for track in from.get_track_count():
+		if String(from.track_get_path(track).get_concatenated_subnames()) in LOWER_BODY:
+			continue
+		if from.track_get_type(track) != Animation.TYPE_ROTATION_3D:
+			continue
+		var to := copy.add_track(Animation.TYPE_ROTATION_3D)
+		copy.track_set_path(to, from.track_get_path(track))
+		copy.rotation_track_insert_key(to, 0.0, from.rotation_track_interpolate(track, at))
+	lib.add_animation(mixed, copy)
+	return mixed
