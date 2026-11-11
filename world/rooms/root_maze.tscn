@@ -608,7 +608,7 @@ position = Vector3(0.0, 12.0, -2.8)
 mesh = SubResource("Veil_4")
 
 [node name="Fog4" type="MeshInstance3D" parent="Decor"]
-position = Vector3(0.0, 17.0, -3.0)
+position = Vector3(0.0, 17.0, -2.92)
 mesh = SubResource("Veil_5")
 
 [node name="Fog5" type="MeshInstance3D" parent="Decor"]

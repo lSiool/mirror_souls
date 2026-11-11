@@ -137,7 +137,7 @@ def cemetery():
     s.dead_tree(D, "TreeB", 0.0, -5.5, 9.0)
     s.lantern_post(D, "Lamp", -23.5, -1.2)
     s.fence(D, "BackFence", -27.0, -12.0, -2.2)
-    s.veil(D, "Fog", (0.0, 3.0, -2.8), (56, 6))
+    s.veil(D, "Fog", (0.0, 3.0, -2.72), (56, 6))
     s.veil(D, "FogLow", (6.0, 0.8, 1.2), (30, 1.6), "fog_veil")
     s.fence(D, "FrontFence", -26.0, -18.0, 2.5, mat="wood_dark")
     s.grave(D, "FrontCross", -6.0, 3.0, ground=-0.2, tilt=-0.3, cross=True)
@@ -185,7 +185,8 @@ def forest_wall():
     s.enemy("BatB", "bat", (11.0, 5.7, 0))
     s.enemy("RatA", "rat", (4.0, 0.0, 0))
     s.enemy("RatB", "rat", (19.0, 0.0, 0))
-    s.veil(D, "Fog", (0.0, 4.0, -3.6), (60, 10))
+    # Туман — перед корнями стволов, не в плоскости их граней: иначе корни мерцают сквозь него.
+    s.veil(D, "Fog", (0.0, 4.0, -3.35), (60, 10))
     s.tuft(D, "FrontTuft", -14.0, -0.2, 3.2, "moss")
     s.rocks(D, "FrontRocks", 7.0, -0.2, 3.4)
     s.marker("FromCemetery", (-28.0, 0.1, 0))
@@ -345,7 +346,7 @@ def root_maze():
         s.box(D, f"BigRoot{i}", (x, 8.0, -4.0 - i % 2), (3.0, 32.0, 2.0), "root", rot=(0, 0, (i % 2 - 0.5) * 0.3))
     # Туман: сзади слоями и спереди, между ярусами — мешает смотреть.
     for i, (y, z, mat) in enumerate(((-6.0, -2.4, "fog_dense"), (0.0, -2.4, "fog_thick"), (6.0, -2.6, "fog_thick"),
-                                     (12.0, -2.8, "fog_veil"), (17.0, -3.0, "fog_veil"), (-4.0, 0.9, "fog_dense"),
+                                     (12.0, -2.8, "fog_veil"), (17.0, -2.92, "fog_veil"), (-4.0, 0.9, "fog_dense"),
                                      (5.5, 0.9, "fog_thick"), (11.0, 0.9, "fog_thick"), (16.5, 0.9, "fog_veil"))):
         s.veil(D, f"Fog{i}", (0.0, y, z), (56.0, 7.0), mat)
     s.marker("FromGiant", (-26.0, 8.1, 0))
@@ -386,7 +387,7 @@ def swamp():
     s.enemy("DrownedKnight", "knight", (6.0, 0.0, 0))
     # На мостках — яд и святая вода: Утопленник — нежить, свет жжёт его во много раз сильнее (§6.2).
     s.chest("SwampChest", (-15.0, 0.35, -0.9), 90, "swamp_chest", ("poison_flask",) * 3 + ("holy_flask",))
-    s.veil(D, "Fog", (0.0, 2.5, -2.6), (60.0, 5.0), "fog_thick")
+    s.veil(D, "Fog", (0.0, 2.5, -2.45), (60.0, 5.0), "fog_thick")
     s.veil(D, "FogLow", (0.0, 0.6, 1.3), (60.0, 1.2))
     s.box(D, "FrontLog", (-12.0, 0.1, 3.2), (5.0, 0.6, 0.6), "bark", rot=(0, 0.2, 0))
     s.sphere(D, "FrontSkull", (-8.0, 0.0, 3.1), 0.22, "bone")
@@ -433,7 +434,7 @@ def cursed_village():
     s.dead_tree(D, "TreeB", 28.0, -3.5, 8.0)
     s.fence(D, "BrokenFence", -16.0, -9.0, -1.8, mat="wood_dark")
     s.crow(D, "Crow", 9.0, 4.85, -2.0)
-    s.veil(D, "Mist", (0.0, 2.0, -2.8), (60.0, 5.0), "fog_thick")
+    s.veil(D, "Mist", (0.0, 2.0, -2.72), (60.0, 5.0), "fog_thick")
     s.box(D, "FrontCart", (-14.0, 0.4, 3.2), (2.6, 0.8, 1.0), "wood_dark", rot=(0, 0, 0.2))
     s.tuft(D, "FrontTuft", 10.0, -0.2, 3.2, "moss")
     s.rocks(D, "FrontRocks", 20.0, -0.2, 3.4)

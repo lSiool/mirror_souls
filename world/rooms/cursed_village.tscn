@@ -746,7 +746,7 @@ size = Vector3(0.12, 0.12, 0.11)
 material = SubResource("Mat_iron")
 
 [node name="Mist" type="MeshInstance3D" parent="Decor"]
-position = Vector3(0.0, 2.0, -2.8)
+position = Vector3(0.0, 2.0, -2.72)
 mesh = SubResource("Veil_4")
 
 [node name="FrontCart" type="CSGBox3D" parent="Decor"]

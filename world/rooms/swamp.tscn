@@ -798,7 +798,7 @@ flag_id = &"swamp_chest"
 items = Array[StringName]([&"poison_flask", &"poison_flask", &"poison_flask", &"holy_flask"])
 
 [node name="Fog" type="MeshInstance3D" parent="Decor"]
-position = Vector3(0.0, 2.5, -2.6)
+position = Vector3(0.0, 2.5, -2.45)
 mesh = SubResource("Veil_1")
 
 [node name="FogLow" type="MeshInstance3D" parent="Decor"]
