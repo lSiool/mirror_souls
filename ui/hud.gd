@@ -473,7 +473,10 @@ func _refresh_quick() -> void:
 		var chosen := slot == GameState.active_quick
 		_quick_cells[slot].scale = Vector2.ONE * (1.12 if chosen else 1.0)
 		_quick_cells[slot].modulate = QUICK_CHOSEN if chosen else QUICK_OTHER
-		_quick_cells[slot].z_index = 1 if chosen else 0
+		# Выбранная рисуется поверх соседей — порядком в дереве, а не z_index: с z_index ромб
+		# вылезал поверх заставки, затемнения и меню.
+		if chosen:
+			_quick_cells[slot].get_parent().move_child(_quick_cells[slot], -1)
 
 
 ## У осколка меню закрывает экран: полосы, оружие и подсказки управления прячутся.
