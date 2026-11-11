@@ -1692,9 +1692,10 @@ func run() -> void:
 		if reaction != CreatureKind.Reaction.IMMUNE:
 			ok = foe.state == Dummy.State.BLINDED and foe.blind_reaction == reaction \
 				and is_equal_approx(foe.statuses.time_left(Statuses.BLIND), Statuses.BLIND_TIME * want[1])
-		# Руки есть у всех гуманоидов: graybox или манекен.
+		# Кто трёт глаза или шатается — у того есть руки: graybox или манекен. Обратное не обязательно:
+		# Утопленник — скелет на манекене, свету в глаза не поддаётся.
 		var has_arms := foe.arms != null or foe.model != null
-		var humanoid_arms := has_arms == (reaction in [CreatureKind.Reaction.RUB_EYES, CreatureKind.Reaction.DISORIENT])
+		var humanoid_arms := has_arms or reaction not in [CreatureKind.Reaction.RUB_EYES, CreatureKind.Reaction.DISORIENT]
 		check(ok and humanoid_arms, "%s: %s, %.1f с" % [id, CreatureKind.Reaction.keys()[reaction], foe.statuses.time_left(Statuses.BLIND)])
 		# Поза слепоты отыгрывается без ошибок; оружие не покидает руку (общий счётчик теста).
 		await seconds(1.4)
