@@ -30,6 +30,11 @@ func _ready() -> void:
 	_rooms = _main.get_node("RoomManager") as RoomManager
 	_player = _main.get_node("Player") as Player
 	_rooms.hud.popup.blocks_interact = false
+	# Программный рендер (облако, режим совместимости) не знает прозрачности узла: капсула и клинок-
+	# призрак видны поверх манекена. В кадре их убираем со всех слоёв.
+	for node in _player.find_children("*", "GeometryInstance3D", true, false):
+		if (node as GeometryInstance3D).transparency >= 0.99:
+			(node as GeometryInstance3D).layers = 0
 	await _rooms.travel(&"cursed_village", ^"Spawns/FromSwamp")
 	await _wait(0.5)
 	_rooms.hud.popup.queue.clear()
