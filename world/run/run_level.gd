@@ -36,6 +36,10 @@ extends Node3D
 ## Высоты этажей, на которых она горит; пусто — стены нет.
 @export var fire_levels := PackedFloat32Array([0.0])
 @export var fire_size := Vector3(1.8, 3.6, 0.6)
+## Нестабильное отражение: вместо огня за героем идёт стена осколков — пространство схлопывается.
+@export var shatter_wall := false
+## Бег и таран здесь не стоят выносливости.
+@export var free_run := false
 
 var running := false
 var front_x := 0.0
@@ -55,6 +59,8 @@ func _ready() -> void:
 		fire.light_range = 10.0
 		fire.position = Vector3(0.0, level, -0.6)
 		_wall.add_child(fire)
+	if shatter_wall:
+		_wall.add_child(_shard_storm())
 	_wall.visible = false
 
 
@@ -73,6 +79,7 @@ func _physics_process(delta: float) -> void:
 		_player = get_tree().get_first_node_in_group(&"player") as Player
 		if _player == null:
 			return
+		_player.free_run = free_run
 	var hero_x := _player.global_position.x
 	if not running:
 		if hero_x < start_x or _player.is_dead():
@@ -89,6 +96,47 @@ func _physics_process(delta: float) -> void:
 	if hero_x < front_x and not _player.is_dead():
 		_player.statuses.apply(Statuses.BURNING, 1.0)
 		_player.health.take_damage(_player.health.max_health * burn_rate * delta)
+
+
+func _exit_tree() -> void:
+	if _player and is_instance_valid(_player):
+		_player.free_run = false
+
+
+## Стена схлопывания: столб летящих осколков и холодный свет на фронте.
+func _shard_storm() -> Node3D:
+	var storm := Node3D.new()
+	var tint := Color(0.7, 0.85, 1.0)
+	var speck := BoxMesh.new()
+	speck.size = Vector3(0.22, 0.34, 0.04)
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = tint
+	glass.emission_enabled = true
+	glass.emission = tint
+	glass.emission_energy_multiplier = 2.2
+	speck.material = glass
+	var shards := CPUParticles3D.new()
+	shards.mesh = speck
+	shards.amount = 140
+	shards.lifetime = 1.6
+	shards.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	shards.emission_box_extents = Vector3(1.2, 14.0, 2.5)
+	shards.direction = Vector3(-1.0, 0.2, 0.0)
+	shards.spread = 40.0
+	shards.gravity = Vector3(-3.0, -2.0, 0.0)
+	shards.initial_velocity_min = 2.0
+	shards.initial_velocity_max = 7.0
+	shards.angular_velocity_min = -360.0
+	shards.angular_velocity_max = 360.0
+	storm.add_child(shards)
+	for y: float in [-6.0, 2.0, 10.0]:
+		var light := OmniLight3D.new()
+		light.light_color = tint
+		light.light_energy = 2.4
+		light.omni_range = 12.0
+		light.position = Vector3(0.0, y, 1.0)
+		storm.add_child(light)
+	return storm
 
 
 ## Скорость фронта в точке x.

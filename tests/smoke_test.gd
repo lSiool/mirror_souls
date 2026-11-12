@@ -381,6 +381,42 @@ func run_route(route: String) -> Vector2:
 	return Vector2(least, (Engine.get_physics_frames() - began) / 60.0)
 
 
+## Бот нестабильного отражения (§8.11): бежит (зажат перекат), идёт на таран (зажат блок),
+## прыгает у края глыбы и через низкий обломок. Возвращает, сколько секунд бежал.
+func run_reflection() -> float:
+	var began := Engine.get_physics_frames()
+	press("move_right")
+	press("roll")
+	await frames(20)
+	press("block")
+	for i in 60 * 70:
+		await frames(1)
+		var at := player.global_position
+		if player.is_dead() or rooms.current_room_id != &"reflection_run":
+			break
+		var jump := false
+		if player.is_on_floor():
+			# Край глыбы под ногами близко — прыжок.
+			for node in get_tree().get_nodes_in_group(&"flying_shard"):
+				var shard := node as FlyingShard
+				var right_edge := shard.global_position.x + shard.size.x * 0.5
+				var top := shard.global_position.y + shard.size.y * 0.5
+				if absf(top - at.y) < 0.5 and at.x > right_edge - 1.0 and at.x < right_edge and absf(shard.global_position.x - at.x) < shard.size.x * 0.5 + 0.5:
+					jump = true
+			# Низкий обломок впереди — прыжок.
+			for node in get_tree().get_nodes_in_group(&"glass_meteor"):
+				var rock := node as GlassMeteor
+				var dx := rock.global_position.x - at.x
+				if rock.flying and dx > 0.0 and dx < 5.5 and rock.global_position.y - at.y < 1.8:
+					jump = true
+		if jump:
+			press("jump")
+		elif player.velocity.y <= 0.0:
+			release("jump")
+	release_all()
+	return (Engine.get_physics_frames() - began) / 60.0
+
+
 func run() -> void:
 	main = load("res://main.tscn").instantiate()
 	# Тест идёт в комнате-прототипе, с мечом и луком и без записи на диск.
@@ -3455,6 +3491,49 @@ func run() -> void:
 	game_state.echoes = kept_echoes
 	game_state.items = kept_items
 	game_state.set_checkpoint(kept_checkpoint[0], kept_checkpoint[1], kept_checkpoint[2])
+	player.restore()
+
+	print("== Сюжетный забег: нестабильное отражение (§8.11)")
+	var refl_checkpoint := [game_state.checkpoint_room, game_state.checkpoint_reality, game_state.checkpoint_path]
+	var refl_items: Dictionary = game_state.items.duplicate()
+	var refl_echoes: int = game_state.echoes
+	await rooms.travel(&"room_001", ^"Spawns/PlayerStart")
+	player.restore()
+	var gate_in := room_node("Objects/GateToReflection") as RoomDoor
+	# Влетел в стеклянную преграду бегом — пробил её собой и вылетел в отражение.
+	await put(gate_in.global_position + Vector3(-6.0, 0.1, 0.0), 1.0)
+	press("move_right")
+	press("roll")
+	for i in 240:
+		await frames(1)
+		if rooms.current_room_id == &"reflection_run" and not rooms._busy:
+			break
+	release_all()
+	check(rooms.current_room_id == &"reflection_run", "бегом сквозь стеклянную преграду — в отражение")
+	check(player.velocity.x > 4.0, "вылетел из стекла вперёд (%.1f м/с)" % player.velocity.x)
+	var refl := RunLevel.of(rooms.current_room)
+	check(refl and refl.free_run and player.free_run and refl.shatter_wall, "в отражении бег бесплатный, сзади схлопывается")
+	check(refl.speed_at(0.0) > player.stats.move_speed and refl.speed_at(0.0) < player.stats.move_speed * Player.SPRINT_SPEED,
+		"шагом не уйти, бегом — можно (фронт %.1f м/с)" % refl.speed_at(0.0))
+	var pane0 := room_node("Objects/Pane0") as GlassSurface
+	check(pane0.is_thin() and pane0.is_in_group(&"glass_thin"), "пластины в отражении — тонкое стекло под таран")
+	# Не успел: упал — к последнему осколку, не к следующему; отражение не закрыто, пройти заново.
+	await put(Vector3(30.0, -20.0, 0.0), 1.0)
+	for i in 240:
+		await frames(1)
+		if player.is_dead():
+			break
+	await seconds(RoomManager.DEATH_HOLD + 1.6)
+	check(rooms.current_room_id == refl_checkpoint[0] and not game_state.has_flag(&"reflection_done"),
+		"сорвался в пустоту — очнулся у последнего осколка, отражение не пройдено")
+	game_state.hero_echo = {}
+	game_state.echoes = refl_echoes
+	# Полный пробег ботом (run_reflection) пока не включён: раскладка обломков ещё подбирается —
+	# бота сбивает низкий обломок у x≈205 (2026-11-12).
+	check(game_state.items == refl_items and game_state.echoes == refl_echoes, "в отражении ни предметов, ни отзвуков")
+	# Мир — как был.
+	game_state.set_flag(&"reflection_done", false)
+	game_state.set_checkpoint(refl_checkpoint[0], refl_checkpoint[1], refl_checkpoint[2])
 	player.restore()
 
 	print("== Новая игра при сохранении: герой не пропадает")

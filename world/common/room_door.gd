@@ -21,6 +21,17 @@ extends Interactable
 @export var door_size := Vector3(1.3, 2.4, 0.15)
 @export var door_color := Color(0.3, 0.2, 0.12)
 @export var door_glow := 0.0
+## Стеклянная преграда вместо двери (§8.11, 2026-11-11): герой влетает в неё на скорости —
+## стекло разлетается, экран гаснет, и в следующей комнате он вылетает вместе с осколками.
+## Можно и просто «открыть» — рукой.
+@export var glass_gate := false
+
+## Быстрее этого герой пробивает стеклянную преграду телом (м/с).
+const GATE_SPEED := 3.0
+const GATE_SHADER := preload("res://effects/shaders/pearl_glass.gdshader")
+const GATE_TINT := Color(0.75, 0.86, 1.0)
+
+var _used := false
 
 
 func _ready() -> void:
@@ -32,6 +43,9 @@ func _ready() -> void:
 	shape.shape = box
 	shape.position = Vector3(0.0, door_size.y * 0.5, 0.3)
 	add_child(shape)
+	if glass_gate:
+		_build_gate()
+		return
 	var mesh := MeshInstance3D.new()
 	var door := BoxMesh.new()
 	door.size = door_size
@@ -63,9 +77,52 @@ func is_locked() -> bool:
 
 
 func interact(_by: Player) -> void:
+	if _used:
+		return
 	if closed_flag != &"" and GameState.has_flag(closed_flag):
 		Events.message.emit(closed_text)
 	elif is_locked():
 		Events.message.emit(locked_text)
 	else:
+		if glass_gate:
+			_used = true
+			_shatter_gate()
 		Events.door_used.emit(self)
+
+
+## Стеклянная преграда: высокая пластина поперёк пути, светится по краям.
+func _build_gate() -> void:
+	var material := ShaderMaterial.new()
+	material.shader = GATE_SHADER
+	material.set_shader_parameter(&"alpha", 0.5)
+	var pane := BoxMesh.new()
+	pane.size = Vector3(0.25, door_size.y, 3.2)
+	pane.material = material
+	var mesh := MeshInstance3D.new()
+	mesh.name = &"Pane"
+	mesh.mesh = pane
+	mesh.position = Vector3(0.0, door_size.y * 0.5, 0.0)
+	add_child(mesh)
+	var light := OmniLight3D.new()
+	light.light_color = GATE_TINT
+	light.light_energy = 1.6
+	light.omni_range = 6.0
+	light.position = Vector3(0.0, door_size.y * 0.5, 0.8)
+	add_child(light)
+
+
+func _shatter_gate() -> void:
+	var pane := get_node_or_null(^"Pane") as Node3D
+	if pane:
+		pane.visible = false
+	Sfx.play(&"glass_break", global_position + Vector3(0.0, 1.2, 0.0))
+	HitSpark.spawn(get_parent(), global_position + Vector3(0.0, 1.4, 0.3), GATE_TINT, 40)
+	Events.camera_shake_requested.emit(0.3, 0.2)
+
+
+## Герой влетел в стеклянную преграду на скорости — пробил её собой.
+func _on_body_entered(body: Node3D) -> void:
+	super(body)
+	var hero := body as Player
+	if glass_gate and hero and absf(hero.velocity.x) >= GATE_SPEED:
+		interact(hero)

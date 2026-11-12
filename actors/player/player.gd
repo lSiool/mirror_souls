@@ -185,6 +185,8 @@ var sitting := false
 ## Бежит (зажат перекат) и идёт на таран плечом (блок на бегу или в прыжке) — ведёт _move_state.
 var sprinting := false
 var ramming := false
+## В нестабильном отражении бег и таран не стоят выносливости (ставит RunLevel.free_run).
+var free_run := false
 var _roll_held := 0.0
 var _sprint_spent := false
 ## Чего касается ладонь (кристалл осколка, пока открыто меню прокачки) — ведёт HeroModel.
@@ -407,7 +409,7 @@ func _update_sprint(x: float, on_floor: bool, delta: float) -> void:
 	_roll_held = _roll_held + delta if held else 0.0
 	if not held:
 		_sprint_spent = false
-	var fighting := in_combat()
+	var fighting := in_combat() and not free_run
 	if sprinting and on_floor and fighting:
 		stamina = maxf(stamina - SPRINT_COST * delta, 0.0)
 		_stamina_delay = stats.stamina_regen_delay
@@ -434,7 +436,7 @@ func _ram_glass(delta: float) -> void:
 		var low := glass.global_position.y - glass.size.y * 0.5
 		if gap < -0.4 or gap > reach or global_position.y + 1.8 < low or global_position.y > low + glass.size.y:
 			continue
-		if in_combat():
+		if in_combat() and not free_run:
 			_spend_stamina(RAM_COST)
 		Sfx.play(&"sword_hit_glass", glass.global_position, -4.0)
 		glass.shatter()

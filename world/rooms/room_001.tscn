@@ -197,6 +197,17 @@ closed_text = "Деревни больше нет."
 door_color = Color(0.45, 0.16, 0.08, 1)
 door_glow = 0.6
 
+[node name="GateToReflection" type="Area3D" parent="Objects" groups=["normal_only"]]
+position = Vector3(-5.2, 0, 0)
+script = ExtResource("12_door")
+target_room = &"reflection_run"
+target_spawn = NodePath("Spawns/PlayerStart")
+open_prompt = "Сквозь стекло (отражение)"
+closed_flag = &"reflection_done"
+closed_text = "Отражение схлопнулось."
+door_size = Vector3(0.25, 3.6, 3.2)
+glass_gate = true
+
 [node name="SwordFind" type="Area3D" parent="Objects" groups=["normal_only"]]
 position = Vector3(-20.2, 0, 0)
 script = ExtResource("13_pickup")

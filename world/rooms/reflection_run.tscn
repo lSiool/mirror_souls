@@ -1,0 +1,641 @@
+[gd_scene load_steps=33 format=3]
+
+[ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
+
+[ext_resource type="Script" path="res://world/common/room_door.gd" id="door"]
+
+[ext_resource type="Script" path="res://world/common/item_pickup.gd" id="pickup"]
+
+[ext_resource type="Script" path="res://world/common/ladder.gd" id="ladder"]
+
+[ext_resource type="PackedScene" path="res://world/checkpoints/mirror_shard.tscn" id="shard"]
+
+[ext_resource type="PackedScene" path="res://world/chest/chest.tscn" id="chest"]
+
+[ext_resource type="PackedScene" path="res://world/glass/glass_surface.tscn" id="glass"]
+
+[ext_resource type="PackedScene" path="res://world/hazards/spikes.tscn" id="spikes"]
+
+[ext_resource type="Script" path="res://world/common/note.gd" id="note"]
+
+[ext_resource type="Script" path="res://world/common/bound_captive.gd" id="captive"]
+
+[ext_resource type="Script" path="res://world/common/mud_zone.gd" id="mud"]
+
+[ext_resource type="Script" path="res://world/common/boss_arena.gd" id="arena"]
+
+[ext_resource type="Script" path="res://world/rooms/robber_event.gd" id="robbers"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/rat.tscn" id="rat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bat.tscn" id="bat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/fog_wraith.tscn" id="wraith"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/drowned_knight.tscn" id="knight"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_heavy.tscn" id="bandit_heavy"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_knife.tscn" id="bandit_knife"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/blacksmith.tscn" id="smith"]
+
+[ext_resource type="Script" path="res://world/run/run_level.gd" id="run"]
+
+[ext_resource type="Script" path="res://world/run/flying_shard.gd" id="shard_fly"]
+
+[ext_resource type="Script" path="res://world/run/glass_meteor.gd" id="meteor"]
+
+[ext_resource type="Script" path="res://world/run/drift.gd" id="drift"]
+
+[ext_resource type="Shader" path="res://effects/shaders/caustics.gdshader" id="caustics"]
+
+[ext_resource type="Shader" path="res://effects/shaders/pearl_glass.gdshader" id="pearl"]
+
+[sub_resource type="Environment" id="Env_room"]
+background_mode = 1
+background_color = Color(0.012, 0.012, 0.04, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.42, 0.5, 0.75, 1)
+ambient_light_energy = 0.55
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.06
+fog_enabled = true
+fog_light_color = Color(0.05, 0.06, 0.14, 1)
+fog_density = 0.004
+
+[sub_resource type="ShaderMaterial" id="Mat_caustics"]
+shader = ExtResource("caustics")
+shader_parameter/scale = 5.0
+shader_parameter/speed = 0.35
+shader_parameter/glow = 1.0
+
+[sub_resource type="QuadMesh" id="Mesh_backdrop"]
+material = SubResource("Mat_caustics")
+size = Vector2(572.7, 110)
+
+[sub_resource type="ShaderMaterial" id="Mat_pearl"]
+shader = ExtResource("pearl")
+shader_parameter/alpha = 0.45
+shader_parameter/seed = 0.37
+
+[sub_resource type="PrismMesh" id="Mesh_far"]
+material = SubResource("Mat_pearl")
+left_to_right = 0.3
+size = Vector3(3, 4, 1.2)
+
+[sub_resource type="BoxMesh" id="Mesh_slab"]
+material = SubResource("Mat_pearl")
+size = Vector3(5, 0.5, 3)
+
+[node name="ReflectionRun" type="Node3D"]
+script = ExtResource("room")
+room_id = &"reflection_run"
+center_x = 0.0
+width = 400.0
+mood = SubResource("Env_room")
+sun_color = Color(0.6, 0.7, 1.0, 1)
+sun_energy = 0.35
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="Decor" type="Node3D" parent="."]
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="StartShard" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(3.0, -0.4, 0)
+script = ExtResource("shard_fly")
+size = Vector3(14.0, 0.8, 3.2)
+always_here = true
+
+[node name="Shard0" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(17.5, -0.3, 0)
+script = ExtResource("shard_fly")
+size = Vector3(9.0, 0.6, 3.2)
+from = Vector3(18.0, 8.0, -9.0)
+
+[node name="Shard1" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(29.5, 0.1, 0)
+script = ExtResource("shard_fly")
+size = Vector3(9.0, 0.6, 3.2)
+from = Vector3(20.0, -9.0, -6.0)
+
+[node name="Shard2" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(41.5, -0.2, 0)
+script = ExtResource("shard_fly")
+size = Vector3(9.0, 0.6, 3.2)
+from = Vector3(14.0, 3.0, -14.0)
+
+[node name="Shard3" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(53.5, 0.0, 0)
+script = ExtResource("shard_fly")
+size = Vector3(9.0, 0.6, 3.2)
+from = Vector3(22.0, 11.0, 5.0)
+
+[node name="Shard4" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(67.5, 0.0, 0)
+script = ExtResource("shard_fly")
+size = Vector3(13.0, 0.6, 3.2)
+from = Vector3(18.0, 8.0, -9.0)
+
+[node name="Pane0" parent="Objects" instance=ExtResource("glass")]
+position = Vector3(68.5, 1.8, 0)
+size = Vector3(0.25, 3.6, 3.0)
+
+[node name="Shard5" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(83.2, -0.4, 0)
+script = ExtResource("shard_fly")
+size = Vector3(12.0, 0.6, 3.2)
+from = Vector3(20.0, -9.0, -6.0)
+
+[node name="Pane1" parent="Objects" instance=ExtResource("glass")]
+position = Vector3(80.7, 1.4, 0)
+size = Vector3(0.25, 3.6, 3.0)
+
+[node name="Pane2" parent="Objects" instance=ExtResource("glass")]
+position = Vector3(86.2, 1.4, 0)
+size = Vector3(0.25, 3.6, 3.0)
+
+[node name="Shard6" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(96.2, -0.1, 0)
+script = ExtResource("shard_fly")
+size = Vector3(8.0, 0.6, 3.2)
+from = Vector3(14.0, 3.0, -14.0)
+
+[node name="Pane3" parent="Objects" instance=ExtResource("glass")]
+position = Vector3(102.6, 1.3, 0)
+size = Vector3(0.25, 3.6, 3.0)
+
+[node name="Shard7" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(109.5, -0.1, 0)
+script = ExtResource("shard_fly")
+size = Vector3(9.0, 0.6, 3.2)
+from = Vector3(22.0, 11.0, 5.0)
+
+[node name="Shard8" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(124.0, -0.4, 0)
+script = ExtResource("shard_fly")
+size = Vector3(8.0, 0.6, 3.2)
+from = Vector3(18.0, 8.0, -9.0)
+
+[node name="Shard9" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(138.0, -0.1, 0)
+rotation = Vector3(0, 0, 0.06)
+script = ExtResource("shard_fly")
+size = Vector3(8.0, 0.6, 3.2)
+from = Vector3(20.0, -9.0, -6.0)
+
+[node name="Shard10" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(152.0, -0.6, 0)
+rotation = Vector3(0, 0, -0.05)
+script = ExtResource("shard_fly")
+size = Vector3(8.0, 0.6, 3.2)
+from = Vector3(14.0, 3.0, -14.0)
+
+[node name="Shard11" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(166.7, -0.4, 0)
+script = ExtResource("shard_fly")
+size = Vector3(15.0, 0.6, 3.2)
+from = Vector3(22.0, 11.0, 5.0)
+
+[node name="Meteor0" type="Area3D" parent="Objects"]
+position = Vector3(181.2, 0.7, 0)
+script = ExtResource("meteor")
+size = Vector3(1.5, 1.5, 1.5)
+fly = Vector3(-11.0, 0.0, 0)
+
+[node name="Shard12" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(185.1, -0.4, 0)
+script = ExtResource("shard_fly")
+size = Vector3(15.0, 0.6, 3.2)
+from = Vector3(18.0, 8.0, -9.0)
+
+[node name="Meteor1" type="Area3D" parent="Objects"]
+position = Vector3(199.1, 3.0, 0)
+script = ExtResource("meteor")
+size = Vector3(1.8, 1.8, 1.8)
+fly = Vector3(-11.0, 0.0, 0)
+
+[node name="Meteor2" type="Area3D" parent="Objects"]
+position = Vector3(204.1, 0.7, 0)
+script = ExtResource("meteor")
+size = Vector3(1.5, 1.5, 1.5)
+fly = Vector3(-11.0, 0.0, 0)
+
+[node name="Shard13" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(201.1, -0.8, 0)
+script = ExtResource("shard_fly")
+size = Vector3(9.0, 0.6, 3.2)
+from = Vector3(20.0, -9.0, -6.0)
+
+[node name="Meteor3" type="Area3D" parent="Objects"]
+position = Vector3(226.1, 7.7, 0)
+script = ExtResource("meteor")
+size = Vector3(1.3, 1.3, 1.3)
+fly = Vector3(-9.0, -3.0, 0)
+
+[node name="Shard14" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(216.2, -0.5, 0)
+script = ExtResource("shard_fly")
+size = Vector3(10.0, 0.6, 3.2)
+from = Vector3(14.0, 3.0, -14.0)
+
+[node name="Pane4" parent="Objects" instance=ExtResource("glass")]
+position = Vector3(218.2, 1.3, 0)
+size = Vector3(0.25, 3.6, 3.0)
+
+[node name="Shard15" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(230.5, -0.5, 0)
+rotation = Vector3(0, 0, 0.07)
+script = ExtResource("shard_fly")
+size = Vector3(7.0, 0.6, 3.2)
+from = Vector3(22.0, 11.0, 5.0)
+
+[node name="Pane5" parent="Objects" instance=ExtResource("glass")]
+position = Vector3(236.8, 0.8, 0)
+size = Vector3(0.25, 3.6, 3.0)
+
+[node name="Shard16" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(245.2, -0.8, 0)
+script = ExtResource("shard_fly")
+size = Vector3(12.0, 0.6, 3.2)
+from = Vector3(18.0, 8.0, -9.0)
+
+[node name="Meteor4" type="Area3D" parent="Objects"]
+position = Vector3(260.7, 0.3, 0)
+script = ExtResource("meteor")
+size = Vector3(1.5, 1.5, 1.5)
+fly = Vector3(-11.0, 0.0, 0)
+
+[node name="Shard17" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(260.7, -0.4, 0)
+rotation = Vector3(0, 0, -0.06)
+script = ExtResource("shard_fly")
+size = Vector3(7.0, 0.6, 3.2)
+from = Vector3(20.0, -9.0, -6.0)
+
+[node name="Shard18" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(274.7, -0.4, 0)
+script = ExtResource("shard_fly")
+size = Vector3(11.0, 0.6, 3.2)
+from = Vector3(14.0, 3.0, -14.0)
+
+[node name="Pane6" parent="Objects" instance=ExtResource("glass")]
+position = Vector3(272.7, 1.4, 0)
+size = Vector3(0.25, 3.6, 3.0)
+
+[node name="Meteor5" type="Area3D" parent="Objects"]
+position = Vector3(296.2, 2.9, 0)
+script = ExtResource("meteor")
+size = Vector3(1.7, 1.7, 1.7)
+fly = Vector3(-11.0, 0.0, 0)
+
+[node name="Shard19" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(290.2, -0.7, 0)
+script = ExtResource("shard_fly")
+size = Vector3(8.0, 0.6, 3.2)
+from = Vector3(22.0, 11.0, 5.0)
+
+[node name="EndShard" type="AnimatableBody3D" parent="Objects"]
+position = Vector3(305.7, -0.8, 0)
+script = ExtResource("shard_fly")
+size = Vector3(14.0, 0.8, 3.2)
+always_here = true
+
+[node name="GateOut" type="Area3D" parent="Objects"]
+position = Vector3(308.7, -0.4, 0)
+script = ExtResource("door")
+target_room = &"room_001"
+target_spawn = NodePath("Spawns/PlayerStart")
+open_prompt = "Сквозь стекло"
+door_size = Vector3(0.25, 4.2, 3.2)
+glass_gate = true
+
+[node name="Backdrop" type="MeshInstance3D" parent="Decor"]
+position = Vector3(156.35, 4.0, -38.0)
+mesh = SubResource("Mesh_backdrop")
+
+[node name="Far" type="Node3D" parent="Decor"]
+script = ExtResource("drift")
+
+[node name="Far0" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(0.0, -13.0, -16.0)
+rotation = Vector3(0.0, 0.0, 0.0)
+scale = Vector3(0.35, 0.35, 0.35)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far1" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(37.0, -5.7, -21.1)
+rotation = Vector3(0.7, 1.3, 0.4)
+scale = Vector3(0.57, 0.57, 0.57)
+mesh = SubResource("Mesh_far")
+
+[node name="Far2" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(74.0, 1.6, -26.2)
+rotation = Vector3(1.4, 2.6, 0.8)
+scale = Vector3(0.79, 0.79, 0.79)
+mesh = SubResource("Mesh_far")
+
+[node name="Far3" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(111.0, 8.9, -31.3)
+rotation = Vector3(2.1, 0.8, 1.2)
+scale = Vector3(1.01, 1.01, 1.01)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far4" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(148.0, -11.8, -18.4)
+rotation = Vector3(2.8, 2.1, 1.6)
+scale = Vector3(1.23, 1.23, 1.23)
+mesh = SubResource("Mesh_far")
+
+[node name="Far5" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(35.0, -4.5, -23.5)
+rotation = Vector3(0.4, 0.3, 2.0)
+scale = Vector3(0.35, 0.35, 0.35)
+mesh = SubResource("Mesh_far")
+
+[node name="Far6" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(72.0, 2.8, -28.6)
+rotation = Vector3(1.1, 1.6, 2.4)
+scale = Vector3(0.57, 0.57, 0.57)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far7" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(109.0, 10.1, -33.7)
+rotation = Vector3(1.8, 2.9, 2.8)
+scale = Vector3(0.79, 0.79, 0.79)
+mesh = SubResource("Mesh_far")
+
+[node name="Far8" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(146.0, -10.6, -20.8)
+rotation = Vector3(2.5, 1.1, 0.1)
+scale = Vector3(1.01, 1.01, 1.01)
+mesh = SubResource("Mesh_far")
+
+[node name="Far9" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(33.0, -3.3, -25.9)
+rotation = Vector3(0.1, 2.4, 0.5)
+scale = Vector3(1.23, 1.23, 1.23)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far10" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(70.0, 4.0, -31.0)
+rotation = Vector3(0.8, 0.6, 0.9)
+scale = Vector3(0.35, 0.35, 0.35)
+mesh = SubResource("Mesh_far")
+
+[node name="Far11" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(107.0, 11.3, -18.1)
+rotation = Vector3(1.5, 1.9, 1.3)
+scale = Vector3(0.57, 0.57, 0.57)
+mesh = SubResource("Mesh_far")
+
+[node name="Far12" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(144.0, -9.4, -23.2)
+rotation = Vector3(2.2, 0.1, 1.7)
+scale = Vector3(0.79, 0.79, 0.79)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far13" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(31.0, -2.1, -28.3)
+rotation = Vector3(2.9, 1.4, 2.1)
+scale = Vector3(1.01, 1.01, 1.01)
+mesh = SubResource("Mesh_far")
+
+[node name="Far14" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(68.0, 5.2, -33.4)
+rotation = Vector3(0.5, 2.7, 2.5)
+scale = Vector3(1.23, 1.23, 1.23)
+mesh = SubResource("Mesh_far")
+
+[node name="Far15" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(105.0, 12.5, -20.5)
+rotation = Vector3(1.2, 0.9, 2.9)
+scale = Vector3(0.35, 0.35, 0.35)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far16" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(142.0, -8.2, -25.6)
+rotation = Vector3(1.9, 2.2, 0.2)
+scale = Vector3(0.57, 0.57, 0.57)
+mesh = SubResource("Mesh_far")
+
+[node name="Far17" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(29.0, -0.9, -30.7)
+rotation = Vector3(2.6, 0.4, 0.6)
+scale = Vector3(0.79, 0.79, 0.79)
+mesh = SubResource("Mesh_far")
+
+[node name="Far18" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(66.0, 6.4, -17.8)
+rotation = Vector3(0.2, 1.7, 1.0)
+scale = Vector3(1.01, 1.01, 1.01)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far19" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(103.0, 13.7, -22.9)
+rotation = Vector3(0.9, 3.0, 1.4)
+scale = Vector3(1.23, 1.23, 1.23)
+mesh = SubResource("Mesh_far")
+
+[node name="Far20" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(140.0, -7.0, -28.0)
+rotation = Vector3(1.6, 1.2, 1.8)
+scale = Vector3(0.35, 0.35, 0.35)
+mesh = SubResource("Mesh_far")
+
+[node name="Far21" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(27.0, 0.3, -33.1)
+rotation = Vector3(2.3, 2.5, 2.2)
+scale = Vector3(0.57, 0.57, 0.57)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far22" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(64.0, 7.6, -20.2)
+rotation = Vector3(3.0, 0.7, 2.6)
+scale = Vector3(0.79, 0.79, 0.79)
+mesh = SubResource("Mesh_far")
+
+[node name="Far23" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(101.0, 14.9, -25.3)
+rotation = Vector3(0.6, 2.0, 3.0)
+scale = Vector3(1.01, 1.01, 1.01)
+mesh = SubResource("Mesh_far")
+
+[node name="Far24" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(138.0, -5.8, -30.4)
+rotation = Vector3(1.3, 0.2, 0.3)
+scale = Vector3(1.23, 1.23, 1.23)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far25" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(25.0, 1.5, -17.5)
+rotation = Vector3(2.0, 1.5, 0.7)
+scale = Vector3(0.35, 0.35, 0.35)
+mesh = SubResource("Mesh_far")
+
+[node name="Far26" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(62.0, 8.8, -22.6)
+rotation = Vector3(2.7, 2.8, 1.1)
+scale = Vector3(0.57, 0.57, 0.57)
+mesh = SubResource("Mesh_far")
+
+[node name="Far27" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(99.0, -11.9, -27.7)
+rotation = Vector3(0.3, 1.0, 1.5)
+scale = Vector3(0.79, 0.79, 0.79)
+mesh = SubResource("Mesh_slab")
+
+[node name="Far28" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(136.0, -4.6, -32.8)
+rotation = Vector3(1.0, 2.3, 1.9)
+scale = Vector3(1.01, 1.01, 1.01)
+mesh = SubResource("Mesh_far")
+
+[node name="Far29" type="MeshInstance3D" parent="Decor/Far"]
+position = Vector3(23.0, 2.7, -19.9)
+rotation = Vector3(1.7, 0.5, 2.3)
+scale = Vector3(1.23, 1.23, 1.23)
+mesh = SubResource("Mesh_far")
+
+[node name="Near0" type="MeshInstance3D" parent="Decor"]
+position = Vector3(18.0, -6.0, 4.6)
+rotation = Vector3(0.0, 0.9, 0.0)
+mesh = SubResource("Mesh_far")
+
+[node name="Near1" type="MeshInstance3D" parent="Decor"]
+position = Vector3(49.27, -2.3, 4.6)
+rotation = Vector3(0.4, 0.9, 0.3)
+mesh = SubResource("Mesh_far")
+
+[node name="Near2" type="MeshInstance3D" parent="Decor"]
+position = Vector3(80.54, -3.6, 4.6)
+rotation = Vector3(0.8, 0.9, 0.6)
+mesh = SubResource("Mesh_far")
+
+[node name="Near3" type="MeshInstance3D" parent="Decor"]
+position = Vector3(111.81, -4.9, 4.6)
+rotation = Vector3(1.2, 0.9, 0.9)
+mesh = SubResource("Mesh_far")
+
+[node name="Near4" type="MeshInstance3D" parent="Decor"]
+position = Vector3(143.08, -1.2, 4.6)
+rotation = Vector3(1.6, 0.9, 1.2)
+mesh = SubResource("Mesh_far")
+
+[node name="Near5" type="MeshInstance3D" parent="Decor"]
+position = Vector3(174.35, -2.5, 4.6)
+rotation = Vector3(2.0, 0.9, 1.5)
+mesh = SubResource("Mesh_far")
+
+[node name="Near6" type="MeshInstance3D" parent="Decor"]
+position = Vector3(205.62, -3.8, 4.6)
+rotation = Vector3(2.4, 0.9, 1.8)
+mesh = SubResource("Mesh_far")
+
+[node name="Near7" type="MeshInstance3D" parent="Decor"]
+position = Vector3(236.89, -5.1, 4.6)
+rotation = Vector3(2.8, 0.9, 2.1)
+mesh = SubResource("Mesh_far")
+
+[node name="Near8" type="MeshInstance3D" parent="Decor"]
+position = Vector3(268.16, -1.4, 4.6)
+rotation = Vector3(3.2, 0.9, 2.4)
+mesh = SubResource("Mesh_far")
+
+[node name="Near9" type="MeshInstance3D" parent="Decor"]
+position = Vector3(299.43, -2.7, 4.6)
+rotation = Vector3(3.6, 0.9, 2.7)
+mesh = SubResource("Mesh_far")
+
+[node name="Glow0" type="OmniLight3D" parent="Decor"]
+position = Vector3(13.0, 5.0, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow1" type="OmniLight3D" parent="Decor"]
+position = Vector3(39.0, 7.975, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow2" type="OmniLight3D" parent="Decor"]
+position = Vector3(65.0, 4.2334, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow3" type="OmniLight3D" parent="Decor"]
+position = Vector3(91.0, 2.2226, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow4" type="OmniLight3D" parent="Decor"]
+position = Vector3(117.0, 6.4823, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow5" type="OmniLight3D" parent="Decor"]
+position = Vector3(143.0, 7.3955, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow6" type="OmniLight3D" parent="Decor"]
+position = Vector3(169.0, 2.9004, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow7" type="OmniLight3D" parent="Decor"]
+position = Vector3(195.0, 3.1456, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow8" type="OmniLight3D" parent="Decor"]
+position = Vector3(221.0, 7.5775, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow9" type="OmniLight3D" parent="Decor"]
+position = Vector3(247.0, 6.1902, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow10" type="OmniLight3D" parent="Decor"]
+position = Vector3(273.0, 2.1158, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Glow11" type="OmniLight3D" parent="Decor"]
+position = Vector3(299.0, 4.553, 2.0)
+light_color = Color(0.6, 0.75, 1.0, 1)
+light_energy = 1.4
+omni_range = 16.0
+
+[node name="Run" type="Node3D" parent="Objects"]
+script = ExtResource("run")
+done_flag = &"reflection_done"
+start_x = 9.0
+head_start = 16.0
+pace = PackedVector2Array(0.0, 8.2)
+max_slack = 5.0
+burn_rate = 0.0
+fire_levels = PackedFloat32Array()
+shatter_wall = true
+free_run = true
+
+[node name="PlayerStart" type="Marker3D" parent="Spawns"]
+position = Vector3(-2.0, 0.1, 0)

@@ -12,6 +12,8 @@ const NORMAL: StringName = &"normal"
 const ROOM_PATH := "res://world/rooms/%s.tscn"
 ## Сколько секунд после смерти до затемнения.
 const DEATH_HOLD := 1.9
+## С какой скоростью герой вылетает из стеклянной преграды в новую комнату (вперёд, вверх).
+const BURST_SPEED := Vector2(9.0, 4.0)
 ## У осколка герой стоит сбоку, на таком расстоянии (м), и держит ладонь на кристалле.
 const SHARD_TOUCH_GAP := 0.45
 ## Гибель на уровне-забеге (§8.11): сколько темно, как долго проявляется картинка и сколько
@@ -246,11 +248,12 @@ func _apply_mood() -> void:
 
 
 func _on_door_used(door: RoomDoor) -> void:
-	await travel(door.target_room, door.target_spawn)
+	await travel(door.target_room, door.target_spawn, door.glass_gate)
 
 
 ## Перейти в другую комнату: герой встаёт в заданной точке, лицом к её середине.
-func travel(room_id: StringName, spawn: NodePath) -> void:
+## burst — переход сквозь стеклянную преграду: герой вылетает в комнату вместе с осколками.
+func travel(room_id: StringName, spawn: NodePath, burst := false) -> void:
 	if _busy:
 		return
 	_busy = true
@@ -267,9 +270,19 @@ func travel(room_id: StringName, spawn: NodePath) -> void:
 	player.facing = 1.0 if marker.global_position.x < current_room.center_x else -1.0
 	camera_rig.snap_to_target()
 	player.frozen = false
+	if burst:
+		_burst_in(marker.global_position)
 	save_now()
 	await hud.fade_to(0.0, 0.3)
 	_busy = false
+
+
+## Вылет из стеклянной преграды (§8.11): осколки, звон, герой летит вперёд.
+func _burst_in(at: Vector3) -> void:
+	player.velocity = Vector3(player.facing * BURST_SPEED.x, BURST_SPEED.y, 0.0)
+	Sfx.play(&"glass_break", at + Vector3(0.0, 1.2, 0.0))
+	HitSpark.spawn(current_room, at + Vector3(0.0, 1.3, 0.3), RoomDoor.GATE_TINT, 44)
+	Events.camera_shake_requested.emit(0.3, 0.2)
 
 
 ## Герой приходит в себя после сцены: мир уже другой (флаг), комната пересоздана, он лежит и встаёт.
