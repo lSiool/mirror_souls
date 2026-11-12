@@ -4,11 +4,12 @@ extends Node3D
 ## когда босс побеждён или ушёл — растворяются. Побеждённый босс стен не ставит.
 ## С арены не сбежать (2026-11-11): стена встаёт не мгновенно, и герой успевал выскочить за неё —
 ## бой начинался, а он оставался снаружи. Теперь, пока арена закрыта, героя, оказавшегося
-## за стеной, туман втягивает обратно, а изнутри за стену не выйти.
+## за стеной, туман сразу переносит внутрь (сквозь саму стену его не протащить — её тело
+## выталкивает обратно). Внутри держит сама стена.
 
-## На сколько от стены внутрь держится герой и как быстро туман втягивает его (м/с).
-const WALL_MARGIN := 0.9
-const PULL_SPEED := 16.0
+## Куда туман ставит героя — на столько внутрь от стены.
+const PULL_IN := 1.0
+const PULL_TINT := Color(0.55, 0.5, 0.85)
 
 @export var boss_path: NodePath
 @export var left_x := -12.0
@@ -49,17 +50,16 @@ func _on_boss_engaged(who: Dummy) -> void:
 	_player = get_tree().get_first_node_in_group(&"player") as Player
 
 
-func _physics_process(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	if not _closed or _player == null or not is_instance_valid(_player) or _player.is_dead():
 		return
 	var x := _player.global_position.x
-	var inside := clampf(x, left_x + WALL_MARGIN, right_x - WALL_MARGIN)
-	if is_equal_approx(x, inside):
+	if x >= left_x and x <= right_x:
 		return
-	# За стеной: туман тащит внутрь, скорость наружу гасится.
-	_player.global_position.x = move_toward(x, inside, PULL_SPEED * delta)
-	if signf(_player.velocity.x) == signf(x - inside):
-		_player.velocity.x = 0.0
+	# За стеной: туман переносит внутрь, скорость наружу гасится.
+	var inside := left_x + PULL_IN if x < left_x else right_x - PULL_IN
+	_player.teleport(Vector3(inside, _player.global_position.y, 0.0))
+	HitSpark.spawn(get_parent(), _player.global_position + Vector3(0.0, 1.0, 0.3), PULL_TINT, 18)
 
 
 func flare() -> void:
