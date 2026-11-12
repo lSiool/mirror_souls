@@ -22,6 +22,9 @@ const SHAKE := 0.04
 @export var warn_time := 0.5
 ## Стоит с самого начала (стартовая и финишная площадки).
 @export var always_here := false
+## Скат: наклонная глыба, по которой герой скользит, как по стеклянному скату (группа glass_slide).
+## Скатом становится, только встав на место.
+@export var slide := false
 
 var phase := Phase.AWAY
 
@@ -69,6 +72,8 @@ func _ready() -> void:
 	_rest = global_transform
 	if always_here:
 		phase = Phase.HERE
+		if slide:
+			add_to_group(&"glass_slide")
 		return
 	var spin := Basis.from_euler(Vector3(seed_value * 2.0 - 1.0, seed_value * 3.0, 1.2 - seed_value * 2.4))
 	_start = Transform3D(_rest.basis * spin, _rest.origin + from)
@@ -98,6 +103,8 @@ func _physics_process(delta: float) -> void:
 			if k >= 1.0:
 				global_transform = _rest
 				phase = Phase.HERE
+				if slide:
+					add_to_group(&"glass_slide")
 		Phase.HERE:
 			if _run and _run.running and _run.front_x >= _rest.origin.x - size.x * 0.5:
 				phase = Phase.CRACKING
@@ -117,6 +124,7 @@ func is_standing() -> bool:
 
 func _shatter() -> void:
 	phase = Phase.GONE
+	remove_from_group(&"glass_slide")
 	_shape.set_deferred(&"disabled", true)
 	_look.visible = false
 	Sfx.play(&"glass_break", global_position, -8.0)

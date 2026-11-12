@@ -38,7 +38,7 @@ class Path_:
 
     def __init__(self, s, x, y):
         self.s, self.x, self.y, self.n = s, x, y, 0
-        self.panes = self.meteors = 0
+        self.panes = self.meteors = self.slides = 0
 
     def piece(self, length, gap=3.0, rise=0.0, tilt=0.0, thick=0.6):
         """Глыба длиной length после провала gap; rise — выше или ниже прежней. Возвращает её середину."""
@@ -56,6 +56,18 @@ class Path_:
         self.n += 1
         self.x += length
         return cx
+
+    def slide(self, length, angle=0.4636, thick=0.5):
+        """Стеклянный скат вниз прямо от конца прежней глыбы: герой съезжает и разгоняется."""
+        dx, dy = length * math.cos(angle), length * math.sin(angle)
+        cx, cy = self.x + dx / 2, self.y - dy / 2 - thick / 2 / math.cos(angle)
+        frm = ((16.0, 10.0, -8.0), (18.0, -8.0, -10.0))[self.n % 2]
+        self.s.node(f"Shard{self.n}", 'type="AnimatableBody3D"', "Objects", [f"position = {v3((cx, cy, 0))}", f"rotation = Vector3(0, 0, {-angle})",
+                    'script = ExtResource("shard_fly")', f"size = {v3((length, thick, DEPTH))}", f"from = {v3(frm)}", "slide = true"])
+        self.n += 1
+        self.slides += 1
+        self.x += dx
+        self.y -= dy
 
     def pane(self, x, lift=0.0):
         """Тонкая пластина поперёк пути: низ на высоте текущей глыбы + lift."""
@@ -84,8 +96,11 @@ def reflection_run():
     for i in range(4):
         p.piece(9.0, gap=3.0, rise=(0.0, 0.4, -0.3, 0.2)[i])
 
+    # --- Скат: глыба наклонена вниз — съехать, разогнаться и с разгона в пластины.
+    p.piece(5.0, gap=3.0, rise=1.6)
+    p.slide(6.0)
     # --- 2. Пластины: первая стоит на глыбе — бегом с блоком насквозь; потом две подряд.
-    cx = p.piece(13.0, gap=3.0)
+    cx = p.piece(13.0, gap=0.0)
     p.pane(cx + 1.0)
     cx = p.piece(12.0, gap=3.2, rise=-0.4)
     p.pane(cx - 2.5)
@@ -118,7 +133,9 @@ def reflection_run():
     p.pane(p.x + 2.8, lift=-0.5)
     cx = p.piece(12.0, gap=5.2, rise=-0.3)
     p.meteor(cx - 2.5, 0.8)
-    p.piece(7.0, gap=6.0, rise=0.4, tilt=-0.06)
+    p.piece(5.0, gap=6.0, rise=2.4)
+    p.slide(7.0)
+    p.piece(3.0, gap=0.0)
     cx = p.piece(11.0, gap=5.0)
     p.pane(cx - 2.0)
     p.meteor(cx + 3.5, 3.0, size=1.7)
@@ -163,7 +180,7 @@ def reflection_run():
            "burn_rate = 0.0", "fire_levels = PackedFloat32Array()", "shatter_wall = true", "free_run = true"])
     s.marker("PlayerStart", (-2.0, 0.1, 0))
     Path("world/rooms/reflection_run.tscn").write_text(s.text(), encoding="utf-8")
-    print(f"reflection_run: {p.n} глыб, {p.panes} пластин, {p.meteors} обломков, длина {length:.0f} м")
+    print(f"reflection_run: {p.n} глыб, {p.slides} скатов, {p.panes} пластин, {p.meteors} обломков, длина {length:.0f} м")
 
 
 if __name__ == "__main__":

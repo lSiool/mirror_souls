@@ -18,6 +18,8 @@ var messages: Array[String] = []
 ## с руками graybox за весь тест и кто это был.
 var weapon_gap := 0.0
 var weapon_gap_who := ""
+## Сколько раз бот отражения съехал по скату.
+var refl_slides := 0
 
 
 func _ready() -> void:
@@ -385,6 +387,8 @@ func run_route(route: String) -> Vector2:
 ## прыгает у края глыбы и через низкий обломок. Возвращает, сколько секунд бежал.
 func run_reflection() -> float:
 	var began := Engine.get_physics_frames()
+	refl_slides = 0
+	var was_sliding := false
 	press("move_right")
 	press("roll")
 	await frames(20)
@@ -394,6 +398,10 @@ func run_reflection() -> float:
 		var at := player.global_position
 		if player.is_dead() or rooms.current_room_id != &"reflection_run":
 			break
+		var sliding := player.state == Player.State.SLIDE
+		if sliding and not was_sliding:
+			refl_slides += 1
+		was_sliding = sliding
 		var jump := false
 		if player.is_on_floor():
 			# Край глыбы под ногами близко — прыжок.
@@ -402,7 +410,14 @@ func run_reflection() -> float:
 				var right_edge := shard.global_position.x + shard.size.x * 0.5
 				var top := shard.global_position.y + shard.size.y * 0.5
 				if absf(top - at.y) < 0.5 and at.x > right_edge - 1.0 and at.x < right_edge and absf(shard.global_position.x - at.x) < shard.size.x * 0.5 + 0.5:
-					jump = true
+					# У края начинается скат — съехать по нему, а не перепрыгнуть.
+					var ramp := false
+					for other in get_tree().get_nodes_in_group(&"flying_shard"):
+						var next := other as FlyingShard
+						if next.slide and absf(next.global_position.x - next.size.x * 0.45 - right_edge) < 0.8:
+							ramp = true
+					if not ramp:
+						jump = true
 			# Низкий обломок впереди — прыжок.
 			for node in get_tree().get_nodes_in_group(&"glass_meteor"):
 				var rock := node as GlassMeteor
@@ -3547,6 +3562,8 @@ func run() -> void:
 	check(refl and refl.free_run and player.free_run and refl.shatter_wall, "в отражении бег бесплатный, сзади схлопывается")
 	check(refl.speed_at(0.0) > player.stats.move_speed and refl.speed_at(0.0) < player.stats.move_speed * Player.SPRINT_SPEED,
 		"шагом не уйти, бегом — можно (фронт %.1f м/с)" % refl.speed_at(0.0))
+	var slide_shards := nodes_where(rooms.current_room, func(n: Node) -> bool: return n is FlyingShard and n.slide)
+	check(slide_shards.size() >= 2, "в отражении не меньше двух скатов (%d)" % slide_shards.size())
 	var pane0 := room_node("Objects/Pane0") as GlassSurface
 	check(pane0.is_thin() and pane0.is_in_group(&"glass_thin"), "пластины в отражении — тонкое стекло под таран")
 	# Не успел: упал — к последнему осколку, не к следующему; отражение не закрыто, пройти заново.
@@ -3565,6 +3582,7 @@ func run() -> void:
 	player.restore()
 	await seconds(0.3)
 	var refl_time := await run_reflection()
+	check(refl_slides >= 2, "бот съехал по обоим скатам (%d)" % refl_slides)
 	check(rooms.current_room_id == &"room_001" and game_state.has_flag(&"reflection_done"),
 		"бот пробежал отражение за %.1f с и выскочил сквозь стекло (сейчас %s, x=%.1f)" % [refl_time, rooms.current_room_id, player.global_position.x])
 	check(game_state.items == refl_items and game_state.echoes == refl_echoes, "в отражении ни предметов, ни отзвуков")

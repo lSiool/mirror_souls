@@ -5,7 +5,7 @@ extends Node
 
 const OUT := "user://reflection_snapshots"
 ## Участки: имя и x героя.
-const SPOTS := {"1_start": 4.0, "2_panes": 72.0, "3_air_pane": 100.0, "4_gaps": 130.0, "5_meteors": 175.0, "6_finale": 260.0}
+const SPOTS := {"1_start": 4.0, "2_slide": 64.0, "3_panes": 80.0, "4_gaps": 140.0, "5_meteors": 185.0, "6_slide": 273.0}
 
 var _player: Player
 
@@ -31,7 +31,7 @@ func _ready() -> void:
 	for spot: String in SPOTS:
 		var x: float = SPOTS[spot]
 		# Глыбы прилетают, когда герой подходит: встать над ближайшей и подождать.
-		_player.teleport(Vector3(x, 6.0, 0.0))
+		_player.teleport(Vector3(x, 3.0, 0.0))
 		_player.frozen = true
 		rooms.camera_rig.snap_to_target()
 		await get_tree().create_timer(1.4).timeout
