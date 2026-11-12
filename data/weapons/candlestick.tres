@@ -274,6 +274,7 @@ look_color = Color(0.7, 0.7, 0.74, 1)
 look_scale = Vector3(1.2, 1.0, 2.0)
 head_size = Vector3(0.36, 0.14, 0.14)
 two_handed = true
+breaks_shields = true
 rest_blade = 0.25
 rest_grip = Vector2(-0.05, 0.2)
 guard_blade = -1.45

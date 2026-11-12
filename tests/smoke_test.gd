@@ -3036,6 +3036,25 @@ func run() -> void:
 	for i in DrownedKnight.GUARD_BREAK_HITS - 1:
 		knight._on_hurt(probe)
 	check(knight.state == Dummy.State.OFF_BALANCE and knight.can_be_riposted(), "удары в щит подряд — защита пробита, можно добить")
+	check(not knight.shield_broken, "меч щит пробивает, но не ломает")
+	# Тяжёлое оружие (двуручный молот) бьёт по щиту вдвое и, пробив защиту, ломает щит (§6.1).
+	knight._set_state(Dummy.State.CHASE)
+	knight._guard_hits = 0
+	probe.breaks_shield = true
+	var heavy_hits := 0
+	while not knight.shield_broken and heavy_hits < DrownedKnight.GUARD_BREAK_HITS:
+		knight._set_state(Dummy.State.CHASE)
+		knight._on_hurt(probe)
+		heavy_hits += 1
+	probe.breaks_shield = false
+	check(knight.shield_broken and heavy_hits == DrownedKnight.GUARD_BREAK_HITS / 2 and not knight.guarding(),
+		"тяжёлое оружие ломает щит вдвое быстрее (%d удара) — дальше без щита" % heavy_hits)
+	check(WeaponData.by_id(&"candlestick").breaks_shields and not WeaponData.by_id(&"sword").breaks_shields,
+		"щиты ломает двуручный молот, а не меч")
+	knight._set_state(Dummy.State.CHASE)
+	hp_knight = knight.health.current
+	knight._on_hurt(probe)
+	check(hp_knight - knight.health.current > 15.0, "без щита удар спереди проходит (−%.1f)" % (hp_knight - knight.health.current))
 	knight._set_state(Dummy.State.RECOVER)
 	hp_knight = knight.health.current
 	knight._on_hurt(probe)

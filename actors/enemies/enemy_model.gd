@@ -761,6 +761,13 @@ func _shielded(clip: StringName) -> StringName:
 	return mixed
 
 
+## Щит сломан (Утопленник, §6.1): пластина пропадает.
+func drop_shield() -> void:
+	if _shield_plate:
+		_shield_plate.visible = false
+		_shield_plate = null
+
+
 ## Щит Утопленника всегда ребром к камере — не закрывает тело: поднят — стоймя перед ним, чуть
 ## завален назад; опущен (замах, откат, на клинке) — завален вперёд и вниз. Сбит с ног или мёртв —
 ## лежит как рука.

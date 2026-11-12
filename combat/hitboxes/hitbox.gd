@@ -16,6 +16,8 @@ signal hit_landed(hurtbox: Hurtbox)
 @export var wound_time := 4.0
 ## Чьё это оружие: убийство этим ударом идёт в его мастерство. Пусто — не оружие героя (ловушка).
 var weapon_type: StringName
+## Удар оружием, которое ломает щиты (WeaponData.breaks_shields).
+var breaks_shield := false
 ## Сколько кровотечения копит удар в цели (Dummy.bleed); 0 — не копит.
 var bleed := 0.0
 @export var active := false:

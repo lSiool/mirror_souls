@@ -803,6 +803,7 @@ func _begin_attack(step: AttackStep, index: int) -> void:
 	var bonus := 1.3 if _fast_attack else 1.0
 	sword_hitbox.damage = _blade_damage() * step.damage_multiplier * bonus
 	sword_hitbox.weapon_type = weapon.type
+	sword_hitbox.breaks_shield = weapon.breaks_shields
 	sword_hitbox.bleed = _bleed_of(step.damage_multiplier)
 	sword_hitbox.poise_damage = step.poise_damage * bonus
 	sword_hitbox.heavy = step.heavy or _fast_attack
@@ -858,6 +859,7 @@ func _start_plunge() -> void:
 	_spend_stamina(stats.attack_cost)
 	plunge_hitbox.damage = _blade_damage() * 1.5
 	plunge_hitbox.weapon_type = weapon.type if weapon else &""
+	plunge_hitbox.breaks_shield = weapon != null and weapon.breaks_shields
 	plunge_hitbox.bleed = _bleed_of(1.5)
 	plunge_hitbox.poise_damage = 45.0
 	plunge_hitbox.heavy = true

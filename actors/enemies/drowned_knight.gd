@@ -9,6 +9,8 @@ extends Dummy
 ## в замахе, ударе и откате опущен — откат и есть окно для атаки. Удар в щит отталкивает его,
 ## и он не сразу бьёт в ответ (GUARD_RECOIL). Принял GUARD_BREAK_HITS ударов подряд —
 ## защита пробита: потерял равновесие, можно добить, как после парирования.
+## Тяжёлое оружие (WeaponData.breaks_shields) бьёт по щиту вдвое и, пробив защиту, ломает щит
+## (§6.1, 2026-11-12): дальше Утопленник дерётся без него — до отдыха у осколка.
 
 const RISE_RANGE := 6.0
 const RISE_TIME := 1.1
@@ -36,6 +38,8 @@ var _guard_hits := 0
 var _guard_forget := 0.0
 var _guard_lock := 0.0
 var _bash_reply := false
+## Щит сломан тяжёлым оружием: не прикрывается, удара щитом нет.
+var shield_broken := false
 
 @onready var shield: Node3D = $Visual/Shield
 @onready var blade: Node3D = $Visual/Blade
@@ -96,6 +100,9 @@ func _chase(delta: float) -> void:
 		move = Move.BASH if roll < 0.25 else (Move.DOUBLE if roll < 0.65 else Move.THRUST)
 		if _bash_reply:
 			move = Move.BASH
+		# Без щита удара щитом нет.
+		if shield_broken and move == Move.BASH:
+			move = Move.THRUST
 		_bash_reply = false
 		_second = false
 	super(delta)
@@ -139,7 +146,7 @@ func _on_attack_ended() -> void:
 
 ## Щит поднят: на подходе и пока прикрывается после удара в щит. В замахе, ударе и откате — опущен.
 func guarding() -> bool:
-	return _risen and state in [State.PATROL, State.CHASE, State.INVESTIGATE]
+	return _risen and not shield_broken and state in [State.PATROL, State.CHASE, State.INVESTIGATE]
 
 
 ## Щит спереди: лёгкие удары почти не проходят, но толкают его и копят пробитие защиты.
@@ -166,12 +173,14 @@ func _on_blocked(hitbox: Hitbox) -> void:
 	if hitbox.weapon_type == &"bow":
 		# Стрелы щит просто отбивает — ни отката, ни пробития.
 		return
-	_guard_hits += 1
+	_guard_hits += 2 if hitbox.breaks_shield else 1
 	_guard_forget = GUARD_FORGET
 	_guard_lock = GUARD_RECOIL
 	if _guard_hits >= GUARD_BREAK_HITS:
 		_guard_hits = 0
 		_guard_lock = 0.0
+		if hitbox.breaks_shield:
+			_break_shield()
 		HitSpark.spawn(get_parent(), global_position + Vector3(facing * 0.5, 1.3, 0.3), OFF_BALANCE_COLOR, 24)
 		Sfx.play(&"sword_parry", global_position, -4.0)
 		_set_state(State.OFF_BALANCE)
@@ -179,6 +188,17 @@ func _on_blocked(hitbox: Hitbox) -> void:
 	_bash_reply = randf() < BASH_REPLY_CHANCE
 	if state in [State.PATROL, State.INVESTIGATE]:
 		_set_state(State.CHASE)
+
+
+## Щит разлетается: щепки ржавчины и мха, звон; в руке больше ничего.
+func _break_shield() -> void:
+	shield_broken = true
+	shield.visible = false
+	if model:
+		model.drop_shield()
+	Sfx.play(&"weapon_drop", global_position)
+	HitSpark.spawn(get_parent(), global_position + Vector3(facing * 0.5, 1.2, 0.3), Color(0.35, 0.27, 0.16), 34)
+	Events.camera_shake_requested.emit(0.25, 0.18)
 
 
 func _update_extra(delta: float) -> void:
