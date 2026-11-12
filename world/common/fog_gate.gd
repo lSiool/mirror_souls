@@ -41,6 +41,13 @@ var _material: ShaderMaterial
 var _shape: CollisionShape3D
 var _wisps: CPUParticles3D
 var _light: OmniLight3D
+## Густота тумана. Tween ведёт её, а не «shader_parameter/strength»: в режиме совместимости
+## такого свойства у материала нет, пока его не задали, и tween оставался пустым.
+var strength := 0.0:
+	set(value):
+		strength = value
+		if _material:
+			_material.set_shader_parameter(&"strength", value)
 
 
 func _ready() -> void:
@@ -57,6 +64,7 @@ func _ready() -> void:
 	shader.code = SHADER
 	_material = ShaderMaterial.new()
 	_material.shader = shader
+	_material.set_shader_parameter(&"strength", strength)
 	for i in 2:
 		var quad := QuadMesh.new()
 		quad.size = Vector2(width * (1.0 - 0.25 * i), height)
@@ -104,20 +112,20 @@ func rise() -> void:
 	_shape.disabled = false
 	_wisps.emitting = true
 	var tween := create_tween().set_parallel(true)
-	tween.tween_property(_material, "shader_parameter/strength", 1.0, RISE_TIME)
+	tween.tween_property(self, "strength", 1.0, RISE_TIME)
 	tween.tween_property(_light, "light_energy", 1.4, RISE_TIME)
 
 
 ## Вспышка (переход фазы босса): стена на миг густеет.
 func flare() -> void:
 	var tween := create_tween()
-	tween.tween_property(_material, "shader_parameter/strength", 2.2, 0.15)
-	tween.tween_property(_material, "shader_parameter/strength", 1.0, 0.8)
+	tween.tween_property(self, "strength", 2.2, 0.15)
+	tween.tween_property(self, "strength", 1.0, 0.8)
 
 
 func dissolve() -> void:
 	_shape.set_deferred("disabled", true)
 	_wisps.emitting = false
 	var tween := create_tween().set_parallel(true)
-	tween.tween_property(_material, "shader_parameter/strength", 0.0, FADE_TIME)
+	tween.tween_property(self, "strength", 0.0, FADE_TIME)
 	tween.tween_property(_light, "light_energy", 0.0, FADE_TIME)

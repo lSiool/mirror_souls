@@ -3083,10 +3083,21 @@ func run() -> void:
 	check(not arena.is_closed(), "пока тихо — тумана нет")
 	player.restore()
 	await put(Vector3(smith.global_position.x - 6.0, 0.1, 0), 1.0)
+	var intro_seen := false
+	var intro_x := 0.0
 	for i in 480:
 		await frames(1)
+		if arena.in_intro and not intro_seen:
+			intro_seen = true
+			intro_x = player.global_position.x
+			# Катсцена: стена уже встаёт, герой в руках сцены и не уходит, сколько ни жми.
+			check(arena.is_closed() and player.frozen, "вступление: туман встал, управление у сцены")
+			press("move_left")
 		if smith._engaged:
 			break
+	release_all()
+	check(intro_seen and absf(player.global_position.x - intro_x) < 0.05, "во время вступления герой не двигается")
+	check(not arena.in_intro and not player.frozen, "босс встал — управление вернулось")
 	check(smith._engaged and arena.is_closed() and smith.state != Dummy.State.DORMANT, "дух вселился, Кузнец встал, поднялись туманные стены")
 	check(rooms.hud.boss_bar != null, "у босса полоса здоровья")
 	await put(Vector3(arena.left_x + 1.5, 0.1, 0), -1.0)

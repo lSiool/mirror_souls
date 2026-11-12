@@ -7,6 +7,10 @@ signal mirror_used(portal: MirrorPortal)
 signal door_used(door: RoomDoor)
 ## Босс заметил героя: HUD показывает его здоровье.
 signal boss_engaged(boss: Dummy)
+## Босс начал вступление (катсцену): арена закрывается, сцена берёт героя до boss_engaged.
+signal boss_intro(boss: Dummy)
+## Кинополосы сверху и снизу экрана: идёт катсцена (рисует Hud).
+signal cinematic_bars(on: bool)
 ## Короткая надпись игроку над подсказкой.
 signal message(text: String)
 signal checkpoint_activated(shard: MirrorShard)

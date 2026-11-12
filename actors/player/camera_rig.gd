@@ -18,6 +18,10 @@ var _shake_time := 0.0
 var _shake_duration := 0.0
 var _base_distance := 0.0
 var _zoom_tween: Tween
+## Катсцена (вступление босса): камера держит точку, а не героя; вес — плавный переход.
+var _hold_at := Vector3.ZERO
+var _hold := 0.0
+var _hold_tween: Tween
 
 @onready var camera: Camera3D = $Camera3D
 
@@ -26,6 +30,7 @@ func _ready() -> void:
 	_target = get_node_or_null(target_path)
 	camera.fov = fov
 	_base_distance = distance
+	add_to_group(&"camera_rig")
 	Events.camera_shake_requested.connect(shake)
 	snap_to_target()
 
@@ -68,6 +73,23 @@ func zoom(factor: float, time: float) -> void:
 	_zoom_tween.tween_property(self, "distance", _base_distance * factor, time)
 
 
+## Сцена: камера плавно переходит на точку at и держит её, пока не позовут release_hold().
+func hold(at: Vector3, time: float) -> void:
+	_hold_at = at
+	_tween_hold(1.0, time)
+
+
+func release_hold(time: float) -> void:
+	_tween_hold(0.0, time)
+
+
+func _tween_hold(to: float, time: float) -> void:
+	if _hold_tween:
+		_hold_tween.kill()
+	_hold_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	_hold_tween.tween_property(self, "_hold", to, maxf(time, 0.01))
+
+
 func snap_to_target() -> void:
 	if _target:
 		global_position = _focus()
@@ -76,4 +98,5 @@ func snap_to_target() -> void:
 func _focus() -> Vector3:
 	# Камера движется в _process, поэтому берём сглаженную позицию цели между тиками физики.
 	var origin := _target.get_global_transform_interpolated().origin
-	return origin + Vector3(_look, height_offset, 0.0)
+	var follow := origin + Vector3(_look, height_offset, 0.0)
+	return follow.lerp(_hold_at, _hold) if _hold > 0.0 else follow

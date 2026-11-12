@@ -197,6 +197,7 @@ func _wake_check(_delta: float) -> void:
 
 func _play_intro() -> void:
 	_scene_running = true
+	Events.boss_intro.emit(self)
 	facing = signf(_player.global_position.x - global_position.x)
 	visual.rotation.y = 0.0 if facing > 0.0 else PI
 	await _spirit(true)

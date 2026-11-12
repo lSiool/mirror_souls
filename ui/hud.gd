@@ -61,6 +61,9 @@ var _player: Player
 var _echoes_shown := 0
 var boss_bar: ProgressBar
 var _boss_box: Control
+## Кинополосы катсцены (вступление босса).
+var _cine_bars: Array[ColorRect] = []
+var _cine_tween: Tween
 var _cards_running := false
 var _cards_skipped := false
 var _say_label: Label
@@ -125,6 +128,7 @@ func _ready() -> void:
 	popup = ItemPopup.new()
 	add_child(popup)
 	Events.item_found.connect(popup.show_item)
+	Events.cinematic_bars.connect(_on_cinematic_bars)
 	_player.effects_changed.connect(_refresh_effects)
 	Events.message.connect(toast)
 	Events.boss_engaged.connect(_on_boss_engaged)
@@ -496,6 +500,30 @@ static func _grouped(value: int) -> String:
 
 
 ## Здоровье босса внизу экрана, пока он жив и комната та же.
+## Полосы выезжают из-за края экрана и уходят обратно.
+func _on_cinematic_bars(on: bool) -> void:
+	if _cine_bars.is_empty():
+		for top in [true, false]:
+			var bar := ColorRect.new()
+			bar.color = Color.BLACK
+			bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE if top else Control.PRESET_BOTTOM_WIDE)
+			if top:
+				bar.offset_bottom = 0.0
+			else:
+				bar.offset_top = 0.0
+			add_child(bar)
+			_cine_bars.append(bar)
+	if _cine_tween:
+		_cine_tween.kill()
+	var tall := get_viewport().get_visible_rect().size.y * 0.11 if on else 0.0
+	_cine_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE)
+	_cine_tween.tween_property(_cine_bars[0], "offset_bottom", tall, 0.5)
+	_cine_tween.tween_property(_cine_bars[1], "offset_top", -tall, 0.5)
+	for bar in _cine_bars:
+		bar.move_to_front()
+
+
 func _on_boss_engaged(boss: Dummy) -> void:
 	var box := VBoxContainer.new()
 	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 90)
