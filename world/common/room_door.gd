@@ -26,8 +26,6 @@ extends Interactable
 ## Можно и просто «открыть» — рукой.
 @export var glass_gate := false
 
-## Быстрее этого герой пробивает стеклянную преграду телом (м/с).
-const GATE_SPEED := 3.0
 const GATE_SHADER := preload("res://effects/shaders/pearl_glass.gdshader")
 const GATE_TINT := Color(0.75, 0.86, 1.0)
 
@@ -120,9 +118,10 @@ func _shatter_gate() -> void:
 	Events.camera_shake_requested.emit(0.3, 0.2)
 
 
-## Герой влетел в стеклянную преграду на скорости — пробил её собой.
+## Герой влетел в стеклянную преграду бегом или тараном — пробил её собой. Шагом мимо —
+## просто подсказка «Сквозь стекло».
 func _on_body_entered(body: Node3D) -> void:
 	super(body)
 	var hero := body as Player
-	if glass_gate and hero and absf(hero.velocity.x) >= GATE_SPEED:
+	if glass_gate and hero and (hero.sprinting or hero.ramming):
 		interact(hero)

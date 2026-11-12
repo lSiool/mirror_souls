@@ -3319,6 +3319,38 @@ func run() -> void:
 				"%s/%s: долез и встал на пол (y=%.2f, верх %.2f)" % [ladder_room, each.name, player.global_position.y, each.top_y()])
 	player.hurtbox.invulnerable = false
 
+	print("== Лестница: вверх и к проёму — без петли; сверху вниз")
+	await rooms.travel(&"village_house", ^"Spawns/FromStreet")
+	await seconds(0.2)
+	for foe in get_tree().get_nodes_in_group("enemy"):
+		foe.process_mode = Node.PROCESS_MODE_DISABLED
+	var house_ladder := room_node("Objects/Ladder") as Ladder
+	await put(house_ladder.global_position + Vector3(0.0, 0.1, 0.0), 1.0)
+	# Зажаты «вверх» и сторона прочь от выхода — раньше выход уносил обратно в проём, и так по кругу.
+	press("move_up")
+	press("move_right" if house_ladder.exit_dir < 0.0 else "move_left")
+	var grabs := 0
+	var was_on := false
+	for i in 60 * 5:
+		await frames(1)
+		var on := player.state == Player.State.LADDER
+		if on and not was_on:
+			grabs += 1
+		was_on = on
+	release_all()
+	check(grabs == 1, "зажал «вверх» и к проёму — схватился один раз, без петли (%d)" % grabs)
+	check(player.global_position.y > house_ladder.top_y() - 0.3 and player.state == Player.State.MOVE,
+		"вылез наверх и стоит на краю (y=%.2f)" % player.global_position.y)
+	# Сверху вниз: подошёл к проёму, «вниз» — спускается по лестнице.
+	await put(Vector3(house_ladder.global_position.x + house_ladder.exit_dir * 0.9, house_ladder.top_y() + 0.05, 0.0), -house_ladder.exit_dir)
+	await seconds(0.3)
+	press("move_down")
+	await seconds(0.25)
+	check(player.state == Player.State.LADDER, "стоя наверху, «вниз» — на лестницу")
+	await seconds(house_ladder.height / player.stats.climb_speed + 0.6)
+	release_all()
+	check(player.is_on_floor() and player.global_position.y < 0.5, "спустился по лестнице до пола (y=%.2f)" % player.global_position.y)
+
 	print("== Уровень-забег: горящая деревня (§8.11)")
 	var run_flags: Array[StringName] = [&"run_village_done", &"run_village_tower", &"run_village_road", &"run_village_brute", &"shard_run_exit"]
 	var kept_checkpoint := [game_state.checkpoint_room, game_state.checkpoint_reality, game_state.checkpoint_path]
@@ -3528,8 +3560,13 @@ func run() -> void:
 		"сорвался в пустоту — очнулся у последнего осколка, отражение не пройдено")
 	game_state.hero_echo = {}
 	game_state.echoes = refl_echoes
-	# Полный пробег ботом (run_reflection) пока не включён: раскладка обломков ещё подбирается —
-	# бота сбивает низкий обломок у x≈205 (2026-11-12).
+	# Бот бежит отражение целиком.
+	await rooms.travel(&"reflection_run", ^"Spawns/PlayerStart")
+	player.restore()
+	await seconds(0.3)
+	var refl_time := await run_reflection()
+	check(rooms.current_room_id == &"room_001" and game_state.has_flag(&"reflection_done"),
+		"бот пробежал отражение за %.1f с и выскочил сквозь стекло (сейчас %s, x=%.1f)" % [refl_time, rooms.current_room_id, player.global_position.x])
 	check(game_state.items == refl_items and game_state.echoes == refl_echoes, "в отражении ни предметов, ни отзвуков")
 	# Мир — как был.
 	game_state.set_flag(&"reflection_done", false)

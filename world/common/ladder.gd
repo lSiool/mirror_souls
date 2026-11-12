@@ -10,6 +10,7 @@ const LAYER_PLAYER := 1 << 1
 
 
 func _ready() -> void:
+	add_to_group(&"ladder")
 	collision_layer = 0
 	collision_mask = LAYER_PLAYER
 	monitorable = false

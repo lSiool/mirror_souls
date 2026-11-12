@@ -63,6 +63,10 @@ const RAM_REACH := 0.55
 const RAM_COST := 8.0
 ## В прыжке таран держится, пока скорость не ниже этой доли обычного бега.
 const RAM_AIR_SPEED := 0.6
+## Наверху герой встаёт на край в стороне выхода, на столько от оси лестницы.
+const LADDER_STEP_OFF := 1.2
+## Стоя наверху, лестницу внизу находит в пределах стольких метров по горизонтали.
+const LADDER_TOP_REACH := 1.1
 ## На столько ниже верха лестницы должны быть ноги, чтобы за неё схватиться.
 const LADDER_TOP_FREE := 0.3
 ## Блок щитом дешевле блока оружием (§6.2).
@@ -189,6 +193,9 @@ var ramming := false
 var free_run := false
 var _roll_held := 0.0
 var _sprint_spent := false
+## Только что вылез наверх: «вверх» не хватает лестницу снова, пока его не отпустят (иначе
+## зажатые «вверх» и «к лестнице» уносили обратно в проём — петля, 2026-11-12).
+var _ladder_up_wait := false
 ## Чего касается ладонь (кристалл осколка, пока открыто меню прокачки) — ведёт HeroModel.
 var touching: Node3D
 ## Сколько зон грязи сейчас под героем.
@@ -337,6 +344,10 @@ func _tick(delta: float) -> void:
 	_roll_buffer = maxf(_roll_buffer - delta, 0.0)
 	_iframes = maxf(_iframes - delta, 0.0)
 	_input_lock = maxf(_input_lock - delta, 0.0)
+	# Перекат зажат: считается и во время кувырка — зажал, кувыркнулся и сразу побежал.
+	_roll_held = _roll_held + delta if Input.is_action_pressed("roll") else 0.0
+	if not Input.is_action_pressed("move_up"):
+		_ladder_up_wait = false
 	_swap_buffer = maxf(_swap_buffer - delta, 0.0)
 	_swap_t = maxf(_swap_t - delta, 0.0)
 	_parry_t = maxf(_parry_t - delta, 0.0)
@@ -406,7 +417,6 @@ func _tick(delta: float) -> void:
 ## Бег и таран: считаются в обычном движении каждый кадр.
 func _update_sprint(x: float, on_floor: bool, delta: float) -> void:
 	var held := Input.is_action_pressed("roll")
-	_roll_held = _roll_held + delta if held else 0.0
 	if not held:
 		_sprint_spent = false
 	var fighting := in_combat() and not free_run
@@ -574,9 +584,15 @@ func _move_state(delta: float) -> void:
 	elif on_floor and weapon and Input.is_action_pressed("block") and not sprinting:
 		_set_state(State.BLOCK)
 	elif ladder and global_position.y < ladder.top_y() - LADDER_TOP_FREE \
-			and (Input.is_action_pressed("move_up") or (not on_floor and Input.is_action_pressed("move_down"))):
+			and ((Input.is_action_pressed("move_up") and not _ladder_up_wait) or (not on_floor and Input.is_action_pressed("move_down"))):
 		# Выше верха лестницы за неё не хватаются: над настилом, под которым стоит лестница,
 		# «вниз» в прыжке — это удар вниз, а не лазание (тайник часовни, 2026-11-11).
+		_set_state(State.LADDER)
+	elif on_floor and Input.is_action_just_pressed("move_down") and _ladder_below() != null:
+		# Стоит наверху у проёма: «вниз» — встать над лестницей и спуститься по ней.
+		var below := _ladder_below()
+		ladder = below
+		teleport(Vector3(below.global_position.x, below.top_y() - LADDER_TOP_FREE - 0.25, 0.0))
 		_set_state(State.LADDER)
 	elif _wants_climb(x, on_floor):
 		_set_state(State.CLIMB)
@@ -1193,9 +1209,13 @@ func _ladder_state(_delta: float) -> void:
 	var v := Input.get_axis("move_down", "move_up")
 	velocity = Vector3(0.0, v * stats.mod(&"climb_speed", stats.climb_speed), 0.0)
 	global_position.x = move_toward(global_position.x, ladder.global_position.x, 6.0 * _delta)
-	if global_position.y >= ladder.top_y():
-		velocity = Vector3(ladder.exit_dir * 4.5, 5.0, 0.0)
+	if global_position.y >= ladder.top_y() - LADDER_TOP_FREE and v > 0.0:
+		# Наверху — выход на край, а не прыжок: ставим на пол рядом с проёмом.
+		var top := ladder.top_y()
 		facing = ladder.exit_dir
+		teleport(Vector3(ladder.global_position.x + ladder.exit_dir * LADDER_STEP_OFF, top + 0.05, 0.0))
+		velocity = Vector3(ladder.exit_dir * 1.5, 0.0, 0.0)
+		_ladder_up_wait = true
 		_set_state(State.MOVE)
 	elif _jump_buffer > 0.0:
 		_jump_buffer = 0.0
@@ -1203,6 +1223,15 @@ func _ladder_state(_delta: float) -> void:
 		_set_state(State.MOVE)
 	elif v < 0.0 and is_on_floor():
 		_set_state(State.MOVE)
+
+
+## Лестница, на верху которой стоит герой: её проём рядом, верх — у ног.
+func _ladder_below() -> Ladder:
+	for node in get_tree().get_nodes_in_group(&"ladder"):
+		var each := node as Ladder
+		if absf(each.global_position.x - global_position.x) < LADDER_TOP_REACH and absf(each.top_y() - global_position.y) < 0.35:
+			return each
+	return null
 
 
 func _mastery_step() -> int:
