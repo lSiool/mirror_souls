@@ -109,6 +109,7 @@ var _buttons := {}
 var _minus := {}
 var _values := {}
 var _level_label: Label
+var _attack_rows: VBoxContainer
 var _hero_rows: VBoxContainer
 var _defense_rows: VBoxContainer
 var _body_rows: VBoxContainer
@@ -361,9 +362,14 @@ func _build_level(page: VBoxContainer) -> void:
 	stats.add_child(_spacer(10))
 	_respec = _menu_button(stats, "", 20)
 	_respec.pressed.connect(use_clear_glass)
+	# Атака и защита — рядом, на одной высоте, как в Souls; под ними — запасы героя и тело.
 	var hero := VBoxContainer.new()
 	hero.custom_minimum_size.x = 380
 	row.add_child(hero)
+	_section(hero, "Атака")
+	_attack_rows = VBoxContainer.new()
+	hero.add_child(_attack_rows)
+	hero.add_child(_spacer(8))
 	_section(hero, "Герой")
 	_hero_rows = VBoxContainer.new()
 	hero.add_child(_hero_rows)
@@ -515,7 +521,8 @@ func _refresh_level() -> void:
 	_respec.visible = GameState.item_count(CLEAR_GLASS) > 0
 	_respec.text = "Чистое стекло (%d): перераспределить очки" % GameState.item_count(CLEAR_GLASS)
 	_respec.disabled = _animating
-	_fill_rows(_hero_rows, _hero_values(next_age))
+	_fill_rows(_attack_rows, _attack_values(next_age))
+	_fill_rows(_hero_rows, _hero_values())
 	_fill_rows(_defense_rows, _defense_values())
 	_fill_rows(_body_rows, _body_values(next_age))
 	# Статус из меню паузы: только смотреть, уровень поднимают у осколка.
@@ -555,9 +562,9 @@ static func _scaling_text(weapon: WeaponData) -> String:
 	return " · ".join(parts)
 
 
-## [название, было, станет] — было: сейчас, станет: с набранными очками и в новом возрасте.
-## Урон идёт первым, как в Souls: видно, что даёт очко Силы, Ловкости, Интеллекта.
-func _hero_values(next_age: float) -> Array:
+## Атака: [название, было, станет] — было: сейчас, станет: с набранными очками и в новом возрасте.
+## Видно, что даёт очко Силы, Ловкости, Интеллекта, Удачи.
+func _attack_values(next_age: float) -> Array:
 	var stats := _player.stats
 	var extra := _pending
 	var rows := []
@@ -579,6 +586,16 @@ func _hero_values(next_age: float) -> Array:
 	var intel_more: int = extra.get(PlayerStats.Param.INTELLIGENCE, 0)
 	rows.append(["Стеклянная магия (Инт)"] + _was_now(stats.spell_damage_mult, stats.spell_damage_at(intel_more), "×%s", 2))
 	rows.append(["Добивание (Лов)"] + _was_now(stats.critical_mult, stats.critical_at(extra.get(PlayerStats.Param.DEXTERITY, 0)), "×%s", 2))
+	var luck_after: int = stats.points_in(PlayerStats.Param.LUCK) + extra.get(PlayerStats.Param.LUCK, 0)
+	rows.append(["Кровотечение (Удч)", "×%.2f" % stats.bleed_mult, "×%.2f" % (1.0 + stats.bleed_per_point * luck_after)])
+	return rows
+
+
+## Запасы героя: здоровье, выносливость, вес, мана, находчивость.
+func _hero_values() -> Array:
+	var stats := _player.stats
+	var extra := _pending
+	var rows := []
 	rows.append(["Здоровье", "%.0f" % stats.max_health,
 		"%.0f" % ((stats.base_health + stats.bonus_with(PlayerStats.Param.VIGOR, extra.get(PlayerStats.Param.VIGOR, 0))) * stats.facet_mult(&"max_health"))])
 	rows.append(["Выносливость", "%.0f" % stats.max_stamina,
@@ -589,12 +606,12 @@ func _hero_values(next_age: float) -> Array:
 	rows.append(["Вес снаряжения", "%.1f / %.1f" % [weight, stats.equip_load], "%.1f / %.1f" % [weight, load_after]])
 	rows.append(["Кувырок", ROLL_NAMES[stats.roll_class(weight, stats.equip_load)], ROLL_NAMES[stats.roll_class(weight, load_after)]])
 	var memory_more: int = extra.get(PlayerStats.Param.MEMORY, 0)
+	var intel_more: int = extra.get(PlayerStats.Param.INTELLIGENCE, 0)
 	rows.append(["Мана", "%.0f" % stats.max_mana, "%.0f" % stats.mana_at(memory_more, intel_more)])
 	rows.append(["Ячейки магии", str(stats.spell_slots), str(stats.spell_slots_at(memory_more))])
 	rows.append(["Восстановление маны", "%.1f/с" % stats.mana_regen, "%.1f/с" % stats.mana_regen_at(memory_more)])
 	var luck_after: int = stats.points_in(PlayerStats.Param.LUCK) + extra.get(PlayerStats.Param.LUCK, 0)
 	rows.append(["Находчивость", "%.0f" % stats.discovery, "%.0f" % (100.0 + stats.discovery_per_point * luck_after)])
-	rows.append(["Кровотечение", "×%.2f" % stats.bleed_mult, "×%.2f" % (1.0 + stats.bleed_per_point * luck_after)])
 	return rows
 
 
