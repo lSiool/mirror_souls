@@ -446,8 +446,16 @@ func update(delta: float) -> void:
 		Dummy.State.OFF_BALANCE:
 			hero.play(&"Idle_Shield_Break")
 		Dummy.State.CRITICAL_HIT:
-			# На клинке: грудь выбита назад, голова запрокинута, руки и ноги обвисли.
-			hero.hold(&"Hit_Chest", IMPALED_AT, 0.06)
+			if enemy.critical_clip != &"":
+				# Свой клип жертвы у этого добивания (AttackStep.victim_anim, §6.1).
+				if fresh:
+					hero.play(enemy.critical_clip, 1.0, 0.06)
+			elif enemy.critical_lying:
+				# Добивают лежачего: остаётся на земле, как упал.
+				hero.hold(&"Hit_Knockback", hero.anim.get_animation(&"Hit_Knockback").length, 0.06)
+			else:
+				# На клинке: грудь выбита назад, голова запрокинута, руки и ноги обвисли.
+				hero.hold(&"Hit_Chest", IMPALED_AT, 0.06)
 		Dummy.State.KNOCKDOWN:
 			if fresh:
 				hero.play_span(&"Hit_Knockback", 0.0, 0.0, enemy.knockdown_time, 0.05)

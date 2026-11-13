@@ -93,6 +93,11 @@ FACETS = {
     "facet_grip": ("#141a22", '<path d="M22 50 V 18 M32 50 V 14 M42 50 V 20 M18 36 Q 32 26 46 36" fill="none" stroke="#9cc0e0" stroke-width="3" stroke-linecap="round"/>'),
 }
 
+# Серебряный кол (§6.1): гранёное острие, обмотка рукояти.
+STAKE = ('<path d="M50 12 L 40 26 L 20 46 L 18 44 L 38 24 Z" fill="#cfd3d9" stroke="#f3f5f7" stroke-width="0.8"/>'
+         '<path d="M50 12 L 38 24" stroke="#8d939b" stroke-width="1.2"/>'
+         '<path d="M22 42 L 14 50" stroke="#5e4530" stroke-width="5" stroke-linecap="round"/>')
+
 ITEMS = {
     "stick": ("#1c1712", STICK), "sword": ("#141a20", SWORD), "candlestick": ("#17181b", HAMMER),
     "shield_hoplon": ("#1c1712", SHIELD), "bow_hunter": ("#1c1712", BOW), "bow_guard": ("#161a1e", BOW),
@@ -102,7 +107,7 @@ ITEMS = {
     "note": ("#1c1712", NOTE), "mud": ("#2a1f14", MUD), "regen": ("#12201c", REGEN), "unknown": ("#141112", UNKNOWN),
     "arrow": ("#1c1712", ARROW), "fire_arrow": ("#24160e", FIRE_ARROW), "poison": ("#1e1224", POISONED),
     "burning": ("#24140c", BURNING), "corroded": ("#16200c", CORRODED), "tar": ("#141110", TARRED),
-    "staff": ("#141a22", STAFF), "glint": ("#1a1a24", GLINT),
+    "staff": ("#141a22", STAFF), "glint": ("#1a1a24", GLINT), "silver_stake": ("#161a20", STAKE),
 }
 
 # Вкладки меню паузы и пустые ячейки снаряжения (§8.12, 2026-11-09): светлый контур на тёмном.

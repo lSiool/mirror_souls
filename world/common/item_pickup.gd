@@ -10,6 +10,8 @@ const GLINT_PERIOD := 1.6
 @export var weapon_id: StringName
 ## Предмет в GameState; пусто — не предмет.
 @export var item_id: StringName
+## Сколько штук предмета в находке (связка кольев, пачка ножей).
+@export var item_amount := 1
 ## Заклинание, которое находка учит (§6.2): посох «помнит» Блик. Пусто — не учит.
 @export var spell_id: StringName
 ## Флаг «подобрано»: мир запомнит. Он же может быть способностью (has_bow).
@@ -98,7 +100,7 @@ func interact(by: Player) -> void:
 		if spell_id != &"":
 			Events.item_found.emit(spell_id)
 	elif item_id != &"":
-		GameState.add_item(item_id)
+		GameState.add_item(item_id, item_amount)
 	else:
 		Events.item_found.emit(flag)
 	enabled = false

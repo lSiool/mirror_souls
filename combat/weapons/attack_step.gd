@@ -70,3 +70,12 @@ extends Resource
 @export var victim_lift := 0.0
 ## Скорость, с которой врага сбрасывают с клинка: X — от героя, Y — вверх.
 @export var victim_throw := Vector2.ZERO
+## Клип манекена жертвы на клинке (§6.1); пусто — общий (вскинулся на клинке, лежачий — лежит).
+@export var victim_anim: StringName = &""
+
+@export_group("Смертельное добивание")
+## Камера на время смертельного добивания (§6.1): доля обычного расстояния; 0 — Player.LETHAL_ZOOM.
+@export var camera_zoom := 0.0
+## Куда бьёт фонтан крови при рывке — в пространстве героя, смотрящего вправо (X — вперёд,
+## Y — вверх); ноль — Player.LETHAL_BLOOD (вслед выдернутому клинку).
+@export var blood_dir := Vector2.ZERO

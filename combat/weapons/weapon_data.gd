@@ -62,6 +62,12 @@ const GRADES := {"S": 1.0, "A": 0.85, "B": 0.7, "C": 0.55, "D": 0.4, "E": 0.25}
 @export var riposte: AttackStep
 ## Удар в спину.
 @export var backstab: AttackStep
+## Смертельные варианты (§6.1): если добивание или удар в спину убьёт — играют они, длиннее
+## и жёстче. Пусто — обычный удар со смертельной подачей (камера, кровь, волна).
+@export var lethal_riposte: AttackStep
+@export var lethal_backstab: AttackStep
+## Добить лежачего: враг сбит с ног тяжёлым ударом по сломанной стойкости (Dummy.KNOCKDOWN).
+@export var ground_finisher: AttackStep
 ## Заряженный удар: есть сразу, держать удар после взмаха и отпустить.
 @export var charged: AttackStep
 ## Продолжение серии: ступень 2.
@@ -87,6 +93,9 @@ static func by_id(wanted: StringName) -> WeaponData:
 		weapon.roll_attack = base.roll_attack
 		weapon.riposte = base.riposte
 		weapon.backstab = base.backstab
+		weapon.lethal_riposte = base.lethal_riposte
+		weapon.lethal_backstab = base.lethal_backstab
+		weapon.ground_finisher = base.ground_finisher
 		weapon.charged = base.charged
 		weapon.extra_hit = base.extra_hit
 		weapon.air_attack = base.air_attack

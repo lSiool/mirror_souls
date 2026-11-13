@@ -82,6 +82,21 @@ const SLIDE_LEAN := 0.35
 const HEAD_SLIDE_SPEED := 5.0
 ## На каком расстоянии герой встаёт к врагу для добивания и удара в спину.
 const CRITICAL_DISTANCE := 1.0
+## Лежачего добивают с такого расстояния (дальше обычного добивания на столько).
+const GROUND_REACH := 0.4
+## Смертельное добивание (§6.1): камера ближе (доля расстояния) за столько секунд; неуязвим всю
+## анимацию и ещё столько; волна в миг рывка — радиус, на сколько отбросить, сколько вздрагивают;
+## кровь — вслед выдернутому клинку (X — вперёд, Y — вверх, герой смотрит вправо).
+const LETHAL_ZOOM := 0.75
+const LETHAL_ZOOM_TIME := 0.3
+const LETHAL_AFTER := 0.4
+const LETHAL_WAVE_RADIUS := 3.0
+const LETHAL_WAVE_PUSH := 1.5
+const LETHAL_WAVE_STUN := 0.5
+const LETHAL_BLOOD := Vector2(-0.6, 0.8)
+## Серебряный кол (§6.1, §6.3): добивание вампира — свой удар, кол тратится.
+const STAKE_ITEM := &"silver_stake"
+const STAKE_STEP := preload("res://data/finishers/silver_stake.tres")
 ## На какое натяжение подогнан банк bow_draw (tools/sound/make_candidates.py, BOW_DRAW_TIME).
 ## Лук натягивается быстрее или медленнее — звук ускоряется или замедляется (в пределах ±25 %).
 const BOW_DRAW_SOUND_TIME := 0.6
@@ -152,6 +167,11 @@ var _critical_target: Dummy
 var _critical_done := false
 var _critical_pierced := false
 var _critical_holding := false
+## Это добивание убивает — смертельная подача (§6.1); камера сейчас приближена ради него.
+var _critical_lethal := false
+var _lethal_zoomed := false
+## Кол в руке на время добивания вампира (вместо оружия).
+var _stake_prop: Node3D
 var _death_landed := false
 var _death_dir := 1.0
 var _shoot_buffer := 0.0
@@ -493,6 +513,8 @@ func _set_state(new_state: State) -> void:
 	if state in [State.PLUNGE, State.BLOCK, State.GUARD_BROKEN, State.CRITICAL, State.LEDGE_HANG, State.CHARGE]:
 		plunge_hitbox.active = false
 		arms.rest()
+	if state == State.CRITICAL and new_state != State.CRITICAL:
+		_end_finisher()
 	if state == State.BOW:
 		arms.show_bow(false)
 		# Выстрел или перекат до полного натяжения — скрип тетивы обрывается. После полного
@@ -1057,34 +1079,69 @@ func _try_critical() -> bool:
 		var d := enemy.global_position - global_position
 		if absf(d.y) > 1.0 or signf(d.x) != facing:
 			continue
-		# У врага может быть своё особое добивание (§6.3).
+		# У врага может быть своё особое добивание (§6.3) — оно главнее смертельного варианта.
 		var riposte := enemy.riposte_step if enemy.riposte_step else weapon.riposte
 		if riposte and enemy.can_be_riposted() and absf(d.x) <= stats.riposte_range:
-			_start_critical(enemy, riposte)
+			_start_finisher(enemy, riposte, null if enemy.riposte_step else weapon.lethal_riposte)
 			return true
 		if weapon.backstab and enemy.can_be_backstabbed(global_position.x) \
 				and absf(d.x) <= stats.backstab_range:
-			_start_critical(enemy, weapon.backstab)
+			_start_finisher(enemy, weapon.backstab, weapon.lethal_backstab)
+			return true
+		# Лежачего, сбитого тяжёлым ударом, — сверху (§6.1).
+		if weapon.ground_finisher and enemy.can_be_finished_on_ground() \
+				and absf(d.x) <= stats.riposte_range + GROUND_REACH:
+			_start_finisher(enemy, weapon.ground_finisher, null)
 			return true
 	return false
 
 
-func _start_critical(enemy: Dummy, step: AttackStep) -> void:
+## Урон добивания step по врагу (без защиты врага: добивание бьёт напрямую).
+func _critical_damage(step: AttackStep) -> float:
+	return _blade_damage() * step.damage_multiplier * stats.critical_mult
+
+
+## Какой удар добивания играть (§6.1). Вампира, пока есть серебряный кол, — колом (тратится).
+## Убьёт — смертельный вариант оружия, если он есть (иначе тот же удар со смертельной подачей).
+func _start_finisher(enemy: Dummy, step: AttackStep, lethal_step: AttackStep) -> void:
+	var stake := enemy.creature == CreatureKind.Kind.VAMPIRE and enemy.riposte_step == null \
+		and GameState.item_count(STAKE_ITEM) > 0
+	if stake:
+		GameState.take_item(STAKE_ITEM)
+		step = STAKE_STEP
+		lethal_step = null
+	var lethal := _critical_damage(step) >= enemy.health.current
+	if lethal and lethal_step:
+		step = lethal_step
+	_start_critical(enemy, step, lethal)
+	if stake:
+		_hold_stake()
+
+
+func _start_critical(enemy: Dummy, step: AttackStep, lethal := false) -> void:
 	_attack_buffer = 0.0
 	_critical_target = enemy
 	_critical_done = false
 	_critical_pierced = false
 	_critical_holding = false
+	_critical_lethal = lethal
 	_step = step
 	_combo = 0
 	facing = signf(enemy.global_position.x - global_position.x)
 	var stand := enemy.global_position.x - facing * CRITICAL_DISTANCE
 	move_and_collide(Vector3(stand - global_position.x, 0.0, 0.0))
 	velocity = Vector3.ZERO
-	enemy.begin_critical()
+	enemy.begin_critical(step.victim_anim)
 	_set_state(State.CRITICAL)
 	if step.invulnerable:
 		_iframes = maxf(_iframes, step.duration)
+	if lethal:
+		# Неуязвим всю анимацию и ещё немного после; камера ближе.
+		_iframes = maxf(_iframes, step.duration + LETHAL_AFTER)
+		var rig := _camera_rig()
+		if rig:
+			rig.zoom(step.camera_zoom if step.camera_zoom > 0.0 else LETHAL_ZOOM, LETHAL_ZOOM_TIME)
+			_lethal_zoomed = true
 	arms.swing(step)
 	attack_step_started.emit(step, 0, weapon.combo.size())
 
@@ -1113,10 +1170,74 @@ func _critical_state(delta: float) -> void:
 			Sfx.play(&"critical_release", global_position)
 		if is_instance_valid(_critical_target):
 			_critical_target.last_weapon = weapon.type
-			_critical_target.apply_critical(_blade_damage() * _step.damage_multiplier * stats.critical_mult,
-				_step.victim_throw, global_position.x)
+			var damage := _critical_damage(_step)
+			if _critical_lethal:
+				# Решено, что убьёт, — убивает, даже если что-то подлечило врага за удар.
+				damage = maxf(damage, _critical_target.health.current)
+				_lethal_release()
+			_critical_target.apply_critical(damage, _step.victim_throw, global_position.x)
 	if _state_time >= _step.duration:
 		_set_state(State.MOVE)
+
+
+## Миг рывка смертельного добивания (§6.1): фонтан крови вслед клинку, волна отбрасывает соседей
+## и сбивает их замахи (боссов только толкает).
+func _lethal_release() -> void:
+	var target := _critical_target
+	if target.can_bleed:
+		var dir := _step.blood_dir if _step.blood_dir != Vector2.ZERO else LETHAL_BLOOD
+		var at := target.global_position + Vector3(0.0, 1.1 + _step.victim_lift, 0.3)
+		BloodFountain.spawn(get_parent(), at, Vector3(dir.x * facing, dir.y, 0.0))
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Dummy
+		if enemy == null or enemy == target or not enemy.is_inside_tree():
+			continue
+		if enemy.global_position.distance_to(global_position) <= LETHAL_WAVE_RADIUS:
+			enemy.shove(global_position.x, LETHAL_WAVE_PUSH, LETHAL_WAVE_STUN)
+
+
+## Добивание кончилось или прервано: камера на место, кол убран, оружие снова видно.
+func _end_finisher() -> void:
+	if _lethal_zoomed:
+		_lethal_zoomed = false
+		var rig := _camera_rig()
+		if rig:
+			rig.zoom(1.0, LETHAL_ZOOM_TIME)
+	if is_instance_valid(_stake_prop):
+		_stake_prop.queue_free()
+		_stake_prop = null
+		if model and model.hand:
+			PlayerArms.ghost(model.hand, false)
+	_critical_lethal = false
+
+
+func _camera_rig() -> CameraRig:
+	return get_tree().get_first_node_in_group(&"camera_rig") as CameraRig
+
+
+## Кол в правой руке вместо оружия (на время добивания вампира).
+func _hold_stake() -> void:
+	if model == null or model.hand == null:
+		return
+	PlayerArms.ghost(model.hand, true)
+	_stake_prop = Node3D.new()
+	_stake_prop.name = &"Stake"
+	model.hand.get_parent().add_child(_stake_prop)
+	_stake_prop.transform = model.hand.transform
+	var silver := StandardMaterial3D.new()
+	silver.albedo_color = Color(0.78, 0.8, 0.84)
+	silver.metallic = 0.85
+	silver.roughness = 0.3
+	var shaft := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.004
+	cone.bottom_radius = 0.028
+	cone.height = 0.5
+	cone.radial_segments = 6
+	cone.material = silver
+	shaft.mesh = cone
+	shaft.position = Vector3(0.0, 0.18, 0.0)
+	_stake_prop.add_child(shaft)
 
 
 func _critical_spark(strength: float) -> void:

@@ -39,6 +39,9 @@ const HEAD_SLIDE_SPEED := 5.0
 const CRITICAL_TIMEOUT := 2.0
 ## Тяжёлый удар с такой силой по стойкости, сломав её, сбивает с ног (заряд, молот сверху).
 const KNOCKDOWN_POISE := 50.0
+## Торможение вздрагивающего (FLINCH); босса волна добивания толкает на эту долю расстояния.
+const FLINCH_BRAKE := 18.0
+const BOSS_SHOVE := 0.5
 ## Тело в атаке (§6.1, 2026-11-09): в замахе отклоняется назад и к WINDUP_PEAK замирает наверху —
 ## пауза перед ударом читается; удар — рывок вперёд, в откате тело возвращается.
 const WINDUP_LEAN := 0.2
@@ -112,6 +115,13 @@ const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
 @export var armored_attack := true
 ## Особое добивание этого врага. Пусто — герой бьёт добиванием своего оружия.
 @export var riposte_step: AttackStep
+## Сбит с ног тяжёлым ударом (а не сброшен с клинка) — можно добить лежачего (§6.1).
+var floored_by_blow := false
+## Добивают лежачим — он так и лежит; свой клип жертвы на клинке (AttackStep.victim_anim).
+var critical_lying := false
+var critical_clip: StringName = &""
+## Вздрагивает столько, а не flinch_time (волна смертельного добивания); меньше 0 — как обычно.
+var _flinch_for := -1.0
 ## Голос врага (события Sfx) поверх звука удара и падения. Пусто — безголосый (стекло, механизм).
 @export var hurt_voice: StringName = &"enemy_hurt_voice"
 @export var death_voice: StringName = &"enemy_death_voice"
@@ -342,8 +352,8 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= knockdown_time:
 				_set_state(State.CHASE)
 		State.FLINCH:
-			_brake(18.0, delta)
-			if _state_time >= flinch_time:
+			_brake(FLINCH_BRAKE, delta)
+			if _state_time >= (_flinch_for if _flinch_for > 0.0 else flinch_time):
 				_set_state(State.CHASE)
 		State.BLINDED:
 			# Слепой не нападает и не ищет героя; выходит из слепоты, когда она кончится.
@@ -578,11 +588,37 @@ func can_be_backstabbed(from_x: float) -> bool:
 	return signf(from_x - global_position.x) == -facing
 
 
-## Начало добивания или удара в спину: враг зафиксирован до удара.
-func begin_critical() -> void:
+## Лежит, сбитый с ног тяжёлым ударом, — можно добить сверху (§6.1). Не после добивания (иначе
+## два добивания за одно парирование) и не босса — его с ног не сбить.
+func can_be_finished_on_ground() -> bool:
+	return state == State.KNOCKDOWN and floored_by_blow and rank != Rank.BOSS and not health.is_dead()
+
+
+## Начало добивания или удара в спину: враг зафиксирован до удара. Лежачего добивают
+## на земле — он так и лежит. clip — свой клип жертвы (AttackStep.victim_anim).
+func begin_critical(clip: StringName = &"") -> void:
 	attack_hitbox.active = false
 	_turn_t = -1.0
+	critical_lying = state == State.KNOCKDOWN
+	critical_clip = clip
 	_set_state(State.CRITICAL_HIT)
+
+
+## Волна смертельного добивания (§6.1): отбросить от from_x на distance метров и сбить замах —
+## вздрагивает stun секунд. Босса только толкает. Уже беззащитных не трогает.
+func shove(from_x: float, distance: float, stun: float) -> void:
+	if state in [State.DEAD, State.DORMANT, State.CRITICAL_HIT, State.KNOCKDOWN]:
+		return
+	var away := signf(global_position.x - from_x)
+	if away == 0.0:
+		away = -facing
+	if rank == Rank.BOSS:
+		move_and_collide(Vector3(away * distance * BOSS_SHOVE, 0.0, 0.0))
+		return
+	_set_state(State.FLINCH)
+	_flinch_for = stun
+	# Торможение вздрагивающего (_brake) гасит скорость ровно на distance.
+	velocity.x = away * sqrt(2.0 * FLINCH_BRAKE * distance)
 
 
 ## Клинок вошёл: враг повисает на нём, приподнятый на lift метров.
@@ -838,6 +874,7 @@ func _on_hurt(hitbox: Hitbox) -> void:
 		# Боссов с ног не сбить: у них свои стаггеры.
 		var floored := hitbox.heavy and force >= KNOCKDOWN_POISE and rank != Rank.BOSS
 		_set_state(State.KNOCKDOWN if floored else State.STAGGER)
+		floored_by_blow = floored
 	elif force >= flinch_threshold and not (armored_attack and state in [State.WINDUP, State.ATTACK]):
 		# Осечка: шаг назад, замах сбит; враг повернулся к обидчику.
 		velocity.x = dir.x * hitbox.knockback * 0.45
@@ -976,6 +1013,11 @@ func _set_state(new_state: State) -> void:
 	var was_blind := state == State.BLINDED
 	state = new_state
 	_state_time = 0.0
+	_flinch_for = -1.0
+	floored_by_blow = false
+	if new_state != State.CRITICAL_HIT:
+		critical_lying = false
+		critical_clip = &""
 	# Из слепоты вывели раньше (добивание, сцена босса, смерть) — слепота снята.
 	if was_blind and new_state != State.BLINDED:
 		statuses.remove(Statuses.BLIND)
@@ -1004,7 +1046,7 @@ func _update_pose(delta: float) -> void:
 		State.OFF_BALANCE:
 			tilt = 0.35 + sin(_state_time * 14.0) * 0.08
 		State.CRITICAL_HIT:
-			tilt = 0.25
+			tilt = PI * 0.5 if critical_lying else 0.25
 		State.KNOCKDOWN:
 			tilt = PI * 0.5
 		State.FLINCH:
