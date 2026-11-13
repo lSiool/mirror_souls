@@ -3,16 +3,27 @@ extends SceneTree
 ## Нужен рендер — запускать без --headless:
 ## "/c/Program Files/Godot/Godot.exe" --path . -s res://tools/characters/anim_sheet.gd -- Roll Sword_Regular_A
 ## Без имён — все клипы обоих наборов. Картинки — в user://anim_sheets/.
+## Клипы Mixamo (§6.1, tools/characters/setup_mixamo.py) — по имени файла с приставкой mixamo:
+## «-- "mixamo:ss slash (2)" mixamo:Stomach Hit», «mixamo:*» — все из папки. Шаг корня в них снят
+## (фигура остаётся в клетке), в имени строки — имя файла. В руке — клинок, чтобы было видно удар:
+## у клипов набора двуручного меча («gs …») — длинный.
 
 const OUT := "user://anim_sheets"
 const MODELS := ["res://assets/characters/mannequin/ual1.glb", "res://assets/characters/mannequin/ual2.glb"]
 const FRAMES := 8
 const CELL := Vector2i(200, 260)
 const ROWS_PER_SHEET := 6
+const MIXAMO := "res://assets/characters/anims/mixamo"
 
 var _viewport: SubViewport
 var _player: AnimationPlayer
 var _label: Label
+var _blade: BoxMesh
+const BLADE := 1.0
+const GREAT_BLADE := 1.6
+## Хват как у HeroModel.GRIP_* (инструмент идёт без автозагрузок — класс героя сюда не тянем).
+const GRIP_ROTATION := Vector3(0.0, 0.0, -PI * 0.5)
+const GRIP_OFFSET := Vector3(0.0, 0.08, 0.02)
 
 
 func _initialize() -> void:
@@ -52,6 +63,7 @@ func _run() -> void:
 	model.rotation.y = PI * 0.5
 	_viewport.add_child(model)
 	_player = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	_hold_blade(model.find_child("GeneralSkeleton", true, false) as Skeleton3D)
 	var extra := (load(MODELS[1]) as PackedScene).instantiate()
 	var extra_lib := (extra.find_child("AnimationPlayer", true, false) as AnimationPlayer).get_animation_library(&"")
 	var lib := _player.get_animation_library(&"")
@@ -60,7 +72,7 @@ func _run() -> void:
 			lib.add_animation(anim_name, extra_lib.get_animation(anim_name))
 	extra.free()
 
-	var wanted := OS.get_cmdline_user_args()
+	var wanted := _mixamo(lib, OS.get_cmdline_user_args())
 	var names: Array = wanted if not wanted.is_empty() else Array(_player.get_animation_list())
 	var sheet_index := 0
 	for start in range(0, names.size(), ROWS_PER_SHEET):
@@ -75,10 +87,77 @@ func _run() -> void:
 	quit()
 
 
+## Аргументы mixamo:<файл> — клип Mixamo в библиотеку под именем файла; mixamo:* — все.
+func _mixamo(lib: AnimationLibrary, args: PackedStringArray) -> Array:
+	var names := []
+	for arg in args:
+		if not arg.begins_with("mixamo:"):
+			names.append(arg)
+			continue
+		var stem := arg.trim_prefix("mixamo:")
+		var stems: Array = [stem]
+		if stem == "*":
+			stems = []
+			for file in DirAccess.get_files_at(MIXAMO):
+				if file.ends_with(".fbx"):
+					stems.append(file.get_basename())
+		for one: String in stems:
+			var scene := (load("%s/%s.fbx" % [MIXAMO, one]) as PackedScene).instantiate()
+			var from := scene.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			var clip := from.get_animation(from.get_animation_list()[-1]).duplicate() as Animation
+			scene.free()
+			_pin_root(clip)
+			lib.add_animation(StringName(one), clip)
+			names.append(one)
+	return names
+
+
+## Шаг корня снят: таз к концу клипа там же, где в начале (качание по пути остаётся).
+static func _pin_root(clip: Animation) -> void:
+	var track := clip.find_track(NodePath("%GeneralSkeleton:Hips"), Animation.TYPE_POSITION_3D)
+	if track < 0 or clip.track_get_key_count(track) < 2:
+		return
+	var count := clip.track_get_key_count(track)
+	var first: Vector3 = clip.track_get_key_value(track, 0)
+	var drift: Vector3 = clip.track_get_key_value(track, count - 1) - first
+	var length := maxf(clip.length, 0.001)
+	for k in count:
+		var t := clip.track_get_key_time(track, k) / length
+		var at: Vector3 = clip.track_get_key_value(track, k)
+		clip.track_set_key_value(track, k, Vector3(at.x - drift.x * t, at.y, at.z - drift.z * t))
+
+
+## Клинок в правой кисти, как оружие героя.
+func _hold_blade(skeleton: Skeleton3D) -> void:
+	var hand := BoneAttachment3D.new()
+	hand.bone_name = &"RightHand"
+	skeleton.add_child(hand)
+	var grip := Node3D.new()
+	grip.rotation = GRIP_ROTATION
+	grip.position = GRIP_OFFSET
+	hand.add_child(grip)
+	_blade = BoxMesh.new()
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(0.85, 0.88, 0.92)
+	_blade.material = material
+	var blade := MeshInstance3D.new()
+	blade.mesh = _blade
+	grip.add_child(blade)
+	_set_blade(BLADE)
+
+
+func _set_blade(length: float) -> void:
+	_blade.size = Vector3(0.05, length, 0.015)
+	for node in _viewport.find_children("*", "MeshInstance3D", true, false):
+		if (node as MeshInstance3D).mesh == _blade:
+			(node as MeshInstance3D).position = Vector3(0.0, length * 0.5 - 0.08, 0.0)
+
+
 func _row(sheet: Image, row: int, anim_name: StringName) -> void:
 	if not _player.has_animation(anim_name):
 		print("нет клипа ", anim_name)
 		return
+	_set_blade(GREAT_BLADE if String(anim_name).begins_with("gs ") else BLADE)
 	var length := _player.get_animation(anim_name).length
 	_player.play(anim_name)
 	for f in FRAMES:
