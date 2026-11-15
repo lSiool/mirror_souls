@@ -434,12 +434,11 @@ sq.box(d, "FarGround", (0, -2, -18), (70, 4, 31.6), "mud")
 sq.house(d, "HouseA", -13.0, -7.0, 8, 4.8, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)), fire=(3.2, 12.0))
 sq.house(d, "HouseB", 0.0, -11.0, 9, 5.0, 4.4, windows=((0, 3.0),), fire=(3.2, 12.0))
 sq.house(d, "HouseC", 13.5, -7.5, 8, 4.6, 3.8, windows=((1.5, 2.8),), fire=(3.2, 12.0))
-# Колодец
-sq.cyl(d, "Well", (-8.5, 0.55, -1.5), 1.05, 1.1, "stone", sides=14)
-for i, x in enumerate((-9.4, -7.6)):
-    sq.box(d, f"WellPost{i}", (x, 1.7, -1.5), (0.16, 2.2, 0.16), "wood_dark")
-sq.roof(d, "WellRoof", (-8.5, 3.25, -1.5), (2.9, 1.0, 2.2), "wood_dark")
-sq.cyl(d, "WellBucket", (-8.5, 1.75, -1.5), 0.2, 0.34, "wood", sides=8)
+# Колодец — первая настоящая модель (ComfyUI → TRELLIS.2, docs/ART_PIPELINE.md): ~1 м в файле, ×3.2 ≈ 3 м высотой
+sq.ext["well"] = ("PackedScene", "res://assets/props/well/prop_well.glb")
+WELL_S, WELL_Y0 = 3.2, -0.4806  # масштаб и низ модели (AABB.y) — ставим дном на землю
+sq.nodes.append(f'[node name="Well" parent="{d}" instance=ExtResource("well")]\n'
+                f'transform = Transform3D({WELL_S}, 0, 0, 0, {WELL_S}, 0, 0, 0, {WELL_S}, -8.5, {-WELL_Y0 * WELL_S:.3f}, -1.5)')
 # Статуя на площади
 sq.box(d, "Plinth", (3.0, 0.45, -2.9), (4.2, 0.9, 3.2), "stone")
 sq.box(d, "Plinth2", (3.0, 1.3, -2.9), (2.6, 0.8, 2.2), "stone")
