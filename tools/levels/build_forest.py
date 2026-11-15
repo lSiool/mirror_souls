@@ -1,4 +1,4 @@
-"""Уровень «Край Мёртвого Леса» (level_concept/Edge of the Dead Forest, art/refs/Edge of the Dead Forest).
+"""Уровень «Край Мёртвого Леса» (level_concept/Edge of the Dead Forest, art/concepts/locations/forest_*.png).
 
 Семь комнат graybox: кладбищенские ворота → кладбище → стена леса → поваленный гигант → корневой
 лабиринт → болото → мёртвая деревня Кузнеца. Запуск из корня проекта: python tools/levels/build_forest.py

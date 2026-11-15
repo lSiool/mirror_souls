@@ -1,4 +1,4 @@
-"""Деревня героя и часовня (graybox по art/refs): хижина, улица, дом, площадь, двор часовни, часовня;
+"""Деревня героя и часовня (graybox по art/concepts/locations): хижина, улица, дом, площадь, двор часовни, часовня;
 мышь и оборотень. Лес — build_forest.py, враги леса и босс — build_enemies.py.
 Запуск из корня проекта: python tools/levels/build_village.py
 """
@@ -341,7 +341,7 @@ st.box("AfterFire", "AshB", (11.0, 0.1, -3.2), (2.2, 0.2, 1.2), "char")
 # Земля за тропой, чтобы дома стояли на ней, а не висели в тумане
 st.box(d, "FarGround", (0, -2, -20), (90, 4, 35.6), "mud")
 st.box(d, "FarHill", (-24, -0.9, -8.1), (20, 4.2, 11.8), "mud")
-# Второй план: жизнь деревни (по art/refs)
+# Второй план: жизнь деревни (по art/concepts/locations)
 st.woodpile(d, "HutWood", -31.7, -0.6, 1.2)
 st.cyl(d, "HutBarrel", (-25.2, 1.7, -0.6), 0.42, 1.0, "wood")
 st.garlic(d, "HutGarlic", -31.3, 4.1, -0.85)
