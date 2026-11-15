@@ -1,8 +1,8 @@
 [CHARACTER]
 {PREFIX} {SUBJECT}
 SUBJECT: full-body game character, {name/role}, {key costume details}, holding {item}.
-POSE: neutral side 3/4 view for a 2.5D side-scroller, readable silhouette, whole figure visible.
-OUTPUT: centered, plain flat neutral grey background, no shadow on ground, consistent with attached reference images.
+POSE: front view, relaxed A-pose with arms slightly away from the body (for 3D and rigging), readable silhouette, whole figure visible.
+OUTPUT: centered, soft even neutral lighting, plain flat light-grey background, consistent with attached reference images.
 {AVOID}
 
 [ENVIRONMENT]
@@ -31,8 +31,8 @@ OUTPUT: consistent with attached reference images.
 
 [PROP]
 {PREFIX} {OBJECT}
-OBJECT: {item}, {material and wear}, 3/4 view, isolated, plain flat neutral grey background,
-soft cold rim light from upper left, no cast shadow.
+OBJECT: {item}, {material and wear}, 3/4 view, isolated, plain flat light-grey background,
+soft even neutral lighting from all sides (for 3D: lighting must not be baked into the texture).
 {AVOID}
 
 [UI ICON]
