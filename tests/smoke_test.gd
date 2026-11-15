@@ -18,6 +18,7 @@ var messages: Array[String] = []
 ## с руками graybox за весь тест и кто это был.
 var weapon_gap := 0.0
 var weapon_gap_who := ""
+var weapon_gap_frame := -1
 ## Сколько раз бот отражения съехал по скату.
 var refl_slides := 0
 
@@ -27,6 +28,12 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	# Кадр отрисовки может вместить несколько физических тиков (подвисание при создании тяжёлой сцены), а скелет
+	# и оружие в руке обновляются раз за кадр: разрыв меряем в первом тике кадра, как его видит игрок.
+	var render_frame := Engine.get_process_frames()
+	if render_frame == weapon_gap_frame:
+		return
+	weapon_gap_frame = render_frame
 	for node in get_tree().get_nodes_in_group("enemy"):
 		var enemy := node as Dummy
 		if enemy == null or enemy.state == Dummy.State.DEAD:
