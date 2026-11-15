@@ -22,7 +22,7 @@
 ```text
 gen3.bat char_werewolf_young "A freshly turned werewolf, a peasant in the middle of his first transformation: thin gaunt body, patchy fur with bare greyish skin in places, an elongated wolf muzzle with fangs, long clawed hands, digitigrade wolf legs, remnants of torn peasant clothes, a ragged linen shirt and trousers held by a rope belt, foot wrappings, an awkward uncoordinated stance."
 ```
-Тест 2026-11-15 (`char_werewolf_young\r01`): вышел светлее и «приличнее» концепта автора, угрозы мало. Для чудовищ предложен отдельный профиль стиля `creature`.
+Тест 2026-11-15 (`char_werewolf_young\r01`): вышел светлее и «приличнее» концепта автора, угрозы мало. **Решение автора:** генерация не нужна, в 3D идёт его лист — вид спереди вырезается и подаётся в TRELLIS. То же для обычного оборотня (`werewolf_sheet.png`).
 
 ## Бой / поведение
 - Дёрганые атаки, иногда падает после неудачного броска.
