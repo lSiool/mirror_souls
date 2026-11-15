@@ -33,6 +33,15 @@ const BOW_IN_HAND := [Vector3(0.0, 0.0, PI * 0.5), Vector3(0.0, 0.06, 0.0)]
 const AIR_CLIP := &"Sword_Regular_A"
 ## На сколько манекен на лестнице придвинут к ней (м, в мире).
 const LADDER_CLOSE := 0.22
+## Клип подъёма по лестнице (Mixamo «Climbing Ladder», 2026-11-15): один проход клипа — шаг на LADDER_STEP м.
+## Клип крутится по высоте героя, а не по времени: стоит — замер, быстрее лезет — быстрее перебирает.
+## Исходники Mixamo в git не идут (.gitignore): нет файла — лестница на процедурной позе LadderLimbs.
+const LADDER_FBX := "res://assets/characters/anims/mixamo/Climbing Ladder.fbx"
+const LADDER_CLIP := &"Ladder_Climb"
+const LADDER_STEP := 0.478
+## В клипе ступни и кисти тянутся к лестнице дальше процедурной позы: манекен почти на оси лестницы,
+## иначе носки и колени уходят за перекладины (z = -0.45). Не ноль: _off_ladder отличает «на лестнице» по сдвигу.
+const LADDER_CLIP_CLOSE := 0.03
 ## Парирование (§6.1, 2026-11-11): клип, отрезок встречного взмаха [от, до] и до куда доигрывает
 ## удачное парирование. Щитом — выпад щита навстречу удару, оружием — отбив снизу вверх.
 ## Играет только верх тела: ноги стоят как стояли.
@@ -308,12 +317,51 @@ func _on_ladder(player: Player) -> void:
 		_ladder.name = &"LadderLimbs"
 		add_child(_ladder)
 		_ladder.rig(skeleton)
-	hold(&"Idle", 0.0)
 	# Модель смотрит в +Z; к лестнице — это мировой -Z, при любом развороте героя.
 	var parent_yaw := (get_parent() as Node3D).global_rotation.y
 	rotation.y = PI - parent_yaw
 	position = (get_parent() as Node3D).global_basis.inverse() * Vector3(0.0, 0.0, -LADDER_CLOSE)
+	var sliding := player.velocity.y < -LadderLimbs.SLIDE_FROM
+	if _ladder_clip() and not sliding:
+		# Подъём и стоянка — клип по высоте; IK отпущен. Таз в клипе Mixamo развёрнут на 180° к покою манекена.
+		_ladder.release()
+		rotation.y = -parent_yaw
+		position = (get_parent() as Node3D).global_basis.inverse() * Vector3(0.0, 0.0, -LADDER_CLIP_CLOSE)
+		if _clip != LADDER_CLIP:
+			play(LADDER_CLIP, 0.0, 0.0)
+		var clip := anim.get_animation(LADDER_CLIP)
+		var climbed := (player.global_position.y - player.ladder.global_position.y) / (LADDER_STEP * scale.y / SCALE)
+		anim.seek(fposmod(climbed, 1.0) * clip.length, true)
+		return
+	hold(&"Idle", 0.0)
 	_ladder.climb(player.ladder, player.global_position, player.velocity.y, get_physics_process_delta_time())
+
+
+## Клип лестницы в общую библиотеку (один раз): таз без подъёма и сдвига — высоту ведёт код героя.
+## false — исходника нет (облако, чистая копия репозитория).
+func _ladder_clip() -> bool:
+	var lib := anim.get_animation_library(&"")
+	if lib.has_animation(LADDER_CLIP):
+		return true
+	if not ResourceLoader.exists(LADDER_FBX):
+		return false
+	var scene := (load(LADDER_FBX) as PackedScene).instantiate()
+	var from := scene.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var clip := from.get_animation(from.get_animation_list()[-1]).duplicate(true) as Animation
+	scene.free()
+	var track := clip.find_track(NodePath("%GeneralSkeleton:Hips"), Animation.TYPE_POSITION_3D)
+	if track >= 0 and clip.track_get_key_count(track) > 1:
+		var count := clip.track_get_key_count(track)
+		var first: Vector3 = clip.track_get_key_value(track, 0)
+		var drift: Vector3 = clip.track_get_key_value(track, count - 1) - first
+		var rest := skeleton.get_bone_rest(skeleton.find_bone("Hips")).origin
+		for k in count:
+			var t := clip.track_get_key_time(track, k) / maxf(clip.length, 0.001)
+			var at: Vector3 = clip.track_get_key_value(track, k)
+			clip.track_set_key_value(track, k, rest + (at - first) - drift * t)
+	clip.loop_mode = Animation.LOOP_LINEAR
+	lib.add_animation(LADDER_CLIP, clip)
+	return true
 
 
 func _off_ladder() -> void:
