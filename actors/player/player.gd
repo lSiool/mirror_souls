@@ -97,6 +97,12 @@ const LETHAL_BLOOD := Vector2(-0.6, 0.8)
 ## Серебряный кол (§6.1, §6.3): добивание вампира — свой удар, кол тратится.
 const STAKE_ITEM := &"silver_stake"
 const STAKE_STEP := preload("res://data/finishers/silver_stake.tres")
+## Кнопка добивания (§6.1, 2026-11-15): над врагом, которого убьёт следующий удар, и над сбитым
+## с ног горит знак; можно добить обычным ударом или кнопкой — смертельным добиванием.
+const FINISHER_MARK := preload("res://assets/ui/hud/finisher_mark.svg")
+## Знак над головой врага, метров; над лежачим — на этой высоте от земли.
+const FINISHER_MARK_UP := 0.35
+const FINISHER_MARK_LYING := 0.9
 ## На какое натяжение подогнан банк bow_draw (tools/sound/make_candidates.py, BOW_DRAW_TIME).
 ## Лук натягивается быстрее или медленнее — звук ускоряется или замедляется (в пределах ±25 %).
 const BOW_DRAW_SOUND_TIME := 0.6
@@ -172,6 +178,9 @@ var _critical_lethal := false
 var _lethal_zoomed := false
 ## Кол в руке на время добивания вампира (вместо оружия).
 var _stake_prop: Node3D
+var _finisher_buffer := 0.0
+## Знак добивания над врагом (Sprite3D вне иерархии героя: top_level).
+var finisher_mark: Sprite3D
 var _death_landed := false
 var _death_dir := 1.0
 var _shoot_buffer := 0.0
@@ -308,11 +317,21 @@ func _ready() -> void:
 	_on_stats_changed()
 	# Купленный щит сразу в руке.
 	Events.item_found.connect(func(_id: StringName) -> void: _refresh_shield())
+	finisher_mark = Sprite3D.new()
+	finisher_mark.texture = FINISHER_MARK
+	finisher_mark.pixel_size = 0.006
+	finisher_mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	finisher_mark.no_depth_test = true
+	finisher_mark.shaded = false
+	finisher_mark.top_level = true
+	finisher_mark.visible = false
+	add_child(finisher_mark)
 
 
 func _physics_process(delta: float) -> void:
 	if frozen:
 		# Стоит у осколка или в переходе: ввода и физики нет, но вид меняется (взросление).
+		finisher_mark.visible = false
 		_update_visual(delta)
 		return
 	_state_time += delta
@@ -343,6 +362,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	global_position.z = 0.0
 	_limit_blocked_slide()
+	_update_finisher_mark()
 	_update_rolled_through(delta)
 	_after_move()
 	_check_enemy_head()
@@ -361,6 +381,7 @@ func _tick(delta: float) -> void:
 	_coyote = maxf(_coyote - delta, 0.0)
 	_jump_buffer = maxf(_jump_buffer - delta, 0.0)
 	_attack_buffer = maxf(_attack_buffer - delta, 0.0)
+	_finisher_buffer = maxf(_finisher_buffer - delta, 0.0)
 	_roll_buffer = maxf(_roll_buffer - delta, 0.0)
 	_iframes = maxf(_iframes - delta, 0.0)
 	_input_lock = maxf(_input_lock - delta, 0.0)
@@ -386,6 +407,8 @@ func _tick(delta: float) -> void:
 			_jump_buffer = stats.jump_buffer
 		if Input.is_action_just_pressed("attack"):
 			_attack_buffer = stats.attack_buffer
+		if Input.is_action_just_pressed("finisher"):
+			_finisher_buffer = stats.attack_buffer
 		if Input.is_action_just_pressed("roll"):
 			_roll_buffer = stats.input_buffer + _roll_wait()
 		if Input.is_action_just_pressed("block") and can_parry() and not sprinting:
@@ -582,6 +605,8 @@ func _move_state(delta: float) -> void:
 		_peg_jump()
 	elif _roll_buffer > 0.0 and not roll_cooling() and (on_floor or _coyote > 0.0):
 		_start_roll()
+	elif _finisher_buffer > 0.0 and _swap_t <= 0.0 and stamina > 0.0 and _try_critical(true):
+		pass
 	elif _attack_buffer > 0.0 and _swap_t <= 0.0:
 		if not on_floor and weapon and Input.is_action_pressed("move_down"):
 			_start_plunge()
@@ -860,6 +885,8 @@ func _attack_state(delta: float) -> void:
 		if _roll_buffer > 0.0 and on_floor:
 			_start_roll()
 			return
+		if _finisher_buffer > 0.0 and _try_critical(true):
+			return
 		if _attack_buffer > 0.0 and _combo < _series().size():
 			_start_attack()
 			return
@@ -1069,9 +1096,22 @@ func _guard_broken_state(delta: float) -> void:
 
 
 ## Добивание и удар в спину: герой встаёт к врагу вплотную и наносит один тяжёлый удар.
-func _try_critical() -> bool:
-	if not is_on_floor():
+## button — нажата кнопка добивания: ей же лежачий и казнь (finisher_target).
+func _try_critical(button := false) -> bool:
+	var found := finisher_target(button)
+	if found.is_empty():
 		return false
+	_start_finisher(found["enemy"], found["step"], found["lethal_step"], found["execute"])
+	return true
+
+
+## Кого и чем добивать (§6.1): {enemy, step, lethal_step, execute, mark} или пусто. Удар и кнопка
+## добивания: добивание после парирования и удар в спину. Только кнопка: лежачего, сбитого тяжёлым
+## ударом, — сверху; казнь (execute) — врага, которого убьёт следующий удар. mark — над врагом горит
+## знак (только то, что делает одна кнопка).
+func finisher_target(button := true) -> Dictionary:
+	if weapon == null or not is_on_floor():
+		return {}
 	for node in get_tree().get_nodes_in_group("enemy"):
 		var enemy := node as Dummy
 		if enemy == null or not enemy.is_inside_tree():
@@ -1081,19 +1121,49 @@ func _try_critical() -> bool:
 			continue
 		# У врага может быть своё особое добивание (§6.3) — оно главнее смертельного варианта.
 		var riposte := enemy.riposte_step if enemy.riposte_step else weapon.riposte
+		var lethal_riposte := null if enemy.riposte_step else weapon.lethal_riposte
 		if riposte and enemy.can_be_riposted() and absf(d.x) <= stats.riposte_range:
-			_start_finisher(enemy, riposte, null if enemy.riposte_step else weapon.lethal_riposte)
-			return true
+			return _finisher(enemy, riposte, lethal_riposte, false, false)
 		if weapon.backstab and enemy.can_be_backstabbed(global_position.x) \
 				and absf(d.x) <= stats.backstab_range:
-			_start_finisher(enemy, weapon.backstab, weapon.lethal_backstab)
-			return true
-		# Лежачего, сбитого тяжёлым ударом, — сверху (§6.1).
+			return _finisher(enemy, weapon.backstab, weapon.lethal_backstab, false, false)
+		if not button:
+			continue
 		if weapon.ground_finisher and enemy.can_be_finished_on_ground() \
 				and absf(d.x) <= stats.riposte_range + GROUND_REACH:
-			_start_finisher(enemy, weapon.ground_finisher, null)
-			return true
-	return false
+			return _finisher(enemy, weapon.ground_finisher, null, false, true)
+		if riposte and enemy.can_be_executed() and absf(d.x) <= stats.riposte_range \
+				and _next_hit_damage() >= enemy.health.current:
+			return _finisher(enemy, riposte, lethal_riposte, true, true)
+	return {}
+
+
+func _finisher(enemy: Dummy, step: AttackStep, lethal_step: AttackStep, execute: bool, mark: bool) -> Dictionary:
+	return {"enemy": enemy, "step": step, "lethal_step": lethal_step, "execute": execute, "mark": mark}
+
+
+## Урон следующего обычного удара (продолжение серии или первый удар, без бонуса разгона):
+## по нему решается, убьёт ли он, — горит ли знак казни.
+func _next_hit_damage() -> float:
+	var series := _series()
+	if series.is_empty():
+		return 0.0
+	var index := _combo if state == State.ATTACK and _combo > 0 and _combo < series.size() else 0
+	return _blade_damage() * series[index].damage_multiplier
+
+
+## Знак добивания над врагом, пока герой может ударить: в покое, на ходу и в серии.
+func _update_finisher_mark() -> void:
+	var found := finisher_target(true) if state in [State.MOVE, State.ATTACK] else {}
+	if found.is_empty() or not found["mark"]:
+		finisher_mark.visible = false
+		return
+	var enemy: Dummy = found["enemy"]
+	var lying := enemy.state == Dummy.State.KNOCKDOWN
+	var up := FINISHER_MARK_LYING if lying else enemy.body_height() + FINISHER_MARK_UP
+	finisher_mark.global_position = enemy.global_position + Vector3(0.0, up, 0.0)
+	finisher_mark.modulate.a = 0.8 + 0.2 * sin(Time.get_ticks_msec() * 0.008)
+	finisher_mark.visible = true
 
 
 ## Урон добивания step по врагу (без защиты врага: добивание бьёт напрямую).
@@ -1103,14 +1173,15 @@ func _critical_damage(step: AttackStep) -> float:
 
 ## Какой удар добивания играть (§6.1). Вампира, пока есть серебряный кол, — колом (тратится).
 ## Убьёт — смертельный вариант оружия, если он есть (иначе тот же удар со смертельной подачей).
-func _start_finisher(enemy: Dummy, step: AttackStep, lethal_step: AttackStep) -> void:
+## execute — казнь по кнопке: смертельное, даже если урона добивания по расчёту мало.
+func _start_finisher(enemy: Dummy, step: AttackStep, lethal_step: AttackStep, execute := false) -> void:
 	var stake := enemy.creature == CreatureKind.Kind.VAMPIRE and enemy.riposte_step == null \
 		and GameState.item_count(STAKE_ITEM) > 0
 	if stake:
 		GameState.take_item(STAKE_ITEM)
 		step = STAKE_STEP
 		lethal_step = null
-	var lethal := _critical_damage(step) >= enemy.health.current
+	var lethal := execute or _critical_damage(step) >= enemy.health.current
 	if lethal and lethal_step:
 		step = lethal_step
 	_start_critical(enemy, step, lethal)
@@ -1120,6 +1191,7 @@ func _start_finisher(enemy: Dummy, step: AttackStep, lethal_step: AttackStep) ->
 
 func _start_critical(enemy: Dummy, step: AttackStep, lethal := false) -> void:
 	_attack_buffer = 0.0
+	_finisher_buffer = 0.0
 	_critical_target = enemy
 	_critical_done = false
 	_critical_pierced = false
@@ -1175,6 +1247,9 @@ func _critical_state(delta: float) -> void:
 				# Решено, что убьёт, — убивает, даже если что-то подлечило врага за удар.
 				damage = maxf(damage, _critical_target.health.current)
 				_lethal_release()
+			# Убитый добиванием даёт больше отзвуков (RoomManager.echo_reward).
+			if damage >= _critical_target.health.current:
+				_critical_target.finished_off = true
 			_critical_target.apply_critical(damage, _step.victim_throw, global_position.x)
 	if _state_time >= _step.duration:
 		_set_state(State.MOVE)

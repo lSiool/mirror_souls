@@ -264,6 +264,18 @@ SECTION = """<svg xmlns="http://www.w3.org/2000/svg" width="96" height="40" view
 """
 
 
+# Знак добивания над врагом (§6.1): клинок остриём вниз в багровом ореоле, капля крови.
+FINISHER_MARK = """<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<defs><radialGradient id="g"><stop offset="0" stop-color="#c0262c" stop-opacity="0.75"/><stop offset="1" stop-color="#c0262c" stop-opacity="0"/></radialGradient></defs>
+<circle cx="32" cy="32" r="30" fill="url(#g)"/>
+<path d="M32 58 L 27 40 V 18 H 37 V 40 Z" fill="#e8ebef" stroke="#1a0c0c" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M32 56 V 20" stroke="#9aa1aa" stroke-width="1.2"/>
+<rect x="19" y="13" width="26" height="5" rx="2" fill="#b8892f" stroke="#1a0c0c" stroke-width="1.4"/>
+<rect x="29.5" y="4" width="5" height="9" rx="1.5" fill="#5e4530" stroke="#1a0c0c" stroke-width="1.2"/>
+<path d="M44 44 C 46 48 48 50 48 52 A 4 4 0 0 1 40 52 C 40 50 42 48 44 44 Z" fill="#b3161c" stroke="#1a0c0c" stroke-width="1.2"/>
+</svg>
+"""
+
 def main():
     ICONS.mkdir(parents=True, exist_ok=True)
     HUD.mkdir(parents=True, exist_ok=True)
@@ -276,7 +288,7 @@ def main():
              "button": button("#1f2329", "#0c0e11", "#8f8a82", 0.9),
              "button_lit": button("#2a2f37", "#12151a", "#e6eaee", 1.0),
              "button_off": button("#15181c", "#0a0b0d", "#8f8a82", 0.35),
-             "section": SECTION}
+             "section": SECTION, "finisher_mark": FINISHER_MARK}
     for name, text in files.items():
         (HUD / f"{name}.svg").write_text(text, encoding="utf-8")
     print("icons:", len(ITEMS) + len(FACETS) + len(MENU) + len(CONSUMABLES), "hud:", len(files))

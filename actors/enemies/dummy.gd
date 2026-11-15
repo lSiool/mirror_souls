@@ -102,6 +102,8 @@ const MASTERY_POINTS := {Rank.COMMON: 1.0, Rank.MINIBOSS: 2.0, Rank.BOSS: 5.0}
 @export var turn_time := 0.4
 @export var backstab_allowed := true
 @export var parry_allowed := true
+## Казнь по кнопке добивания, когда следующий удар героя убьёт (§6.1). Боссов не казнят никогда.
+@export var execution_allowed := true
 ## Перекат героя проходит сквозь него и выводит на другую сторону; в остальное время тело твёрдое.
 ## С 2026-11-09 — у любого врага (§6.3); выключать только тому, кто сам как стена.
 @export var roll_through := true
@@ -120,6 +122,8 @@ var floored_by_blow := false
 ## Добивают лежачим — он так и лежит; свой клип жертвы на клинке (AttackStep.victim_anim).
 var critical_lying := false
 var critical_clip: StringName = &""
+## Убит добиванием — отзвуков больше (RoomManager.echo_reward, §6.1).
+var finished_off := false
 ## Вздрагивает столько, а не flinch_time (волна смертельного добивания); меньше 0 — как обычно.
 var _flinch_for := -1.0
 ## Голос врага (события Sfx) поверх звука удара и падения. Пусто — безголосый (стекло, механизм).
@@ -592,6 +596,14 @@ func can_be_backstabbed(from_x: float) -> bool:
 ## два добивания за одно парирование) и не босса — его с ног не сбить.
 func can_be_finished_on_ground() -> bool:
 	return state == State.KNOCKDOWN and floored_by_blow and rank != Rank.BOSS and not health.is_dead()
+
+
+## Можно казнить кнопкой добивания (§6.1): стоит на ногах и в сознании своего боя — беззащитных
+## добивают своими приёмами (после парирования, лежачего), летунов в воздухе не достать.
+func can_be_executed() -> bool:
+	if not execution_allowed or rank == Rank.BOSS or health.is_dead() or not is_on_floor():
+		return false
+	return state not in [State.DEAD, State.DORMANT, State.CRITICAL_HIT, State.KNOCKDOWN]
 
 
 ## Начало добивания или удара в спину: враг зафиксирован до удара. Лежачего добивают

@@ -10,6 +10,8 @@ extends Node
 
 const NORMAL: StringName = &"normal"
 const ROOM_PATH := "res://world/rooms/%s.tscn"
+## Убитый добиванием даёт на 10 % больше отзвуков (§6.1).
+const FINISHER_ECHO_BONUS := 1.1
 ## Сколько секунд после смерти до затемнения.
 const DEATH_HOLD := 1.9
 ## С какой скоростью герой вылетает из стеклянной преграды в новую комнату (вперёд, вверх).
@@ -535,8 +537,14 @@ func _on_enemy_killed(enemy: Dummy) -> void:
 		if enemy.drop_flag != &"":
 			GameState.set_flag(enemy.drop_flag)
 		Events.item_found.emit(enemy.drop_item)
-	if enemy.echoes > 0:
-		EchoDrop.spawn(current_room, enemy.global_position + Vector3(0.0, 0.8, 0.0), enemy.echoes, player)
+	var echoes := echo_reward(enemy)
+	if echoes > 0:
+		EchoDrop.spawn(current_room, enemy.global_position + Vector3(0.0, 0.8, 0.0), echoes, player)
+
+
+## Отзвуки за врага: убитый добиванием — на FINISHER_ECHO_BONUS больше (§6.1, 2026-11-15).
+static func echo_reward(enemy: Dummy) -> int:
+	return roundi(enemy.echoes * FINISHER_ECHO_BONUS) if enemy.finished_off else enemy.echoes
 
 
 func _on_glass_broken(glass: GlassSurface) -> void:

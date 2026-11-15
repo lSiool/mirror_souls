@@ -1335,6 +1335,117 @@ func run() -> void:
 	check(absf(rip_damage - player.stats.sword_damage * 3.0) < 1.0, "урон добивания ×3 (%.1f)" % rip_damage)
 	await seconds(1.6)
 
+	print("== Кнопка добивания: казнь, волна, лежачий, кол (§6.1)")
+	var dummy_scene := load("res://actors/enemies/dummy.tscn") as PackedScene
+	var fin_base := soldier.global_position
+	var fin_facing := soldier.facing
+	var fin_spawn := func(at_x: float, node_name: String) -> Dummy:
+		var foe := dummy_scene.instantiate() as Dummy
+		foe.name = node_name
+		foe.position = Vector3(at_x, 0.0, 0.0)
+		foe.detect_range = 0.0
+		foe.patrol_distance = 0.0
+		room_node("Objects").add_child(foe)
+		foe.facing = -1.0
+		return foe
+	player.restore()
+	soldier.detect_range = 0.0
+	soldier.health.heal_full()
+	soldier._set_state(Dummy.State.PATROL)
+	soldier.velocity = Vector3.ZERO
+	var executed: Dummy = fin_spawn.call(fin_base.x + 2.8, "FinisherVictim")
+	await put(Vector3(fin_base.x + 1.5, 0.1, 0), 1.0)
+	await seconds(0.3)
+	check(player.finisher_target().is_empty() and not player.finisher_mark.visible, "здоровый враг: знака добивания нет")
+	executed.health.take_damage(executed.health.current - player._next_hit_damage() * 0.5)
+	await frames(2)
+	var fin_found := player.finisher_target()
+	check(not fin_found.is_empty() and fin_found["enemy"] == executed and fin_found["execute"] and player.finisher_mark.visible,
+		"следующий удар убьёт — над врагом знак добивания")
+	check(player.finisher_target(false).is_empty(), "обычный удар казнь не запускает — можно добить и просто ударом")
+	executed.rank = Dummy.Rank.BOSS
+	check(not executed.can_be_executed(), "босса не казнят")
+	executed.rank = Dummy.Rank.COMMON
+	var fin_echoes: int = game_state.echoes
+	var fin_base_echoes := executed.echoes
+	var fin_reward := roundi(fin_base_echoes * RoomManager.FINISHER_ECHO_BONUS)
+	var fin_rig := player._camera_rig()
+	var rig_distance: float = fin_rig.distance
+	var soldier_x := soldier.global_position.x
+	await tap("finisher")
+	check(player.state == Player.State.CRITICAL and player._critical_lethal and last_step == player.weapon.lethal_riposte,
+		"кнопка добивания — смертельное добивание")
+	check(player._iframes >= last_step.duration + Player.LETHAL_AFTER - 0.1 and not player.finisher_mark.visible,
+		"неуязвим всю анимацию и ещё 0.4 с, знак погас")
+	await seconds(0.4)
+	check(fin_rig.distance < rig_distance - 0.1, "камера наехала (%.2f → %.2f)" % [rig_distance, fin_rig.distance])
+	await seconds(last_step.release_at - 0.4 + 0.1)
+	check(executed.health.is_dead() and executed.finished_off, "рывок — враг убит добиванием")
+	check(soldier.state == Dummy.State.FLINCH, "сосед в 3 м отброшен волной и вздрогнул (state=%d)" % soldier.state)
+	await seconds(0.4)
+	check(soldier_x - soldier.global_position.x > 1.0, "сосед отлетел (%.2f м)" % (soldier_x - soldier.global_position.x))
+	for i in 240:
+		if player.state != Player.State.CRITICAL:
+			break
+		await frames(1)
+	check(player.state != Player.State.CRITICAL and player._iframes > 0.25, "добивание кончилось — неуязвимость ещё держится")
+	await seconds(1.6)
+	check(absf(fin_rig.distance - rig_distance) < 0.05, "камера вернулась (%.2f)" % fin_rig.distance)
+	check(game_state.echoes == fin_echoes + fin_reward and fin_reward > fin_base_echoes,
+		"за добивание отзвуков на 10%% больше (%d → %d, +%d)" % [fin_echoes, game_state.echoes, fin_reward])
+
+	# Лежачего — только кнопкой.
+	player.restore()
+	var floored: Dummy = fin_spawn.call(fin_base.x + 2.8, "FinisherFloored")
+	await put(Vector3(fin_base.x + 1.5, 0.1, 0), 1.0)
+	await seconds(0.3)
+	floored._set_state(Dummy.State.KNOCKDOWN)
+	floored.floored_by_blow = true
+	await frames(2)
+	fin_found = player.finisher_target()
+	check(not fin_found.is_empty() and fin_found["step"] == player.weapon.ground_finisher and player.finisher_mark.visible,
+		"сбитый с ног — знак, кнопкой добить лежачего")
+	check(player.finisher_target(false).is_empty(), "удар по лежачему — просто удар")
+	await tap("finisher")
+	check(player.state == Player.State.CRITICAL and last_step == player.weapon.ground_finisher and floored.critical_lying,
+		"добивание лежачего сверху")
+	await seconds(last_step.duration + 0.5)
+
+	# Вампира — колом, кол тратится. Прежний манекен убрать: недобитый, он сам стал бы целью казни.
+	floored.queue_free()
+	player.restore()
+	var bloodsucker: Dummy = fin_spawn.call(fin_base.x + 2.8, "FinisherVampire")
+	bloodsucker.creature = CreatureKind.Kind.VAMPIRE
+	var sucker_died := [false]
+	bloodsucker.health.died.connect(func() -> void: sucker_died[0] = true)
+	await put(Vector3(fin_base.x + 1.5, 0.1, 0), 1.0)
+	await seconds(0.3)
+	game_state.add_item(Player.STAKE_ITEM)
+	var stakes: int = game_state.item_count(Player.STAKE_ITEM)
+	bloodsucker.health.take_damage(bloodsucker.health.current - player._next_hit_damage() * 0.5)
+	await frames(2)
+	check(not player.finisher_target().is_empty() and player.finisher_target()["enemy"] == bloodsucker,
+		"раненый вампир — цель кнопки добивания (до него %.2f м)" % (bloodsucker.global_position.x - player.global_position.x))
+	await tap("finisher")
+	check(player.state == Player.State.CRITICAL and last_step == Player.STAKE_STEP and is_instance_valid(player._stake_prop)
+		and game_state.item_count(Player.STAKE_ITEM) == stakes - 1,
+		"вампира — серебряным колом, кол потрачен (state=%d, колья %d → %d)" % [player.state, stakes, game_state.item_count(Player.STAKE_ITEM)])
+	await seconds(last_step.duration + 0.3)
+	check(sucker_died[0] and not is_instance_valid(player._stake_prop), "кол в сердце убил, кол убран из руки")
+	await seconds(1.0)
+
+	for foe in [executed, floored, bloodsucker]:
+		if is_instance_valid(foe):
+			foe.queue_free()
+	soldier.global_position = fin_base
+	soldier.velocity = Vector3.ZERO
+	soldier.facing = fin_facing
+	soldier.health.heal_full()
+	soldier.poise = soldier.max_poise
+	soldier._set_state(Dummy.State.PATROL)
+	soldier.detect_range = 7.0
+	await seconds(0.5)
+
 	print("== Раннее парирование: окно 0.23 с")
 	player.restore()
 	await seconds(0.5)
