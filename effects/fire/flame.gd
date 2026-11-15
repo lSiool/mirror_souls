@@ -7,7 +7,7 @@ extends MeshInstance3D
 const SHADER := preload("res://effects/fire/flame.gdshader")
 ## Палитра: [ядро, пламя, кончики].
 const PALETTES := {
-	&"fire": [Color(1.0, 0.93, 0.62), Color(1.0, 0.42, 0.08), Color(0.6, 0.07, 0.02)],
+	&"fire": [Color(1.0, 0.8, 0.4), Color(1.0, 0.4, 0.07), Color(0.5, 0.06, 0.015)],
 	&"spirit": [Color(0.92, 0.85, 1.0), Color(0.55, 0.3, 1.0), Color(0.18, 0.05, 0.4)],
 }
 
@@ -34,7 +34,9 @@ static func material(palette: StringName = &"fire") -> ShaderMaterial:
 
 
 ## Язык пламени размером size (ширина × высота); основание — в точке узла, растёт вверх.
-static func make(size: Vector2, palette: StringName = &"fire") -> Flame:
+## surface — поверхность под огнём (flame.gdshader, `surface`): нули — ровная земля, плоский низ; на скате
+## крыши — (сдвиг конька по x от центра, высота конька над низом квада, наклон dy/dx).
+static func make(size: Vector2, palette: StringName = &"fire", surface := Vector3.ZERO) -> Flame:
 	var flame := Flame.new()
 	var quad := QuadMesh.new()
 	quad.size = size
@@ -43,4 +45,6 @@ static func make(size: Vector2, palette: StringName = &"fire") -> Flame:
 	flame.material_override = material(palette)
 	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	flame.set_instance_shader_parameter(&"seed", randf() * 10.0)
+	flame.set_instance_shader_parameter(&"dim", size)
+	flame.set_instance_shader_parameter(&"surface", surface)
 	return flame
