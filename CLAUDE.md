@@ -14,6 +14,7 @@ Godot не в PATH, путь — `/c/Program Files/Godot/Godot.exe`.
   - Тест длинный и проходит все комнаты подряд: проверка, которая сдвинула или развернула врага, должна вернуть его на место (иначе дальше герой может оказаться над пропастью).
 - Быстрая проверка разбора всех скриптов (секунды; смоук-тест после ошибки разбора висит до `timeout`): `timeout 120 "/c/Program Files/Godot/Godot.exe" --headless --path . res://tools/check_scripts.tscn`, в конце `SCRIPTS: OK (N)`.
 - Генераторы комнат (из корня проекта): `python tools/levels/build_village.py`, `build_forest.py`, `build_enemies.py`, `build_run.py`. После генерации — импорт и смоук-тест.
+- Общие планы комнаты с крышами и фоном (нужен рендер, без `--headless`): `"/c/Program Files/Godot/Godot.exe" --path . res://tools/levels/village_snapshot.tscn -- room=village_street at=-27,1.3 zoom=1.3` → `user://village_snapshots/`.
 
 - В облаке (Linux) Godot скачивается с GitHub Releases: `godotengine/godot-builds`, файл `Godot_v4.7.2-stable_linux.x86_64.zip`; сначала `--headless --import` (папки `.godot` в git нет). Снимки, которым нужен рендер, идут через `xvfb-run -a <godot> --path . --rendering-driver opengl3 <сцена>`: рендер программный, в режиме совместимости (капсула героя там видна — это особенность режима, не баг игры).
 

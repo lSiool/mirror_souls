@@ -3,6 +3,7 @@
 Запуск из корня проекта: python tools/levels/build_village.py
 """
 import math
+import zlib
 from pathlib import Path
 
 MATS = {
@@ -82,9 +83,12 @@ class Scene:
     def marker(self, name, pos):
         self.node(name, 'type="Marker3D"', "Spawns", [f"position = Vector3({pos[0]}, {pos[1]}, {pos[2]})"])
 
-    def house(self, parent, name, x, z, w, h, roof_h, windows=(), plaster="plaster", ground=0.0):
+    def house(self, parent, name, x, z, w, h, roof_h, windows=(), plaster="plaster", ground=0.0, fire=None):
         self.box(parent, f"{name}Wall", (x, ground + h / 2, z), (w, h, 3), plaster)
         self.roof(parent, f"{name}Roof", (x, ground + h + roof_h / 2, z), (w + 1.2, roof_h, 3.6))
+        if fire and self.burn:
+            # Крыша горит: у каждого дома пожар свой — раскладку языков задаёт зерно (FireSpot.roof_seed).
+            self.fire(f"{name}RoofFire", (x, ground + h, z), (w + 1.2, roof_h, 3.6), *fire, roof=zlib.crc32(f"{name}{x}{z}".encode()) % 10000)
         for b, off in enumerate((-w / 2 + 0.15, w / 2 - 0.15)):
             self.box(parent, f"{name}Post{b}", (x + off, ground + h / 2, z + 1.55), (0.25, h, 0.15), "wood_dark")
         self.box(parent, f"{name}Beam", (x, ground + h * 0.55, z + 1.55), (w, 0.2, 0.15), "wood_dark")
@@ -156,9 +160,10 @@ class Scene:
         self.box(parent, f"{name}Body", (x, y + 0.13, z), (0.3, 0.2, 0.14), "iron", rot=(0, 0, 0.35))
         self.box(parent, f"{name}Head", (x + 0.16, y + 0.28, z), (0.12, 0.12, 0.11), "iron")
 
-    def fire(self, name, pos, size=(1.6, 2.2, 0.6), energy=2.2, rng=8.0):
+    def fire(self, name, pos, size=(1.6, 2.2, 0.6), energy=2.2, rng=8.0, roof=None):
         self.node(name, 'type="Node3D"', "Burning", [f"position = Vector3({pos[0]}, {pos[1]}, {pos[2]})", 'script = ExtResource("fire")',
-                  f"size = Vector3({size[0]}, {size[1]}, {size[2]})", f"light_energy = {energy}", f"light_range = {rng}"])
+                  f"size = Vector3({size[0]}, {size[1]}, {size[2]})", f"light_energy = {energy}", f"light_range = {rng}"]
+                  + (["roof = true", f"roof_seed = {roof}"] if roof is not None else []))
 
     def scene_bg(self, name, pos, kind, rng=15.0):
         self.node(name, 'type="Node3D"', "Burning", [f"position = Vector3({pos[0]}, {pos[1]}, {pos[2]})", 'script = ExtResource("bgscene")',
@@ -274,13 +279,14 @@ for i, x in enumerate((-4.9, -3.1)):
     st.cyl(d, f"CartWheel{i}", (x, 0.5, 0.8), 0.5, 0.1, "wood_dark", rot=(math.pi / 2, 0, 0), sides=12)
 st.box(d, "CartLoad", (-4.0, 1.35, 0), (2.0, 0.5, 1.1), "cloth")
 # Хижина героя и дома
-st.house(d, "HeroHut", -28.0, -2.5, 8, 4.2, 3.4, windows=((-2.2, 2.2),), ground=1.2)
-st.house(d, "HouseA", -18.0, -6.5, 7, 4.5, 3.8, windows=((1.5, 3.0),), ground=1.2)
-st.house(d, "HouseB", -6.0, -8.0, 8, 5.0, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)))
-st.house(d, "HouseC", 8.0, -11.0, 8, 4.5, 4.0, windows=((0, 2.8),))
-st.house(d, "HouseD", 19.0, -9.0, 7, 4.2, 3.6, windows=((-1.5, 2.2),))
-st.house(d, "HouseFar", -14.0, -18.0, 9, 5.0, 4.5, windows=((0, 3.0),))
-st.house(d, "HouseFar2", 14.0, -20.0, 10, 5.0, 5.0, windows=((3, 3.0),))
+ROOF_FIRE = (3.0, 11.0)
+st.house(d, "HeroHut", -28.0, -2.5, 8, 4.2, 3.4, windows=((-2.2, 2.2),), ground=1.2, fire=ROOF_FIRE)
+st.house(d, "HouseA", -18.0, -6.5, 7, 4.5, 3.8, windows=((1.5, 3.0),), ground=1.2, fire=ROOF_FIRE)
+st.house(d, "HouseB", -6.0, -8.0, 8, 5.0, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)), fire=ROOF_FIRE)
+st.house(d, "HouseC", 8.0, -11.0, 8, 4.5, 4.0, windows=((0, 2.8),), fire=ROOF_FIRE)
+st.house(d, "HouseD", 19.0, -9.0, 7, 4.2, 3.6, windows=((-1.5, 2.2),), fire=ROOF_FIRE)
+st.house(d, "HouseFar", -14.0, -18.0, 9, 5.0, 4.5, windows=((0, 3.0),), fire=ROOF_FIRE)
+st.house(d, "HouseFar2", 14.0, -20.0, 10, 5.0, 5.0, windows=((3, 3.0),), fire=ROOF_FIRE)
 # Дом, откуда кричали: справа, главная цель улицы
 st.house(d, "ScreamHouse", 26.5, -2.5, 9, 5.2, 4.6, windows=((-2.8, 3.6), (2.6, 3.6)), plaster="stone")
 st.box(d, "ScreamLantern", (24.6, 2.9, -0.8), (0.25, 0.4, 0.25), "window")
@@ -319,10 +325,7 @@ st.node("Stick", 'type="Area3D"', "Objects", ["position = Vector3(-24.9, 1.2, 0)
 st.node("NeedWeapon", 'type="Area3D"', "Objects", ["position = Vector3(-28.0, 1.2, 0)", 'script = ExtResource("sayline")',
                                                      'text = "«Голыми руками не помочь…»"', 'until_flag = &"got_stick"'])
 
-# Деревня в огне: тени дерутся на фоне, в одном месте человек становится зверем, в другом отползает
-for i, (x, y, z, size) in enumerate(((-28.0, 6.5, -2.6, (5, 4, 1)), (-18.0, 7.0, -6.5, (4, 4, 1)), (-6.0, 7.0, -8.0, (5, 5, 1)), (8.0, 6.5, -11.0, (5, 5, 1)),
-                                     (19.0, 6.0, -9.0, (4, 4, 1)), (-14.0, 7.0, -18.0, (6, 5, 1)), (14.0, 7.0, -20.0, (6, 5, 1)))):
-    st.fire(f"RoofFire{i}", (x, y, z), size, 3.0, 11.0)
+# Деревня в огне (крыши горят у домов выше): тени дерутся на фоне, в одном месте человек становится зверем, в другом отползает
 for i, (x, y, z) in enumerate(((-24.0, 1.2, -3.2), (-9.5, 0.0, -2.8), (3.0, 0.0, -2.6), (11.0, 0.0, -3.2), (21.0, 0.0, -2.8))):
     st.fire(f"GroundFire{i}", (x, y, z), (2.0, 2.0, 0.6), 2.0, 7.0)
 st.scene_bg("FightA", (-15.5, 1.2, -5.2), 0)
@@ -428,9 +431,9 @@ sq.box(g, "Ground", (0, -2, 0), (40, 4, 4.4), "mud", True)
 sq.box(g, "WallLeft", (-19.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
 sq.box(g, "WallRight", (19.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
 sq.box(d, "FarGround", (0, -2, -18), (70, 4, 31.6), "mud")
-sq.house(d, "HouseA", -13.0, -7.0, 8, 4.8, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)))
-sq.house(d, "HouseB", 0.0, -11.0, 9, 5.0, 4.4, windows=((0, 3.0),))
-sq.house(d, "HouseC", 13.5, -7.5, 8, 4.6, 3.8, windows=((1.5, 2.8),))
+sq.house(d, "HouseA", -13.0, -7.0, 8, 4.8, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)), fire=(3.2, 12.0))
+sq.house(d, "HouseB", 0.0, -11.0, 9, 5.0, 4.4, windows=((0, 3.0),), fire=(3.2, 12.0))
+sq.house(d, "HouseC", 13.5, -7.5, 8, 4.6, 3.8, windows=((1.5, 2.8),), fire=(3.2, 12.0))
 # Колодец
 sq.cyl(d, "Well", (-8.5, 0.55, -1.5), 1.05, 1.1, "stone", sides=14)
 for i, x in enumerate((-9.4, -7.6)):
@@ -458,9 +461,7 @@ sq.rocks(d, "FrontRocks", 6.0, -0.2, 3.5)
 sq.tuft(d, "FrontTuft", 0.5, -0.2, 3.2)
 sq.tuft(d, "FrontTuft2", 14.0, -0.2, 3.2)
 sq.cyl(d, "FrontBarrel", (16.0, 0.3, 3.1), 0.45, 1.0, "wood_dark")
-# Огонь и жертва зверя
-for i, (x, y, z, size) in enumerate(((-13.0, 6.8, -7.0, (5, 5, 1)), (0.0, 7.2, -11.0, (6, 5, 1)), (13.5, 6.5, -7.5, (5, 5, 1)))):
-    sq.fire(f"RoofFire{i}", (x, y, z), size, 3.2, 12.0)
+# Огонь (крыши горят у домов выше) и жертва зверя
 for i, (x, y, z) in enumerate(((-3.5, 0.0, -2.8), (9.5, 0.0, -2.8))):
     sq.fire(f"GroundFire{i}", (x, y, z), (2.0, 2.0, 0.6), 2.4, 8.0)
 sq.scene_bg("Turning", (-4.5, 0.0, -4.4), 1, 12.0)

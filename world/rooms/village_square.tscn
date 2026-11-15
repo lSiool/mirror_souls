@@ -191,6 +191,15 @@ material = SubResource("Mat_plaster")
 position = Vector3(-13.0, 6.8, -7.0)
 mesh = SubResource("Roof_1")
 
+[node name="HouseARoofFire" type="Node3D" parent="Burning"]
+position = Vector3(-13.0, 4.8, -7.0)
+script = ExtResource("fire")
+size = Vector3(9.2, 4.0, 3.6)
+light_energy = 3.2
+light_range = 12.0
+roof = true
+roof_seed = 6139
+
 [node name="HouseAPost0" type="CSGBox3D" parent="Decor"]
 position = Vector3(-16.85, 2.4, -5.45)
 size = Vector3(0.25, 4.8, 0.15)
@@ -235,6 +244,15 @@ material = SubResource("Mat_plaster")
 position = Vector3(0.0, 7.2, -11.0)
 mesh = SubResource("Roof_2")
 
+[node name="HouseBRoofFire" type="Node3D" parent="Burning"]
+position = Vector3(0.0, 5.0, -11.0)
+script = ExtResource("fire")
+size = Vector3(10.2, 4.4, 3.6)
+light_energy = 3.2
+light_range = 12.0
+roof = true
+roof_seed = 1631
+
 [node name="HouseBPost0" type="CSGBox3D" parent="Decor"]
 position = Vector3(-4.35, 2.5, -9.45)
 size = Vector3(0.25, 5.0, 0.15)
@@ -268,6 +286,15 @@ material = SubResource("Mat_plaster")
 [node name="HouseCRoof" type="MeshInstance3D" parent="Decor"]
 position = Vector3(13.5, 6.5, -7.5)
 mesh = SubResource("Roof_3")
+
+[node name="HouseCRoofFire" type="Node3D" parent="Burning"]
+position = Vector3(13.5, 4.6, -7.5)
+script = ExtResource("fire")
+size = Vector3(9.2, 3.8, 3.6)
+light_energy = 3.2
+light_range = 12.0
+roof = true
+roof_seed = 1886
 
 [node name="HouseCPost0" type="CSGBox3D" parent="Decor"]
 position = Vector3(9.65, 2.3, -5.95)
@@ -711,27 +738,6 @@ radius = 0.45
 height = 1.0
 sides = 12
 material = SubResource("Mat_wood_dark")
-
-[node name="RoofFire0" type="Node3D" parent="Burning"]
-position = Vector3(-13.0, 6.8, -7.0)
-script = ExtResource("fire")
-size = Vector3(5, 5, 1)
-light_energy = 3.2
-light_range = 12.0
-
-[node name="RoofFire1" type="Node3D" parent="Burning"]
-position = Vector3(0.0, 7.2, -11.0)
-script = ExtResource("fire")
-size = Vector3(6, 5, 1)
-light_energy = 3.2
-light_range = 12.0
-
-[node name="RoofFire2" type="Node3D" parent="Burning"]
-position = Vector3(13.5, 6.5, -7.5)
-script = ExtResource("fire")
-size = Vector3(5, 5, 1)
-light_energy = 3.2
-light_range = 12.0
 
 [node name="GroundFire0" type="Node3D" parent="Burning"]
 position = Vector3(-3.5, 0.0, -2.8)

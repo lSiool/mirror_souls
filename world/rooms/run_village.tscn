@@ -388,11 +388,13 @@ size = Vector3(1.0, 2.2, 0.08)
 material = SubResource("Mat_char")
 
 [node name="StreetHouseAFire" type="Node3D" parent="Decor"]
-position = Vector3(12.0, 4.6, -4.9)
+position = Vector3(12.0, 4.4, -5.5)
 script = ExtResource("fire")
-size = Vector3(4.2, 2.6, 0.6)
+size = Vector3(8.0, 3.0, 3.6)
 light_energy = 2.4
 light_range = 10.0
+roof = true
+roof_seed = 610
 
 [node name="StreetHouseBWall" type="CSGBox3D" parent="Decor"]
 position = Vector3(21.0, 2.0, -6.0)
@@ -414,11 +416,13 @@ size = Vector3(1.0, 2.2, 0.08)
 material = SubResource("Mat_char")
 
 [node name="StreetHouseBFire" type="Node3D" parent="Decor"]
-position = Vector3(21.0, 4.2, -5.4)
+position = Vector3(21.0, 4.0, -6.0)
 script = ExtResource("fire")
-size = Vector3(3.6, 2.6, 0.6)
+size = Vector3(7.0, 2.8, 3.6)
 light_energy = 2.4
 light_range = 10.0
+roof = true
+roof_seed = 6591
 
 [node name="Fence0" type="StaticBody3D" parent="Objects"]
 position = Vector3(9.0, 0.6, -1.7)
@@ -701,11 +705,13 @@ size = Vector3(1.0, 2.2, 0.08)
 material = SubResource("Mat_char")
 
 [node name="PlazaHouseFire" type="Node3D" parent="Decor"]
-position = Vector3(52.0, 4.8, -5.4)
+position = Vector3(52.0, 4.6, -6.0)
 script = ExtResource("fire")
-size = Vector3(5.4, 2.6, 0.6)
+size = Vector3(10.0, 3.0, 3.6)
 light_energy = 2.4
 light_range = 10.0
+roof = true
+roof_seed = 3668
 
 [node name="Roof0" type="StaticBody3D" parent="Objects"]
 position = Vector3(60.75, 4.8, 0)
@@ -1448,11 +1454,13 @@ size = Vector3(1.0, 2.2, 0.08)
 material = SubResource("Mat_char")
 
 [node name="MeetHouseFire" type="Node3D" parent="Decor"]
-position = Vector3(206.0, 4.6, -5.4)
+position = Vector3(206.0, 4.4, -6.0)
 script = ExtResource("fire")
-size = Vector3(4.8, 2.6, 0.6)
+size = Vector3(9.0, 3.0, 3.6)
 light_energy = 2.4
 light_range = 10.0
+roof = true
+roof_seed = 4468
 
 [node name="GatePostA" type="CSGBox3D" parent="Decor"]
 position = Vector3(243.5, 2.6, -1.4)

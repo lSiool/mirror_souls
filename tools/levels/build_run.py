@@ -5,6 +5,7 @@
 в комнате-прототипе room_001. Запуск из корня проекта: python tools/levels/build_run.py
 """
 import sys
+import zlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -56,9 +57,9 @@ def save(scene, file):
     Path(f"world/rooms/{file}.tscn").write_text(scene.text(), encoding="utf-8")
 
 
-def fire(s, name, pos, size=(1.6, 2.2, 0.6), energy=2.2, rng=8.0):
+def fire(s, name, pos, size=(1.6, 2.2, 0.6), energy=2.2, rng=8.0, roof=None):
     s.node(name, 'type="Node3D"', D, [f"position = {scenery.v3(pos)}", 'script = ExtResource("fire")',
-           f"size = {scenery.v3(size)}", f"light_energy = {energy}", f"light_range = {rng}"])
+           f"size = {scenery.v3(size)}", f"light_energy = {energy}", f"light_range = {rng}"] + (["roof = true", f"roof_seed = {roof}"] if roof is not None else []))
 
 
 def piece(s, name, pos, size, mode=MODE_FOREVER, color=(0.25, 0.17, 0.11), solid=True, warn=WARN, offset=0.0, extra=()):
@@ -81,7 +82,8 @@ def burning_house(s, name, x, z, w, h, roof_h, fire_at=True):
     s.box(D, f"{name}Window", (x - w * 0.2, h * 0.55, z + 1.53), (0.9, 1.1, 0.08), "fire")
     s.box(D, f"{name}Door", (x + w * 0.22, 1.1, z + 1.53), (1.0, 2.2, 0.08), "char")
     if fire_at:
-        fire(s, f"{name}Fire", (x, h + 0.2, z + 0.6), (w * 0.6, 2.6, 0.6), 2.4, 10.0)
+        # У каждого дома пожар свой — раскладку языков задаёт зерно (FireSpot.roof_seed).
+        fire(s, f"{name}Fire", (x, h, z), (w + 1.0, roof_h, 3.6), 2.4, 10.0, roof=zlib.crc32(f"{name}{x}{z}".encode()) % 10000)
 
 
 def run_village():
