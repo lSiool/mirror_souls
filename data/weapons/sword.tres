@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="WeaponData" load_steps=17 format=3]
+[gd_resource type="Resource" script_class="WeaponData" load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://combat/weapons/weapon_data.gd" id="1_weapon"]
 [ext_resource type="Script" path="res://combat/weapons/attack_step.gd" id="2_step"]
+[ext_resource type="PackedScene" path="res://assets/props/sword/prop_sword.glb" id="3_model"]
 
 [sub_resource type="Resource" id="Step_slash"]
 script = ExtResource("2_step")
@@ -366,6 +367,8 @@ id = &"sword"
 type = &"sword"
 scaling = {&"strength": "D", &"dexterity": "C"}
 weight = 3.0
+model = ExtResource("3_model")
+model_transform = Transform3D(-0.6033, 0.0000, -0.5257, -0.5257, -0.0000, 0.6033, 0.0000, 0.8002, 0.0000, -0.0085, 0.3866, 0.0004)
 step_names = Array[String](["Парирование", "Четвёртый удар серии", "Рез в прыжке", "Контрудар после блока", "Кровотечение"])
 combo = Array[ExtResource("2_step")]([SubResource("Step_slash"), SubResource("Step_rise"), SubResource("Step_thrust")])
 slide_attack = SubResource("Step_slide")

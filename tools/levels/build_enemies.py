@@ -186,8 +186,21 @@ dive_speed = 12.0"""
 
 
 # ---------------------------------------------------------------- Безмолвный Кузнец
+# Как модель молота лежит в узле Hammer (glb_axis.py): базис по строкам, затем origin.
+HAMMER_MODEL = "-1.2938, 1.1760, -1.1835, 1.4140, 1.5678, 0.0121, 0.8856, -0.7852, -1.7483, -0.0165, 1.2187, 0.0058"
+
+
+def hidden(node):
+    """Кусок молота-заглушки: остаётся в сцене, но не рисуется (вместо него модель)."""
+    return node + "\nvisible = false"
+
+
 def blacksmith():
-    subs = [material("Mat_iron", (0.32, 0.31, 0.33)), material("Mat_wood", (0.2, 0.13, 0.08)), material("Mat_scar", (0.16, 0.14, 0.15)),
+    # Модель молота (ComfyUI → TRELLIS.2, art/concepts/props/prop_hammer_smith_v01.png): вдоль +Y, хват в начале координат
+    # (D:\AI\comfy_tools\glb_axis.py --length 2.45 --grip 0.12 --butt thin). Куски-примитивы ниже скрыты, но остаются:
+    # головка (Head) прозрачна — на ней держатся свечение и огонь второй фазы, след удара и статуя.
+    subs = ['[ext_resource type="PackedScene" path="res://assets/props/hammer_smith/prop_hammer_smith.glb" id="5_model"]',
+            material("Mat_iron", (0.32, 0.31, 0.33)), material("Mat_wood", (0.2, 0.13, 0.08)), material("Mat_scar", (0.16, 0.14, 0.15)),
             material("Mat_band", (0.22, 0.2, 0.19)),
             material("Mat_eye", (0.75, 0.35, 1.0), 5.0),
             box_shape("Shape_body", (1.3, 2.8, 1.0)), box_mesh("Mesh_body", (1.6, 2.3, 1.1)),
@@ -204,13 +217,15 @@ def blacksmith():
              mesh_node("Body", "Visual", "Mesh_body", (0, 1.15, 0)), mesh_node("Shoulders", "Visual", "Mesh_shoulders", (-0.1, 2.35, 0)),
              node3d("Head", "Visual", (0.35, 2.85, 0)), mesh_node("Skull", "Visual/Head", "Mesh_skull", (0, 0, 0)),
              mesh_node("EyeA", "Visual/Head", "Mesh_eye", (0.24, 0.06, 0)), mesh_node("EyeB", "Visual/Head", "Mesh_eye", (0.1, 0.06, 0)),
-             node3d("Hammer", "Visual", (0.8, 2.0, 0.75)), mesh_node("Handle", "Visual/Hammer", "Mesh_handle", (0, 0.9, 0)),
-             mesh_node("Pommel", "Visual/Hammer", "Mesh_pommel", (0, -0.03, 0)),
-             mesh_node("RingA", "Visual/Hammer", "Mesh_ring", (0, 0.4, 0)), mesh_node("RingB", "Visual/Hammer", "Mesh_ring", (0, 0.8, 0)),
-             mesh_node("RingC", "Visual/Hammer", "Mesh_ring", (0, 1.2, 0)), mesh_node("RingD", "Visual/Hammer", "Mesh_ring", (0, 1.55, 0)),
-             mesh_node("Socket", "Visual/Hammer", "Mesh_socket", (0, 1.78, 0)),
-             mesh_node("Head", "Visual/Hammer", "Mesh_head", (0, 2.1, 0)),
-             mesh_node("PlateA", "Visual/Hammer", "Mesh_plate", (0.39, 2.1, 0)), mesh_node("PlateB", "Visual/Hammer", "Mesh_plate", (-0.39, 2.1, 0)),
+             node3d("Hammer", "Visual", (0.8, 2.0, 0.75)), hidden(mesh_node("Handle", "Visual/Hammer", "Mesh_handle", (0, 0.9, 0))),
+             hidden(mesh_node("Pommel", "Visual/Hammer", "Mesh_pommel", (0, -0.03, 0))),
+             hidden(mesh_node("RingA", "Visual/Hammer", "Mesh_ring", (0, 0.4, 0))), hidden(mesh_node("RingB", "Visual/Hammer", "Mesh_ring", (0, 0.8, 0))),
+             hidden(mesh_node("RingC", "Visual/Hammer", "Mesh_ring", (0, 1.2, 0))), hidden(mesh_node("RingD", "Visual/Hammer", "Mesh_ring", (0, 1.55, 0))),
+             hidden(mesh_node("Socket", "Visual/Hammer", "Mesh_socket", (0, 1.78, 0))),
+             mesh_node("Head", "Visual/Hammer", "Mesh_head", (0, 2.1, 0)) + "\ntransparency = 1.0\ncast_shadow = 0",
+             hidden(mesh_node("PlateA", "Visual/Hammer", "Mesh_plate", (0.39, 2.1, 0))), hidden(mesh_node("PlateB", "Visual/Hammer", "Mesh_plate", (-0.39, 2.1, 0))),
+             '[node name="Model" parent="Visual/Hammer" instance=ExtResource("5_model")]\n'
+             'transform = Transform3D(' + HAMMER_MODEL + ')',
              hitbox_nodes("Visual", "Shape_attack", (2.0, 1.2, 0), 22.0, 8.0), hurtbox_nodes("Shape_hurt", 1.5)]
     props = """body_color = Color(0.24, 0.22, 0.24, 1)
 hurt_voice = &""

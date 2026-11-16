@@ -2649,6 +2649,28 @@ func run() -> void:
 	popup.blocks_interact = false
 	check(player.weapon.combo.size() == 3 and player.weapon.type == &"sword", "палка бьёт как меч")
 	check(player._blade_damage() < player.stats.sword_damage, "палка слабее меча")
+	# Разрушаемые предметы (§8.13): бочка держит два удара; лут не в каждой; комната помнит разбитое.
+	var barrel := room_node("Objects/BarrelRoad") as Breakable
+	var loot_barrel := room_node("Objects/BarrelLoot") as Breakable
+	check(barrel != null and loot_barrel != null and not barrel.has_loot() and loot_barrel.has_loot(), "на улице бочки, лут не в каждой")
+	await put(barrel.global_position + Vector3(-1.0, 0.1, 0.0), 1.0)
+	await tap("attack")
+	await seconds(0.7)
+	check(not barrel.is_broken(), "бочка выдержала первый удар")
+	await tap("attack")
+	await seconds(0.7)
+	check(barrel.is_broken(), "второй удар разбил бочку")
+	var barrel_echoes_before: int = game_state.echoes
+	await put(loot_barrel.global_position + Vector3(-1.0, 0.1, 0.0), 1.0)
+	for i in 2:
+		await tap("attack")
+		await seconds(0.7)
+	await seconds(1.5)
+	check(loot_barrel.is_broken() and game_state.echoes == barrel_echoes_before + loot_barrel.echoes,
+		"из бочки выпали отзвуки (%d → %d)" % [barrel_echoes_before, game_state.echoes])
+	var remembered: Array = game_state.broken_glass_in(&"village_street/normal")
+	check(remembered.has(rooms.current_room.get_path_to(barrel)) and game_state.broken_forever.get(&"village_street/normal", {}).has(rooms.current_room.get_path_to(loot_barrel)),
+		"пустая бочка помнится до отдыха, бочка с лутом — навсегда")
 	await put(Vector3(-13.0, 1.4, 0))
 	press("move_right")
 	await seconds(1.2)

@@ -5,6 +5,8 @@
 [ext_resource type="Script" path="res://combat/hitboxes/hurtbox.gd" id="3_hurtbox"]
 [ext_resource type="Script" path="res://combat/damage/health.gd" id="4_health"]
 
+[ext_resource type="PackedScene" path="res://assets/props/hammer_smith/prop_hammer_smith.glb" id="5_model"]
+
 [sub_resource type="StandardMaterial3D" id="Mat_iron"]
 albedo_color = Color(0.32, 0.31, 0.33, 1.0)
 
@@ -135,42 +137,56 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 2.0, 0.75)
 [node name="Handle" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 mesh = SubResource("Mesh_handle")
+visible = false
 
 [node name="Pommel" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.03, 0)
 mesh = SubResource("Mesh_pommel")
+visible = false
 
 [node name="RingA" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
 mesh = SubResource("Mesh_ring")
+visible = false
 
 [node name="RingB" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 mesh = SubResource("Mesh_ring")
+visible = false
 
 [node name="RingC" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 mesh = SubResource("Mesh_ring")
+visible = false
 
 [node name="RingD" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
 mesh = SubResource("Mesh_ring")
+visible = false
 
 [node name="Socket" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.78, 0)
 mesh = SubResource("Mesh_socket")
+visible = false
 
 [node name="Head" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
 mesh = SubResource("Mesh_head")
+transparency = 1.0
+cast_shadow = 0
 
 [node name="PlateA" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.39, 2.1, 0)
 mesh = SubResource("Mesh_plate")
+visible = false
 
 [node name="PlateB" type="MeshInstance3D" parent="Visual/Hammer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.39, 2.1, 0)
 mesh = SubResource("Mesh_plate")
+visible = false
+
+[node name="Model" parent="Visual/Hammer" instance=ExtResource("5_model")]
+transform = Transform3D(-1.2938, 1.1760, -1.1835, 1.4140, 1.5678, 0.0121, 0.8856, -0.7852, -1.7483, -0.0165, 1.2187, 0.0058)
 
 [node name="AttackHitbox" type="Area3D" parent="Visual"]
 collision_layer = 0

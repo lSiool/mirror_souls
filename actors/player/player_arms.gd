@@ -41,6 +41,8 @@ var _dropped: Node3D
 var armed := true
 var _weapon: WeaponData
 var _head: MeshInstance3D
+## Модель оружия в хвате (WeaponData.model).
+var _weapon_model: Node3D
 var _shield: Node3D
 var shield_at := ShieldAt.NONE
 ## Рука модели героя (HeroModel.hand): там видимая копия оружия. Сам sword_pivot тогда
@@ -149,11 +151,20 @@ func set_weapon(weapon: WeaponData) -> void:
 	sword_pivot.visible = armed
 	if is_instance_valid(_head):
 		_head.free()
+	if is_instance_valid(_weapon_model):
+		_weapon_model.free()
 	if weapon == null:
 		return
 	var blade := sword_pivot.get_child(0) as MeshInstance3D
 	if blade == null:
 		return
+	# Модель оружия: коробка-клинок прячется, модель встаёт в хват (её копия уходит в руку героя, _sync_hand).
+	blade.visible = weapon.model == null
+	if weapon.model:
+		_weapon_model = weapon.model.instantiate() as Node3D
+		_weapon_model.name = &"Model"
+		_weapon_model.transform = weapon.model_transform
+		sword_pivot.add_child(_weapon_model)
 	blade.scale = weapon.look_scale
 	blade.position.y = 0.6 * weapon.look_scale.y
 	var mat: StandardMaterial3D = null

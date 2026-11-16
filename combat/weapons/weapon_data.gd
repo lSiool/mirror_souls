@@ -35,6 +35,11 @@ const GRADES := {"S": 1.0, "A": 0.85, "B": 0.7, "C": 0.55, "D": 0.4, "E": 0.25}
 @export var look_scale := Vector3.ONE
 ## Навершие на конце древка (головка молота); нулевой размер — нет.
 @export var head_size := Vector3.ZERO
+## Модель оружия (.glb из конвейера ComfyUI → TRELLIS.2, docs/ART_PIPELINE.md). Есть — в руке модель вместо
+## коробки-клинка; сама коробка остаётся для поз и тестов, но невидима.
+@export var model: PackedScene
+## Как модель лежит в руке: начало координат — хват, остриё вдоль +Y.
+@export var model_transform := Transform3D.IDENTITY
 ## Двуручное: щит висит за спиной (§6.2).
 @export var two_handed := false
 ## Ломает щит врага (§6.1, 2026-11-12): топор, двуручный топор, двуручный тяжёлый меч, двуручный

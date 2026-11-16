@@ -30,6 +30,14 @@ const BLACKSMITH := &"blacksmith"
 ## Утопленник (§8.9): скелет в ржавом шлеме, меч и заросший щит; ходит шагом проклятого
 ## (Zombie_Walk_Fwd), щит на подходе поднят — левая рука из клипа щитовой стойки.
 const DROWNED := &"drowned"
+## Недавно обращённый оборотень (2026-11-16): своя модель (ComfyUI → TRELLIS.2 → риг в Blender, кости как у Mixamo)
+## вместо манекена; при импорте кости переименованы в гуманоидный профиль — клипы манекена ложатся на неё.
+const WEREWOLF_YOUNG := &"werewolf_young"
+## Облики со своей моделью: .glb со скелетом (GeneralSkeleton после импорта с картой костей).
+const OWN_MODELS := {WEREWOLF_YOUNG: "res://assets/characters/werewolf_young/werewolf_young.glb"}
+## Торс своей модели толще манекена — руки из клипов уходят в тело; ArmRoom отводит их на край.
+## Полуоси торса вбок и вперёд-назад, доли длины таз → шея (замер по сетке в Blender).
+const ARM_ROOM := {WEREWOLF_YOUNG: Vector2(0.37, 0.45)}
 ## Кости левой руки: в клипах «со щитом» их поза — из Idle_Shield.
 const SHIELD_ARM: Array[String] = ["LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand"]
 ## Скорость, под которую снят шаг проклятого.
@@ -52,7 +60,7 @@ const SCENE_BLEND := 0.8
 const KNEEL_AT := 1.0
 const KNEEL_BLEND := 0.3
 ## Клип удара по облику и доля клипа, где удар попадает (конец замаха).
-const ATTACKS := {SOLDIER: [&"Sword_Regular_A", 0.42], VAMPIRE: [&"Melee_Hook", 0.45]}
+const ATTACKS := {SOLDIER: [&"Sword_Regular_A", 0.42], VAMPIRE: [&"Melee_Hook", 0.45], WEREWOLF_YOUNG: [&"Melee_Hook", 0.45]}
 const JOG_SPEED := 4.0
 ## Критический удар: кадр клипа Hit_Chest, где грудь выбита назад сильнее всего, и доля наклона тела.
 const IMPALED_AT := 0.07
@@ -168,6 +176,14 @@ func _setup(body_material: Material) -> void:
 	lean.scale = Vector3.ONE * size
 	add_child(lean)
 	hero = HeroModel.new()
+	if OWN_MODELS.has(look):
+		# Своя модель вместо манекена: HeroModel берёт первого ребёнка как модель, клипы — общие с манекеном.
+		var own := (load(OWN_MODELS[look]) as PackedScene).instantiate() as Node3D
+		var player := AnimationPlayer.new()
+		player.name = &"AnimationPlayer"
+		own.add_child(player)
+		player.add_animation_library(&"", HeroModel.clip_library())
+		hero.add_child(own)
 	lean.add_child(hero)
 	var mesh := hero.find_child("Mannequin", true, false) as MeshInstance3D
 	if mesh:
@@ -177,6 +193,13 @@ func _setup(body_material: Material) -> void:
 	_head = hero.skeleton.find_bone("Head")
 	_hands = [hero.hand.get_parent() as Node3D, _bone("LeftHand")]
 	_dress()
+	if ARM_ROOM.has(look):
+		# До IK: кисти у глаз (слепота) ведёт IK уже от отведённых плеч.
+		var room := ArmRoom.new()
+		room.name = &"ArmRoom"
+		room.side_radius = ARM_ROOM[look].x
+		room.depth_radius = ARM_ROOM[look].y
+		hero.skeleton.add_child(room)
 	if look == BLACKSMITH:
 		# До IK рук: руки тянутся уже от согнутого корпуса.
 		_smith = SmithBody.new()

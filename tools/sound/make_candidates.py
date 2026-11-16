@@ -214,6 +214,36 @@ def rpg_step(v):
 
 
 EVENTS = {
+    # --- Разрушаемые предметы (world/props/breakable.gd): бочка, ящик, корзина — дерево; кувшин, урна — глина ---
+    "prop_hit_wood": ("world", -4.0, False, [
+        ("удар по дереву, трещит", lambda v: mix(
+            (src(k("impactWood_medium", v), pitch=0.85, lp=5000), 0, 1.0),
+            (src(k("impactPlank_medium", v + 1), pitch=0.9, lp=4000), 0.03, 0.35))),
+        ("доска глухо", lambda v: src(k("impactPlank_medium", v), pitch=0.78, lp=3500)),
+    ]),
+    "prop_break_wood": ("world", -2.0, False, [
+        ("треск, доски, осыпь", lambda v: mix(
+            (src(k("impactWood_heavy", v), pitch=0.8, lp=6000), 0, 1.0),
+            (src(k("impactPlank_medium", v + 1), pitch=0.85, lp=5000), 0.05, 0.6),
+            (src(k("impactWood_light", v + 2), pitch=0.9, lp=5000), 0.15, 0.35),
+            (src(k("impactMining", v + 3), pitch=0.8, lp=3500), 0.24, 0.3))),
+        ("тяжелее и глуше", lambda v: mix(
+            (src(k("impactPlank_medium", v), pitch=0.7, lp=4500), 0, 1.0),
+            (src(k("impactWood_heavy", v + 1), pitch=0.72, lp=4500), 0.03, 0.8),
+            (src(k("impactWood_medium", v + 2), pitch=0.85, lp=4000), 0.2, 0.35),
+            (src(k("impactSoft_medium", v + 3), pitch=0.8, lp=3000), 0.3, 0.3))),
+    ]),
+    "prop_break_clay": ("world", -2.0, False, [
+        ("глина бьётся, черепки", lambda v: mix(
+            (src(k("impactPlate_heavy", v), pitch=0.8, lp=6000), 0, 1.0),
+            (src(k("impactPlate_light", v + 1), pitch=0.75, lp=5000), 0.06, 0.45),
+            (src(k("impactMining", v + 2), pitch=0.9, lp=4000), 0.12, 0.35),
+            (src(k("impactPlate_medium", v + 3), pitch=0.7, lp=4000), 0.22, 0.25))),
+        ("ниже, с осыпью", lambda v: mix(
+            (src(k("impactPlate_heavy", v), pitch=0.68, lp=4500), 0, 1.0),
+            (src(k("impactGlass_light", v + 1), pitch=0.6, lp=3000), 0.05, 0.25),
+            (src(k("impactMining", v + 2), pitch=0.85, lp=3500), 0.15, 0.4))),
+    ]),
     # --- Герой: только записи ---
     "player_step_floor": ("player", -6.0, True, [
         ("шаг по камню (Impact)", lambda v: src(k("footstep_concrete", v))),

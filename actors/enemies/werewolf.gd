@@ -63,10 +63,18 @@ var in_scene := false
 
 func _init() -> void:
 	creature = CreatureKind.Kind.WEREWOLF
+	# Модель недавно обращённого (2026-11-16, docs/CHARACTER_PIPELINE.md) на общих клипах манекена.
+	# Клипы временные — потом звериные (Mixamo «Mutant …»).
+	mannequin_look = EnemyModel.WEREWOLF_YOUNG
 
 
 func _ready() -> void:
 	super()
+	if model:
+		# Примитивы (руки, голова, горб, шипы, ноги) остаются для чисел, но не видны.
+		for part in visual.get_children():
+			if part != model and part is MeshInstance3D or part in [arm_front, arm_back, head]:
+				(part as Node3D).visible = false
 	if GameState.has_flag(gone_flag):
 		queue_free()
 		return
@@ -378,5 +386,6 @@ func _update_extra(delta: float) -> void:
 	var k := 1.0 - exp(-speed * delta)
 	arm_front.rotation.z = lerpf(arm_front.rotation.z, arm, k)
 	arm_back.rotation.z = lerpf(arm_back.rotation.z, arm_back_to, k)
-	visual.scale.y = lerpf(visual.scale.y, crouch, k)
+	# Модель (EnemyModel) приседает клипом — сжатие узла её только сплющивало бы.
+	visual.scale.y = lerpf(visual.scale.y, crouch if model == null else 1.0, k)
 	head.rotation.z = lerpf(head.rotation.z, howl, 1.0 - exp(-6.0 * delta))

@@ -78,6 +78,7 @@ func _ready() -> void:
 	Events.checkpoint_activated.connect(_on_checkpoint_activated)
 	Events.enemy_killed.connect(_on_enemy_killed)
 	Events.glass_broken.connect(_on_glass_broken)
+	Events.prop_broken.connect(_on_prop_broken)
 	Events.door_used.connect(_on_door_used)
 	Events.item_found.connect(func(_id: StringName) -> void: save_now())
 	level_menu = LevelMenu.new()
@@ -208,10 +209,11 @@ func _load_room(target_reality: StringName, room_id: StringName = current_room_i
 	add_child(room)
 	current_room = room
 	current_room_id = room_id
+	# Разбитое стекло и предметы (Breakable) — одна память по пути узла.
 	for path: NodePath in GameState.broken_glass_in(key):
-		var glass := room.get_node_or_null(path) as GlassSurface
-		if glass:
-			glass.set_broken()
+		var broken := room.get_node_or_null(path)
+		if broken is GlassSurface or broken is Breakable:
+			broken.set_broken()
 	reality = target_reality
 	_apply_mood()
 	var shard := current_room.get_node_or_null(GameState.checkpoint_path) as MirrorShard
@@ -551,6 +553,12 @@ func _on_glass_broken(glass: GlassSurface) -> void:
 	var memory := glass.memory()
 	if memory != GlassSurface.Memory.NONE and current_room.is_ancestor_of(glass):
 		GameState.mark_glass(_world_key(current_room_id, reality), current_room.get_path_to(glass), memory == GlassSurface.Memory.FOREVER)
+
+
+## Предмет с лутом мир помнит разбитым навсегда, пустой — до отдыха (Breakable.shatter).
+func _on_prop_broken(prop: Breakable) -> void:
+	if current_room.is_ancestor_of(prop):
+		GameState.mark_glass(_world_key(current_room_id, reality), current_room.get_path_to(prop), prop.get_meta(&"forever", false))
 
 
 func _spawn_hero_echo() -> void:

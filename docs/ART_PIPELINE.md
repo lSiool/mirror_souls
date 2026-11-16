@@ -62,6 +62,7 @@
 - **Окружение:** автору нравятся детализация C и атмосфера, серость и разные дома A. У вариантов с улучшателем (B, D) в сцене много одинаковых домов — для окружения в первую очередь смотреть A и C.
 - **Техника не везде:** механизмы, шестерёнки и рычаги — только у ордена зеркальщиков (`art/STYLE_BIBLE.md` §10.1). Улучшатель (B) любит добавлять шестерёнки сам — такой вариант отбраковывать.
 - **Механику описывать точно.** «Wooden crank» дал рычаги на крыше колодца; рабочее описание: «a thick horizontal wooden log windlass between the posts with the rope wound around it, a bent iron crank handle on one end outside the post». Для деревенских предметов добавлять «simple hand-made construction of a poor medieval village».
+- **Слова, которые модель пишет буквами.** «A carved wooden ward» дало надпись «WARD» над дверью (B, D у `prop_house_narrow`). Писать «a carved wooden protective charm», избегать слов-названий на вывесках (sign, ward, inn).
 - **Свои концепты важнее генерации.** Если у персонажа есть лист автора в `art/concepts/characters/` (оборотни, вампиры, Кузнец, Утопленник), в 3D идёт он: вид спереди вырезается из листа и подаётся в TRELLIS. gen3 для таких персонажей не нужен.
 - **Утверждено:** `art/concepts/props/prop_alembic_v01.png` (перегонный куб, r01 A), `prop_well_v01.png` (колодец, r02 A; автор может доработать вручную), `prop_lanternpost_v01.png` (фонарный столб, r01 D).
 

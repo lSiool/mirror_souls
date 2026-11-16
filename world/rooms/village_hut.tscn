@@ -1,4 +1,4 @@
-[gd_scene load_steps=31 format=3]
+[gd_scene load_steps=32 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -37,6 +37,8 @@
 [ext_resource type="PackedScene" path="res://world/glass/glass_surface.tscn" id="glass"]
 
 [ext_resource type="PackedScene" path="res://world/chest/chest.tscn" id="chest"]
+
+[ext_resource type="PackedScene" path="res://assets/props/barrel/prop_barrel.glb" id="barrel"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_bedding"]
 albedo_color = Color(0.36, 0.33, 0.27, 1)
@@ -335,12 +337,8 @@ height = 0.1
 sides = 14
 material = SubResource("Mat_wood")
 
-[node name="Barrel" type="CSGCylinder3D" parent="Decor"]
-position = Vector3(-7.3, 0.5, -1.2)
-radius = 0.42
-height = 1.0
-sides = 12
-material = SubResource("Mat_wood")
+[node name="Barrel" parent="Decor" instance=ExtResource("barrel")]
+transform = Transform3D(-0.5665, 0, 0.9429, 0, 1.1, 0, -0.9429, 0, -0.5665, -7.300, 0.550, -1.200)
 
 [node name="Garlic0" type="CSGSphere3D" parent="Decor"]
 position = Vector3(-7.2, 4.5, -1.5)

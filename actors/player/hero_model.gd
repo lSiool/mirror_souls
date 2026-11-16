@@ -102,6 +102,15 @@ func _ready() -> void:
 	play(&"Idle")
 
 
+## Библиотека клипов манекена (UAL 1 + 2 после первого _merge_extra) — для моделей со своим скелетом
+## того же гуманоидного профиля (EnemyModel.OWN_MODELS).
+static func clip_library() -> AnimationLibrary:
+	var donor := MODEL.instantiate()
+	var lib := (donor.find_child("AnimationPlayer", true, false) as AnimationPlayer).get_animation_library(&"")
+	donor.free()
+	return lib
+
+
 ## Точка на кости: узел-держатель со сдвигом. У копии облика она уже есть — берём её.
 func _mount(bone_name: StringName, mount_name: StringName, at: Array) -> Node3D:
 	var mount := skeleton.find_child(String(mount_name), true, false) as Node3D

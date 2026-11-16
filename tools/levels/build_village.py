@@ -18,6 +18,31 @@ BURN = {"bg": (0.07, 0.022, 0.012), "amb": (0.62, 0.36, 0.26), "amb_e": 0.3, "fo
 BURN_IN = {"bg": (0.0, 0.0, 0.0), "amb": (0.6, 0.35, 0.22), "amb_e": 0.3, "fog": (0.03, 0.012, 0.006), "fog_d": 0.004}
 
 
+# Модели из конвейера ComfyUI → TRELLIS.2 (docs/ART_PIPELINE.md). В файле ~1 м; числа — glb_bounds.py:
+# низ модели (min y), высота, центр по x и z.
+PROPS = {
+    "barrel": ("res://assets/props/barrel/prop_barrel.glb", -0.5, 1.0, 0.0, 0.0),
+    "woodpile": ("res://assets/props/woodpile/prop_woodpile.glb", -0.307, 0.615, 0.0, 0.008),
+    "cartwheel": ("res://assets/props/cartwheel/prop_cartwheel.glb", -0.5, 1.0, 0.0, 0.003),
+    "haystack": ("res://assets/props/haystack/prop_haystack.glb", -0.358, 0.745, -0.002, -0.002),
+    "fence": ("res://assets/props/fence/prop_fence.glb", -0.458, 0.916, 0.0, 0.01),
+    "deadtree": ("res://assets/props/deadtree/prop_deadtree.glb", -0.496, 0.986, 0.002, -0.01),
+    "house_hut": ("res://assets/props/house_hut/prop_house_hut.glb", -0.427, 0.856, 0.002, 0.0),
+    "house_twostorey": ("res://assets/props/house_twostorey/prop_house_twostorey.glb", -0.496, 0.994, -0.007, 0.002),
+    "house_narrow": ("res://assets/props/house_narrow/prop_house_narrow.glb", -0.492, 0.991, 0.008, -0.003),
+}
+
+
+# Дома-модели: поворот, при котором фронтон смотрит в камеру (огонь крыши рассчитан на фронтон, FireSpot.roof),
+# карниз и конёк — доли высоты модели (по снимкам glb_views.gd), ширина фронтона и глубина — в единицах файла.
+HOUSES = {
+    "house_hut": (math.pi, 0.43, 0.94, 0.922, 0.996),
+    "house_twostorey": (math.pi / 2, 0.6, 0.98, 0.659, 0.934),
+    "house_narrow": (math.pi, 0.6, 1.0, 0.638, 0.589),
+}
+HOUSE_DEPTH = 3.6  # как у прежней крыши-примитива: дом не подходит к плоскости героя
+
+
 class Scene:
     def __init__(self, name, room_id, width, center, env, sun_color, sun_energy, burn=None):
         self.name, self.room_id, self.width, self.center = name, room_id, width, center
@@ -35,6 +60,33 @@ class Scene:
                     "mainmirror": ("Script", "res://world/common/main_mirror.gd"), "squareevent": ("Script", "res://world/rooms/square_event.gd"),
                     "wolf": ("PackedScene", "res://actors/enemies/werewolf.tscn"), "glass": ("PackedScene", "res://world/glass/glass_surface.tscn"),
                     "chest": ("PackedScene", "res://world/chest/chest.tscn")}
+
+    def prop(self, parent, name, key, bottom, height, rot=None, depth=1.0):
+        """Модель из PROPS дном в точку bottom, высотой height (м). rot — поворот по Y (рад), по умолчанию — от имени;
+        depth — сплющить по глубине мира Z (деревья и дома не должны дотягиваться до плоскости героя). Базис в .tscn — по строкам."""
+        path, y0, h0, cx, cz = PROPS[key]
+        self.ext[key] = ("PackedScene", path)
+        if rot is None:
+            rot = (zlib.crc32(name.encode()) % 360) * math.pi / 180
+        k, c, sn = height / h0, math.cos(rot), math.sin(rot)
+        rows = ((c * k, 0.0, sn * k), (0.0, k, 0.0), (-sn * k * depth, 0.0, c * k * depth))
+        local = (cx, y0, cz)
+        origin = [bottom[i] - sum(rows[i][j] * local[j] for j in range(3)) for i in range(3)]
+        vals = ", ".join(f"{v:.4f}".rstrip("0").rstrip(".") if v else "0" for row in rows for v in row)
+        org = ", ".join(f"{v:.3f}" for v in origin)
+        self.nodes.append(f'[node name="{name}" parent="{parent}" instance=ExtResource("{key}")]\ntransform = Transform3D({vals}, {org})')
+
+    def breakable(self, name, key, pos, height, size, stuff=0, hits=1, echoes=0, solid=False):
+        """Разрушаемый предмет (world/props/breakable.gd) на плоскости героя. stuff: 0 дерево, 1 глина, 2 плетёнка, 3 кость.
+        solid=False — не преграждает путь (первый проход: не мешать маршрутам смоук-теста)."""
+        path, y0, h0, _cx, _cz = PROPS[key]
+        self.ext[key] = ("PackedScene", path)
+        self.ext["breakable"] = ("Script", "res://world/props/breakable.gd")
+        turn = round((zlib.crc32(name.encode()) % 360) * math.pi / 180, 3)
+        self.node(name, 'type="StaticBody3D"', "Objects", [f"position = Vector3({pos[0]}, {pos[1]}, {pos[2]})", 'script = ExtResource("breakable")',
+                  f'model = ExtResource("{key}")', f"model_bottom = {y0}", f"model_height = {h0}", f"height = {height}",
+                  f"model_turn = {turn}", f"size = Vector3({size[0]}, {size[1]}, {size[2]})", f"solid = {str(solid).lower()}",
+                  f"stuff = {stuff}", f"hits = {hits}", f"echoes = {echoes}"])
 
     def mat(self, name):
         self.used.add(name)
@@ -83,7 +135,18 @@ class Scene:
     def marker(self, name, pos):
         self.node(name, 'type="Marker3D"', "Spawns", [f"position = Vector3({pos[0]}, {pos[1]}, {pos[2]})"])
 
-    def house(self, parent, name, x, z, w, h, roof_h, windows=(), plaster="plaster", ground=0.0, fire=None):
+    def house(self, parent, name, x, z, w, h, roof_h, windows=(), plaster="plaster", ground=0.0, fire=None, model=None):
+        if model:
+            # Модель высотой h + roof_h, фронтоном к камере, глубиной HOUSE_DEPTH. Огонь — по крыше модели.
+            rot, eave, ridge, gable_w, depth = HOUSES[model]
+            height = h + roof_h
+            k = height / PROPS[model][2]
+            self.prop(parent, name, model, (x, ground, z), height, rot=rot, depth=HOUSE_DEPTH / (depth * k))
+            if fire and self.burn:
+                roof_size = (round(gable_w * k, 3), round((ridge - eave) * height, 3), HOUSE_DEPTH)
+                self.fire(f"{name}RoofFire", (x, round(ground + eave * height, 3), z), roof_size, *fire,
+                          roof=zlib.crc32(f"{name}{x}{z}".encode()) % 10000)
+            return
         self.box(parent, f"{name}Wall", (x, ground + h / 2, z), (w, h, 3), plaster)
         self.roof(parent, f"{name}Roof", (x, ground + h + roof_h / 2, z), (w + 1.2, roof_h, 3.6))
         if fire and self.burn:
@@ -102,13 +165,17 @@ class Scene:
                 self.box(parent, f"{name}Window{i}", pane, (0.8, 1.0, 0.08), "window")
 
     def fence(self, parent, name, x0, x1, z, y=0.0, step=0.7):
-        n = int((x1 - x0) / step) + 1
-        self.box(parent, f"{name}Rail", ((x0 + x1) / 2, y + 0.75, z), (x1 - x0, 0.12, 0.08), "wood_dark")
+        h = 1.45
+        w = PROPS["fence"][2] and h / PROPS["fence"][2] * 0.999  # ширина секции при высоте h
+        n = max(1, round((x1 - x0) / w))
         for i in range(n):
-            self.box(parent, f"{name}{i}", (round(x0 + i * step, 2), y + 0.65, z), (0.16, 1.3 + (i % 2) * 0.15, 0.08), "wood_dark",
-                     rot=(0, 0, round((i * 7 % 5 - 2) * 0.035, 3)))
+            cx = x0 + (x1 - x0) * (i + 0.5) / n
+            self.prop(parent, f"{name}{i}", "fence", (round(cx, 3), y, z), h, rot=math.pi * (i % 2))
 
     def wheel(self, parent, name, x, y, z, r):
+        if r >= 0.6:
+            self.prop(parent, name, "cartwheel", (x, round(y - r, 3), z), round(2 * r, 3), rot=0.0)
+            return
         for i in range(10):
             a = i * math.tau / 10
             self.box(parent, f"{name}Rim{i}", (round(x + r * math.cos(a), 3), round(y + r * math.sin(a), 3), z),
@@ -117,22 +184,20 @@ class Scene:
             self.box(parent, f"{name}Spoke{i}", (x, y, z), (round(r * 2, 3), 0.08, 0.07), "wood_dark", rot=(0, 0, round(i * math.pi / 3 + 0.3, 4)))
 
     def dead_tree(self, parent, name, x, z, h, ground=0.0):
-        self.cyl(parent, f"{name}Trunk", (x, ground + h / 2, z), 0.3, h, "wood_dark", sides=7)
-        for i, (f, side, l, a) in enumerate(((0.55, 1, 2.6, 0.5), (0.68, -1, 2.2, 0.7), (0.82, 1, 1.7, 0.9), (0.92, -1, 1.5, 0.5), (1.0, 1, 1.2, 1.2))):
-            bx, by = x + side * l / 2 * math.cos(a), ground + h * f + l / 2 * math.sin(a)
-            self.box(parent, f"{name}Branch{i}", (round(bx, 3), round(by, 3), z), (l, 0.13, 0.13), "wood_dark", rot=(0, 0, round(side * a, 3)))
+        self.prop(parent, name, "deadtree", (x, ground, z), h, depth=0.5)
 
     def lantern_post(self, parent, name, x, z, ground=0.0, side=1):
-        self.box(parent, f"{name}Post", (x, ground + 2.1, z), (0.2, 4.2, 0.2), "wood_dark")
-        self.box(parent, f"{name}Arm", (x + side * 0.7, ground + 4.0, z), (1.6, 0.14, 0.14), "wood_dark")
-        self.box(parent, f"{name}Lamp", (x + side * 1.3, ground + 3.4, z), (0.28, 0.48, 0.28), "window")
-        self.light(parent, f"{name}Light", (x + side * 1.3, ground + 3.2, z + 1.0), (1.0, 0.6, 0.28), 1.3, 6.5)
+        # Модель prop_lanternpost (ComfyUI → TRELLIS.2): в файле ~1 м, перекладина вдоль +Z. Поворот на 90° по Y кладёт её вдоль ±X (side),
+        # масштаб ×4 ≈ 4 м. Основание столба в файле на z = -0.032, лампа на z = +0.224, y ≈ 0 (середина высоты). Базис в .tscn — по строкам.
+        self.ext["lantern"] = ("PackedScene", "res://assets/props/lanternpost/prop_lanternpost.glb")
+        k = 4.0
+        ox, oy = x + side * 0.032 * k, ground + 0.498 * k
+        self.nodes.append(f'[node name="{name}" parent="{parent}" instance=ExtResource("lantern")]\n'
+                          f'transform = Transform3D(0, 0, {side * k}, 0, {k}, 0, {-side * k}, 0, 0, {round(ox, 3)}, {round(oy, 3)}, {z})')
+        self.light(parent, f"{name}Light", (round(x + side * 1.0, 3), ground + 1.8, z + 0.8), (1.0, 0.6, 0.28), 1.3, 6.5)
 
     def woodpile(self, parent, name, x, z, ground=0.0, columns=5):
-        for row in range(3):
-            for c in range(columns - row):
-                self.cyl(parent, f"{name}Log{row}_{c}", (round(x + c * 0.38 + row * 0.19, 3), round(ground + 0.18 + row * 0.33, 3), z),
-                         0.18, 1.0, "wood", rot=(math.pi / 2, 0, 0), sides=7)
+        self.prop(parent, name, "woodpile", (round(x + columns * 0.19, 3), ground, z), 1.1, rot=0.0)
 
     def wash_line(self, parent, name, x0, x1, z, ground=0.0):
         for i, x in enumerate((x0, x1)):
@@ -252,7 +317,7 @@ hut.fire("WindowFlames", (4.0, 2.0, -1.85), (1.2, 1.6, 0.3), 2.0, 7.0)
 hut.ambience()
 # Прялка и бочка у двери
 hut.cyl(d, "SpinWheel", (5.3, 0.9, -1.0), 0.7, 0.1, "wood", rot=(math.pi / 2, 0, 0), sides=14)
-hut.cyl(d, "Barrel", (-7.3, 0.5, -1.2), 0.42, 1.0, "wood")
+hut.prop(d, "Barrel", "barrel", (-7.3, 0.5 - 0.5, -1.2), 1.1)
 # Чеснок под балкой
 for i, (x, y) in enumerate(((-7.2, 4.5), (-6.9, 4.2), (-7.5, 4.2), (6.9, 4.5), (7.2, 4.15))):
     hut.sphere(d, f"Garlic{i}", (x, y, -1.5), 0.17, "garlic")
@@ -280,15 +345,15 @@ for i, x in enumerate((-4.9, -3.1)):
 st.box(d, "CartLoad", (-4.0, 1.35, 0), (2.0, 0.5, 1.1), "cloth")
 # Хижина героя и дома
 ROOF_FIRE = (3.0, 11.0)
-st.house(d, "HeroHut", -28.0, -2.5, 8, 4.2, 3.4, windows=((-2.2, 2.2),), ground=1.2, fire=ROOF_FIRE)
-st.house(d, "HouseA", -18.0, -6.5, 7, 4.5, 3.8, windows=((1.5, 3.0),), ground=1.2, fire=ROOF_FIRE)
-st.house(d, "HouseB", -6.0, -8.0, 8, 5.0, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)), fire=ROOF_FIRE)
-st.house(d, "HouseC", 8.0, -11.0, 8, 4.5, 4.0, windows=((0, 2.8),), fire=ROOF_FIRE)
-st.house(d, "HouseD", 19.0, -9.0, 7, 4.2, 3.6, windows=((-1.5, 2.2),), fire=ROOF_FIRE)
-st.house(d, "HouseFar", -14.0, -18.0, 9, 5.0, 4.5, windows=((0, 3.0),), fire=ROOF_FIRE)
-st.house(d, "HouseFar2", 14.0, -20.0, 10, 5.0, 5.0, windows=((3, 3.0),), fire=ROOF_FIRE)
+st.house(d, "HeroHut", -28.0, -2.5, 8, 4.2, 3.4, windows=((-2.2, 2.2),), ground=1.2, fire=ROOF_FIRE, model="house_hut")
+st.house(d, "HouseA", -18.0, -6.5, 7, 4.5, 3.8, windows=((1.5, 3.0),), ground=1.2, fire=ROOF_FIRE, model="house_narrow")
+st.house(d, "HouseB", -6.0, -8.0, 8, 5.0, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)), fire=ROOF_FIRE, model="house_twostorey")
+st.house(d, "HouseC", 8.0, -11.0, 8, 4.5, 4.0, windows=((0, 2.8),), fire=ROOF_FIRE, model="house_hut")
+st.house(d, "HouseD", 19.0, -9.0, 7, 4.2, 3.6, windows=((-1.5, 2.2),), fire=ROOF_FIRE, model="house_narrow")
+st.house(d, "HouseFar", -14.0, -18.0, 9, 5.0, 4.5, windows=((0, 3.0),), fire=ROOF_FIRE, model="house_twostorey")
+st.house(d, "HouseFar2", 14.0, -20.0, 10, 5.0, 5.0, windows=((3, 3.0),), fire=ROOF_FIRE, model="house_hut")
 # Дом, откуда кричали: справа, главная цель улицы
-st.house(d, "ScreamHouse", 26.5, -2.5, 9, 5.2, 4.6, windows=((-2.8, 3.6), (2.6, 3.6)), plaster="stone")
+st.house(d, "ScreamHouse", 26.5, -2.5, 9, 5.2, 4.6, windows=((-2.8, 3.6), (2.6, 3.6)), plaster="stone", model="house_twostorey")
 st.box(d, "ScreamLantern", (24.6, 2.9, -0.8), (0.25, 0.4, 0.25), "window")
 st.light(d, "ScreamLight", (24.6, 2.6, 0.2), (1.0, 0.6, 0.28), 2.0, 7.0)
 st.light(d, "HutWindowLight", (-30.2, 3.4, 0.2), (1.0, 0.6, 0.28), 1.0, 5.0)
@@ -343,17 +408,17 @@ st.box(d, "FarGround", (0, -2, -20), (90, 4, 35.6), "mud")
 st.box(d, "FarHill", (-24, -0.9, -8.1), (20, 4.2, 11.8), "mud")
 # Второй план: жизнь деревни (по art/concepts/locations)
 st.woodpile(d, "HutWood", -31.7, -0.6, 1.2)
-st.cyl(d, "HutBarrel", (-25.2, 1.7, -0.6), 0.42, 1.0, "wood")
+st.prop(d, "HutBarrel", "barrel", (-25.2, 1.7 - 0.5, -0.6), 1.1)
 st.garlic(d, "HutGarlic", -31.3, 4.1, -0.85)
 st.lantern_post(d, "PathLamp", -22.5, -1.2, 1.2)
 st.dead_tree(d, "TreeHill", -18.0, -3.6, 8.0, 1.2)
-st.cyl(d, "Hay", (-12.0, 1.1, -3.2), 1.3, 2.2, "thatch", cone=True, sides=9)
+st.prop(d, "Hay", "haystack", (-12.0, 0.0, -3.2), 2.8)
 st.wash_line(d, "Wash", -9.0, -2.5, -3.6)
 st.dead_tree(d, "TreeWell", -0.5, -4.8, 9.0)
 st.lantern_post(d, "SquareLamp", 15.3, -0.9, 0.0, -1)
 st.dead_tree(d, "TreeFar", 20.8, -5.0, 8.0)
-st.cyl(d, "HouseBarrelA", (22.7, 0.5, -0.6), 0.42, 1.0, "wood")
-st.cyl(d, "HouseBarrelB", (23.6, 0.5, -0.7), 0.42, 1.0, "wood")
+st.prop(d, "HouseBarrelA", "barrel", (22.7, 0.5 - 0.5, -0.6), 1.1)
+st.prop(d, "HouseBarrelB", "barrel", (23.6, 0.5 - 0.5, -0.7), 1.1)
 st.crow(d, "Crow", 22.7, 1.0, -0.6)
 st.garlic(d, "HouseGarlic", 22.6, 4.3, -0.85)
 # Передний план: низкие тёмные вещи и берег перед тропой (слои картинки, §2.2)
@@ -364,7 +429,7 @@ st.rocks(d, "FrontRocksHill", -31.0, 0.75, 3.4)
 st.tuft(d, "FrontTuftHill", -23.5, 0.75, 3.2)
 st.tuft(d, "FrontTuftRamp", -12.5, 0.2, 3.0)
 st.wheel(d, "FrontWheel", -6.5, 0.75, 3.3, 0.95)
-st.cyl(d, "FrontBarrel", (3.5, 0.3, 3.1), 0.45, 1.0, "wood_dark")
+st.prop(d, "FrontBarrel", "barrel", (3.5, 0.3 - 0.5, 3.1), 1.1)
 st.tuft(d, "FrontTuft", 1.0, -0.2, 3.2)
 st.rocks(d, "FrontRocks", 9.5, -0.2, 3.4)
 st.tuft(d, "FrontTuft2", 11.5, -0.2, 3.2)
@@ -399,13 +464,13 @@ ho.light(d, "LowLight", (-4.0, 2.8, 0.2), (1.0, 0.6, 0.28), 2.2, 10.0, True)
 ho.box(d, "LanternLow2", (3.6, 2.9, -1.2), (0.26, 0.42, 0.26), "window")
 ho.light(d, "LowLight2", (3.6, 2.8, 0.2), (1.0, 0.6, 0.28), 1.6, 8.0)
 for i, x in enumerate((-10.6, 9.6, 10.6)):
-    ho.cyl(d, f"Barrel{i}", (x, 0.5, -1.4), 0.42, 1.0, "wood")
+    ho.prop(d, f"Barrel{i}", "barrel", (x, 0.5 - 0.5, -1.4), 1.1)
 ho.box(d, "BeamBrace", (0, 3.45, -1.6), (24, 0.25, 0.3), "wood_dark")
 # Чердак: кровать, ящики, окно, балка с летучей мышью
 ho.box(d, "AtticBed", (-4.5, ATTIC + 0.35, -1.0), (2.6, 0.7, 1.2), "bedding")
 ho.box(d, "CrateA", (-9.5, ATTIC + 0.5, -1.2), (1.0, 1.0, 1.0), "wood")
 ho.box(d, "CrateB", (-8.4, ATTIC + 0.35, -1.2), (0.7, 0.7, 0.8), "wood")
-ho.cyl(d, "AtticBarrel", (0.6, ATTIC + 0.5, -1.3), 0.42, 1.0, "wood")
+ho.prop(d, "AtticBarrel", "barrel", (0.6, ATTIC + 0.5 - 0.5, -1.3), 1.1)
 ho.box(d, "AtticWindow", (3.6, ATTIC + 2.0, -1.96), (1.4, 1.8, 0.08), "window")
 ho.light(d, "AtticLight", (3.6, ATTIC + 1.8, 0.0), (1.0, 0.6, 0.28), 1.6, 9.0, True)
 ho.box(d, "RoofBeam", (0, ATTIC + 3.2, -0.6), (24, 0.35, 0.35), "wood")
@@ -431,9 +496,9 @@ sq.box(g, "Ground", (0, -2, 0), (40, 4, 4.4), "mud", True)
 sq.box(g, "WallLeft", (-19.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
 sq.box(g, "WallRight", (19.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
 sq.box(d, "FarGround", (0, -2, -18), (70, 4, 31.6), "mud")
-sq.house(d, "HouseA", -13.0, -7.0, 8, 4.8, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)), fire=(3.2, 12.0))
-sq.house(d, "HouseB", 0.0, -11.0, 9, 5.0, 4.4, windows=((0, 3.0),), fire=(3.2, 12.0))
-sq.house(d, "HouseC", 13.5, -7.5, 8, 4.6, 3.8, windows=((1.5, 2.8),), fire=(3.2, 12.0))
+sq.house(d, "HouseA", -13.0, -7.0, 8, 4.8, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)), fire=(3.2, 12.0), model="house_twostorey")
+sq.house(d, "HouseB", 0.0, -11.0, 9, 5.0, 4.4, windows=((0, 3.0),), fire=(3.2, 12.0), model="house_narrow")
+sq.house(d, "HouseC", 13.5, -7.5, 8, 4.6, 3.8, windows=((1.5, 2.8),), fire=(3.2, 12.0), model="house_hut")
 # Колодец — первая настоящая модель (ComfyUI → TRELLIS.2, docs/ART_PIPELINE.md): ~1 м в файле, ×3.2 ≈ 3 м высотой
 sq.ext["well"] = ("PackedScene", "res://assets/props/well/prop_well.glb")
 WELL_S, WELL_Y0 = 3.2, -0.4806  # масштаб и низ модели (AABB.y) — ставим дном на землю
@@ -459,7 +524,7 @@ sq.wheel(d, "FrontWheel", -6.0, 0.75, 3.3, 0.95)
 sq.rocks(d, "FrontRocks", 6.0, -0.2, 3.5)
 sq.tuft(d, "FrontTuft", 0.5, -0.2, 3.2)
 sq.tuft(d, "FrontTuft2", 14.0, -0.2, 3.2)
-sq.cyl(d, "FrontBarrel", (16.0, 0.3, 3.1), 0.45, 1.0, "wood_dark")
+sq.prop(d, "FrontBarrel", "barrel", (16.0, 0.3 - 0.5, 3.1), 1.1)
 # Огонь (крыши горят у домов выше) и жертва зверя
 for i, (x, y, z) in enumerate(((-3.5, 0.0, -2.8), (9.5, 0.0, -2.8))):
     sq.fire(f"GroundFire{i}", (x, y, z), (2.0, 2.0, 0.6), 2.4, 8.0)
@@ -516,8 +581,6 @@ for i in range(5):
 ch.lantern_post(d, "HerbLamp", -16.0, -1.5, 0.0)
 # Дерево с оберегами
 ch.dead_tree(d, "CharmTree", -9.0, -4.5, 9.0)
-for i, (x, y) in enumerate(((-7.6, 6.4), (-10.6, 6.6), (-7.0, 7.4))):
-    ch.wheel(d, f"Charm{i}", x, y, -4.5, 0.28)
 # Часовня: каменный неф с витражом и башня с колоколом
 ch.box(d, "Nave", (-2.5, 4.0, -3.5), (8.0, 8.0, 3.0), "stone")
 ch.roof(d, "NaveRoof", (-2.5, 10.0, -3.5), (9.0, 4.0, 3.6), "wood_dark")
@@ -543,6 +606,11 @@ ch.light(d, "FurnaceLight", (5.5, 1.5, -0.8), (1.0, 0.5, 0.2), 2.6, 9.0)
 for i, x in enumerate((9.6, 10.5, 11.3)):
     ch.box(d, f"Pane{i}", (x, 1.1, -2.2), (0.8, 2.2, 0.06), "moonpane", rot=(0.12, 0, 0))
 ch.box(d, "Chimney", (6.0, 7.5, -3.6), (1.3, 5.0, 1.3), "stone_dark")
+# Верстак с перегонным кубом ордена (prop_alembic: в файле ~1 м, ×0.75 ≈ 0.75 м, низ модели y = -0.488)
+ch.box(d, "Workbench", (7.9, 0.45, -2.4), (1.8, 0.9, 0.8), "wood_dark")
+ch.ext["alembic"] = ("PackedScene", "res://assets/props/alembic/prop_alembic.glb")
+ch.nodes.append(f'[node name="Alembic" parent="{d}" instance=ExtResource("alembic")]\n'
+                f'transform = Transform3D(0.75, 0, 0, 0, 0.75, 0, 0, 0, 0.75, 7.9, {0.9 + 0.488 * 0.75:.3f}, -2.4)')
 # Выжившие у костра: часовня стала убежищем
 ch.box(d, "CampWood", (18.5, 0.15, -1.7), (1.4, 0.3, 0.9), "wood_dark")
 ch.box(d, "CampFlame", (18.5, 0.6, -1.7), (0.6, 0.7, 0.3), "fire")
@@ -653,6 +721,17 @@ ci.node("MainMirror", 'type="Area3D"', "Objects", ["position = Vector3(0, 0, 0)"
         'required_flags = Array[StringName]([&"boss_smith", &"shard_village_square", &"shard_chapel_yard", &"shard_cemetery", &"shard_fallen_giant", &"shard_cursed_village"])',
         'locked_text = "Зеркало молчит. Под тканью не хватает осколков, и что-то ещё держит его закрытым."',
         "door_size = Vector3(3.0, 3.3, 0.15)", "door_color = Color(0.06, 0.06, 0.08, 1)"])
+
+# ---------------------------------------------------------------- Разрушаемые предметы (GAME_DESIGN §8.13)
+# Лут не в каждом: примерно один из четырёх. Площадь — арена оборотня, там ничего не ставим.
+BARREL = dict(key="barrel", height=1.05, size=(0.8, 1.05, 0.8), stuff=0, hits=2)
+st.breakable("BarrelHill", pos=(-20.5, 1.2, 0), **BARREL)
+st.breakable("BarrelRoad", pos=(5.2, 0.0, 0), **BARREL)
+st.breakable("BarrelLoot", pos=(17.0, 0.0, 0), echoes=8, **BARREL)
+ho.breakable("BarrelHall", pos=(-8.4, 0.0, 0), **BARREL)
+ho.breakable("BarrelAttic", pos=(-9.6, ATTIC, 0), echoes=6, **BARREL)
+ch.breakable("BarrelGate", pos=(-20.5, 0.0, 0), **BARREL)
+ch.breakable("BarrelCamp", pos=(21.3, 0.0, 0), echoes=10, **BARREL)
 
 for scene, file in ((hut, "village_hut"), (st, "village_street"), (ho, "village_house"), (sq, "village_square"),
                     (ch, "chapel_yard"), (ci, "chapel")):
