@@ -16,6 +16,15 @@ for o in (arm, ob):
     o.select_set(True)
 bpy.context.view_layer.objects.active = arm
 bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+# стопы на пол, центр по X/Y — в ноль (Mixamo ставит модель центром в начало координат)
+from mathutils import Matrix, Vector
+pts = [ob.matrix_world @ v.co for v in ob.data.vertices]
+shift = Vector((-(min(p.x for p in pts) + max(p.x for p in pts)) / 2, -(min(p.y for p in pts) + max(p.y for p in pts)) / 2, -min(p.z for p in pts)))
+arm.matrix_world = Matrix.Translation(shift) @ arm.matrix_world
+if ob.parent != arm:
+    ob.matrix_world = Matrix.Translation(shift) @ ob.matrix_world
+bpy.context.view_layer.update()
+bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
 for b in arm.data.bones:
     b.name = b.name.replace("mixamorig:", "mixamorig_")
 arm.name = "Werewolf_Rig"; arm.data.name = "Werewolf_Rig"

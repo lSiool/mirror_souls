@@ -12,7 +12,7 @@ extends Node3D
 ## Клавиши: ←/→ — персонаж, ↑/↓ — клип, Пробел — пауза, R — клип сначала, Q/E — повернуть камеру на 45°,
 ## 1 — спереди, 3 — сбоку, колесо или +/− — ближе/дальше, F — кадр по персонажу.
 ## Крупно одну кость: … -- char=werewolf bone=LeftForeArm dist=1.0
-## Дыры в сетке: … -- char=werewolf bg=1,0,1 (без пола, фон насквозь)
+## Дыры в сетке: … -- char=werewolf bg=1,0,1 (без пола, фон насквозь); settle=3 — подождать перед снимками (частицы)
 ## Клипы — общие клипы манекена (Quaternius UAL) и, если лежат в assets/characters/anims/mixamo (не в git),
 ## клипы Mixamo под именами «Mx_<файл>» (шаг корня снят, как в tools/characters/anim_sheet.gd).
 
@@ -129,9 +129,12 @@ func _show(i: int) -> void:
 	_clips = PackedStringArray()
 	if _anim:
 		_anim.process_mode = Node.PROCESS_MODE_ALWAYS
-		# Скелет тоже: модификаторы поверх клипа (ArmRoom, GripHands) идут в его обработке.
-		for skeleton in _actor.find_children("*", "Skeleton3D", true, false):
-			skeleton.process_mode = Node.PROCESS_MODE_ALWAYS
+		# Скелет тоже: модификаторы поверх клипа (ArmRoom, GripHands) идут в его обработке; частицы (дым духа) — тоже.
+		for node in _actor.find_children("*", "Skeleton3D", true, false) + _actor.find_children("*", "CPUParticles3D", true, false) + _actor.find_children("*", "GPUParticles3D", true, false):
+			node.process_mode = Node.PROCESS_MODE_ALWAYS
+		if _actor.has_method(&"_spirit_glow"):
+			# Кузнец сидит до вступления без духа — в витрине дух уже в теле: глаза и дым.
+			_actor.call(&"_spirit_glow", true)
 		_load_mixamo(_anim.get_animation_library(&""))
 		for name in _anim.get_animation_list():
 			if not String(name).contains("@"):  # позы-стоп-кадры HeroModel.hold
@@ -254,6 +257,9 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Снимки: каждый клип из clips= (или текущий) — кадры на долях длины из at= (по умолчанию 0.4).
 func _take_shots() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SHOTS))
+	if _args.has("settle"):
+		# Дать частицам (дым духа) набраться перед снимками: settle=<секунды>.
+		await get_tree().create_timer(float(_args["settle"])).timeout
 	var wanted: PackedStringArray = _args.get("clips", "").split(",", false)
 	if wanted.is_empty() and not _clips.is_empty():
 		wanted = [_clips[_clip]]

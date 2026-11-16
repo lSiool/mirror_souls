@@ -22,6 +22,12 @@ const PHASE_AT := 0.55
 const PHASE_SPEEDUP := 0.8
 const INTRO_RANGE := 7.0
 const SPIRIT_COLOR := Color(0.55, 0.3, 0.95)
+const SMOKE_SHADER := preload("res://effects/spirit/spirit_smoke.gdshader")
+## Своя модель: свечение глаз (сферы в модели — Smith_Eyes); дым духа — над шлемом.
+const EYE_GLOW := 0.6
+const SMOKE_UP := 0.2
+const SMOKE_COLOR := Color(0.38, 0.27, 0.62)
+const SMOKE_ALPHA := 0.85
 const HUMAN_COLOR := Color(0.42, 0.33, 0.28)
 const LEAP_UP := 13.0
 const LEAP_AIR := 0.85
@@ -103,6 +109,8 @@ var _rising := false
 @onready var hammer: Node3D = $Visual/Hammer
 @onready var hammer_head: MeshInstance3D = $Visual/Hammer/Head
 @onready var eyes: Array[Node3D] = [$Visual/Head/EyeA, $Visual/Head/EyeB]
+## Дым духа над шлемом своей модели (_dress_model).
+var _smoke: GPUParticles3D
 
 
 func _init() -> void:
@@ -114,14 +122,14 @@ func _ready() -> void:
 	leaves_statue = true
 	if model:
 		_dress_model()
+		_spirit_glow(true)
 	if GameState.has_flag(boss_flag):
 		_stand_as_statue()
 		return
 	for blow: Blow in COOLDOWNS:
 		_cooldowns[blow] = 2.0
 	if seated:
-		for eye in eyes:
-			eye.visible = false
+		_spirit_glow(false)
 		visual.position.y = -0.95
 		body_mesh.rotation.z = -0.35
 		hammer.rotation.z = POSE_SEATED
@@ -130,22 +138,110 @@ func _ready() -> void:
 
 
 ## Манекен (§3.3): примитивы тела прячем, горящие глаза — на кость головы.
+## Своя модель (2026-11-17): глаза — сферы в глазницах самой модели, тускло светятся; над шлемом — дым духа.
 func _dress_model() -> void:
 	for part: NodePath in [^"Visual/Shoulders", ^"Visual/Head"]:
 		(get_node(part) as Node3D).visible = false
-	var glow := (eyes[0] as MeshInstance3D).mesh.surface_get_material(0)
-	var head := model.head_attachment()
-	var fresh: Array[Node3D] = []
-	for x: float in [-0.04, 0.04]:
-		var eye := MeshInstance3D.new()
-		var slit := BoxMesh.new()
-		slit.size = Vector3(0.05, 0.02, 0.02)
-		slit.material = glow
-		eye.mesh = slit
-		eye.position = Vector3(x, 0.08, 0.1)
-		head.add_child(eye)
-		fresh.append(eye)
-	eyes.assign(fresh)
+	var own: bool = EnemyModel.OWN_MODELS.has(model.look)
+	var model_eyes := model.hero.find_child("Smith_Eyes*", true, false) as MeshInstance3D if own else null
+	if model_eyes:
+		# Глаза — в самой модели (tools/characters/rig/add_eyes.py): сферы в глазницах на кости головы.
+		var violet := StandardMaterial3D.new()
+		violet.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		violet.albedo_color = SPIRIT_COLOR
+		violet.emission_enabled = true
+		violet.emission = SPIRIT_COLOR
+		violet.emission_energy_multiplier = EYE_GLOW
+		model_eyes.material_override = violet
+		eyes.assign([model_eyes])
+	else:
+		var glow := (eyes[0] as MeshInstance3D).mesh.surface_get_material(0)
+		var head := model.head_attachment()
+		var fresh: Array[Node3D] = []
+		for x: float in [-0.04, 0.04]:
+			var eye := MeshInstance3D.new()
+			var slit := BoxMesh.new()
+			slit.size = Vector3(0.05, 0.02, 0.02)
+			slit.material = glow
+			eye.mesh = slit
+			eye.position = Vector3(x, 0.08, 0.1)
+			head.add_child(eye)
+			fresh.append(eye)
+		eyes.assign(fresh)
+	if own:
+		_smoke = _spirit_smoke()
+		model.head_attachment().add_child(_smoke)
+
+
+## Дым проклятого духа над шлемом: лиловые струйки поднимаются, закручиваются (турбулентность) и тают;
+## отстают при движении (мировые координаты).
+func _spirit_smoke() -> GPUParticles3D:
+	var smoke := GPUParticles3D.new()
+	smoke.name = &"SpiritSmoke"
+	smoke.position = Vector3(0.0, SMOKE_UP, 0.0)
+	smoke.amount = 56
+	smoke.lifetime = 1.7
+	smoke.local_coords = false
+	smoke.visibility_aabb = AABB(Vector3(-1.5, -0.5, -1.5), Vector3(3.0, 3.5, 3.0))
+	var p := ParticleProcessMaterial.new()
+	# Кольцо вокруг макушки: клубы поднимаются и сходятся к середине (радиальная скорость внутрь).
+	p.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	p.emission_ring_axis = Vector3.UP
+	p.emission_ring_radius = 0.13
+	p.emission_ring_inner_radius = 0.04
+	p.emission_ring_height = 0.06
+	p.direction = Vector3.UP
+	p.spread = 10.0
+	p.gravity = Vector3(0.0, 0.15, 0.0)
+	p.initial_velocity_min = 0.15
+	p.initial_velocity_max = 0.3
+	p.radial_velocity_min = -0.12
+	p.radial_velocity_max = -0.05
+	p.damping_min = 0.2
+	p.damping_max = 0.5
+	p.angle_min = -180.0
+	p.angle_max = 180.0
+	p.angular_velocity_min = -30.0
+	p.angular_velocity_max = 30.0
+	p.scale_min = 0.5
+	p.scale_max = 1.1
+	p.turbulence_enabled = true
+	p.turbulence_noise_strength = 2.0
+	p.turbulence_noise_scale = 1.2
+	p.turbulence_noise_speed_random = 0.4
+	p.turbulence_influence_min = 0.15
+	p.turbulence_influence_max = 0.35
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.3))
+	grow.add_point(Vector2(1.0, 1.0))
+	var grow_tex := CurveTexture.new()
+	grow_tex.curve = grow
+	p.scale_curve = grow_tex
+	var fade := Gradient.new()
+	fade.set_color(0, Color(SMOKE_COLOR, 0.0))
+	fade.set_color(1, Color(SMOKE_COLOR.darkened(0.4), 0.0))
+	fade.add_point(0.15, Color(SMOKE_COLOR, SMOKE_ALPHA))
+	fade.add_point(0.55, Color(SMOKE_COLOR.darkened(0.2), SMOKE_ALPHA * 0.55))
+	var fade_tex := GradientTexture1D.new()
+	fade_tex.gradient = fade
+	p.color_ramp = fade_tex
+	smoke.process_material = p
+	var puff := QuadMesh.new()
+	puff.size = Vector2(0.34, 0.42)
+	var mat := ShaderMaterial.new()
+	mat.shader = SMOKE_SHADER
+	puff.material = mat
+	smoke.draw_pass_1 = puff
+	smoke.emitting = false
+	return smoke
+
+
+## Дух в теле: горят глаза, над шлемом дым. Без духа (сидит до вступления, умер, статуя) — гаснет.
+func _spirit_glow(on: bool) -> void:
+	for eye in eyes:
+		eye.visible = on
+	if _smoke:
+		_smoke.emitting = on
 
 
 ## Сцена для манекена: сидит на камне, стоит на колене (вторая фаза, сбитая стойкость, смерть).
@@ -201,8 +297,7 @@ func _play_intro() -> void:
 	facing = signf(_player.global_position.x - global_position.x)
 	visual.rotation.y = 0.0 if facing > 0.0 else PI
 	await _spirit(true)
-	for eye in eyes:
-		eye.visible = true
+	_spirit_glow(true)
 	_rising = true
 	var rise := create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE)
 	rise.tween_property(visual, "position:y", 0.0, 0.9)
@@ -502,8 +597,7 @@ func _slow_motion() -> void:
 ## Дух уходит, Кузнец опускается на колени и роняет молот — снова человек. Потом застывает
 ## стеклянной статуей, и только тогда с него летят отзвуки.
 func _death_scene() -> void:
-	for eye in eyes:
-		eye.visible = false
+	_spirit_glow(false)
 	_spirit(false)
 	_douse_hammer()
 	# Из любой позы — замаха, удара, прыжка — плавно на колени: в этой позе он и застынет.
@@ -608,8 +702,7 @@ func _stand_as_statue() -> void:
 	collision_layer = 0
 	collision_mask = 1
 	hurtbox.set_deferred("monitorable", false)
-	for eye in eyes:
-		eye.visible = false
+	_spirit_glow(false)
 	visual.position.y = KNEEL_Y
 	body_mesh.rotation.z = KNEEL_TILT
 	hammer.rotation.z = POSE_KNEEL - 0.4
