@@ -2748,7 +2748,8 @@ func run() -> void:
 	check(wolf != null and wolf.state == Dummy.State.DORMANT and wolf.non_lethal, "зверь склонился над жертвой, удары не смертельны")
 	player.restore()
 	await put(Vector3(wolf.global_position.x - 7.0, 0.1, 0), 1.0)
-	await seconds(1.2)
+	# Рёв при встрече: у модели со своими клипами — весь Zombie Scream (Werewolf._roar_time).
+	await seconds(1.2 + maxf(wolf._roar_time - Werewolf.ROAR_TIME, 0.0))
 	check(wolf.engaged and wolf.state != Dummy.State.DORMANT, "зверь услышал героя и бросается")
 	check(rooms.hud.boss_bar != null, "у оборотня полоса здоровья")
 	check(wolf.body_mesh.global_position.z + 0.4 < -0.38, "модель оборотня за героем")

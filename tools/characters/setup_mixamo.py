@@ -10,6 +10,7 @@ Adobe нельзя выкладывать в открытый доступ; чт
 
 Запуск из корня проекта: python tools/characters/setup_mixamo.py
 Потом импорт: "/c/Program Files/Godot/Godot.exe" --headless --path . --import
+Новые клипы: сначала импорт (появятся .import), потом этот скрипт, потом импорт ещё раз.
 """
 from pathlib import Path
 

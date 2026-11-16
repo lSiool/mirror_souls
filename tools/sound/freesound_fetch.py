@@ -38,6 +38,14 @@ EVENTS = {
                                                          "blood splatter", "body impact flesh", "meat slice"],
                          (0.2, 2.0)),
     "bow_release": ("спуск тетивы", ["arrow loose", "bow release", "bow shot"], (0.2, 1.5)),
+    # Оборотень встречает героя рыком (клип Zombie Scream, 2,8 с), 2026-11-16.
+    # Заметил героя — рык-заметка, выбран 232289 (zglar, Zombie Or Monster Or Lion Roar), 2026-11-16.
+    "beast_notice": ("оборотень заметил героя", ["monster roar"], (1.0, 4.0)),
+    # Чёткий рык сразу за ним. Отвергнуты круги: monster/beast roar, creature growl, wolf snarl;
+    # werewolf roar, wolf growl, bear/lion roar, dog growl.
+    # Третий круг (creature/tiger/troll/demon roar) тоже отвергнут: нужен волчий угрожающий рык.
+    "beast_roar": ("рык зверя на героя", ["wolf growl", "angry wolf", "wolf snarling", "dog snarl",
+                                         "growling dog", "wolf attack", "vicious dog"], (0.8, 5.0)),
 }
 
 

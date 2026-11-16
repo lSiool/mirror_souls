@@ -14,6 +14,8 @@ const LEAP_UP := 11.0
 const LEAP_AIR_TIME := 0.73
 const LEAP_MAX_X := 14.0
 const ROAR_TIME := 0.9
+## Рёв на героя — через столько после рыка «заметил» (beast_notice).
+const ROAR_AFTER_NOTICE := 1.0
 const PIN_TIME := 1.1
 const PIN_BITES := 2
 const PIN_BITE := 8.0
@@ -55,6 +57,10 @@ var _hits_taken := 0
 var _feint_wait := 3.0
 ## Идёт катсцена конца боя: бой и физику ведёт она.
 var in_scene := false
+## Модель со своими клипами (EnemyModel.OWN_CLIPS): рык при встрече длится весь клип, клип сцены —
+## прыжок на героя или терзает его (прыжок попал, катсцена).
+var _roar_time := ROAR_TIME
+var _scene_clip := &""
 
 @onready var arm_front: Node3D = $Visual/ArmFront
 @onready var arm_back: Node3D = $Visual/ArmBack
@@ -63,8 +69,8 @@ var in_scene := false
 
 func _init() -> void:
 	creature = CreatureKind.Kind.WEREWOLF
-	# Модель недавно обращённого (2026-11-16, docs/CHARACTER_PIPELINE.md) на общих клипах манекена.
-	# Клипы временные — потом звериные (Mixamo «Mutant …»).
+	# Модель недавно обращённого (2026-11-16, docs/CHARACTER_PIPELINE.md): звериные клипы Mixamo
+	# («Mutant …», «Zombie Scream», «Zombie Biting»), без них — общие клипы манекена.
 	mannequin_look = EnemyModel.WEREWOLF_YOUNG
 
 
@@ -75,6 +81,9 @@ func _ready() -> void:
 		for part in visual.get_children():
 			if part != model and part is MeshInstance3D or part in [arm_front, arm_back, head]:
 				(part as Node3D).visible = false
+		if model.own_clips.has(&"Beast_Scream"):
+			# Встречает героя рыком целиком (Zombie Scream), а не коротким рыком примитива.
+			_roar_time = model.hero.anim.get_animation(&"Beast_Scream").length * 0.9
 	if GameState.has_flag(gone_flag):
 		queue_free()
 		return
@@ -99,8 +108,9 @@ func maul(hero: Player) -> void:
 		facing = signf(dx)
 	visual.rotation.y = 0.0 if facing > 0.0 else PI
 	# Пригнулся, когти назад — сейчас прыгнет.
+	_scene_clip = &"Beast_Leap"
 	var crouch := create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE)
-	crouch.tween_property(visual, "scale:y", 0.68, MAUL_CROUCH)
+	crouch.tween_property(visual, "scale:y", 0.68 if model == null else 1.0, MAUL_CROUCH)
 	crouch.tween_property(arm_front, "rotation:z", -2.0, MAUL_CROUCH)
 	crouch.tween_property(arm_back, "rotation:z", -1.4, MAUL_CROUCH)
 	crouch.tween_property(head, "rotation:z", -0.2, MAUL_CROUCH)
@@ -114,7 +124,7 @@ func maul(hero: Player) -> void:
 	var leap := create_tween().set_parallel(true)
 	leap.tween_method(func(t: float) -> void:
 		global_position = from.lerp(to, t) + Vector3(0.0, sin(t * PI) * MAUL_ARC, 0.0), 0.0, 1.0, air)
-	leap.tween_property(visual, "scale:y", 1.12, air * 0.4)
+	leap.tween_property(visual, "scale:y", 1.12 if model == null else 1.0, air * 0.4)
 	leap.tween_property(arm_front, "rotation:z", 1.3, air * 0.5)
 	leap.tween_property(arm_back, "rotation:z", 1.0, air * 0.5)
 	await leap.finished
@@ -126,13 +136,14 @@ func maul(hero: Player) -> void:
 	Sfx.play(&"sword_block", global_position, 3.0)
 	HitSpark.spawn(get_parent(), hero.global_position + Vector3(0.0, 0.2, -0.3), Color(0.35, 0.3, 0.26), 26)
 	# Рвёт когтями, по очереди.
+	_scene_clip = &"Beast_Maul"
 	for i in MAUL_STRIKES:
 		var arm := arm_front if i % 2 == 0 else arm_back
 		var strike := create_tween().set_trans(Tween.TRANS_SINE)
 		strike.tween_property(arm, "rotation:z", -2.3, MAUL_STRIKE * 0.6)
 		strike.parallel().tween_property(visual, "scale:y", 1.0, MAUL_STRIKE * 0.6)
 		strike.tween_property(arm, "rotation:z", 1.4, MAUL_STRIKE * 0.4)
-		strike.parallel().tween_property(visual, "scale:y", 0.82, MAUL_STRIKE * 0.4)
+		strike.parallel().tween_property(visual, "scale:y", 0.82 if model == null else 1.0, MAUL_STRIKE * 0.4)
 		await strike.finished
 		hero.health.take_damage(MAUL_BITE, true)
 		hero.body.flash(Color(1.0, 0.25, 0.2))
@@ -144,6 +155,7 @@ func maul(hero: Player) -> void:
 ## Услышал зов: бой окончен, зверь замирает и поднимает морду.
 func heed_call() -> void:
 	_called = true
+	_scene_clip = &""
 	hurtbox.set_deferred("monitorable", false)
 	collision_layer = 0
 	_set_state(State.DORMANT)
@@ -271,16 +283,22 @@ func _pin() -> void:
 	var hero := _player
 	hero.knock_down()
 	_set_state(State.DORMANT)
+	_scene_clip = &"Beast_Maul"
 	for i in PIN_BITES:
 		await get_tree().create_timer(PIN_TIME / (PIN_BITES + 1)).timeout
 		if not is_instance_valid(hero) or _called or in_scene:
+			if not in_scene:
+				_scene_clip = &""
 			return
 		hero.health.take_damage(PIN_BITE, true)
 		hero.body.flash(Color(1.0, 0.25, 0.2))
 		Events.camera_shake_requested.emit(0.25, 0.15)
 	await get_tree().create_timer(PIN_TIME / (PIN_BITES + 1)).timeout
 	if _called or in_scene or not is_instance_valid(hero):
+		if not in_scene:
+			_scene_clip = &""
 		return
+	_scene_clip = &""
 	hero.stand_up()
 	hero.velocity = Vector3(facing * 9.0, 4.0, 0.0)
 	_set_state(State.RECOVER)
@@ -299,6 +317,44 @@ func _on_blinded() -> void:
 	Sfx.play_ui(&"distant_howl", -8.0)
 
 
+## Клип удара своей модели по приёму: когти — взмах лапой и удар по очереди, рывок — удар, прыжок —
+## прыжок с ударом (таз не взлетает: высоту даёт физика), обман — начало взмаха, рёв вплотную — рёв.
+## Доли клипа — момент удара (лапа дальше всего впереди, отрыв от земли у прыжка), замер 2026-11-16.
+func _model_attack() -> Array:
+	if model == null or not model.own_clips.has(&"Beast_Swipe"):
+		return []
+	match move:
+		Move.CLAW:
+			return [&"Beast_Punch", 0.25] if _claws == 1 else [&"Beast_Swipe", 0.48]
+		Move.RUSH:
+			return [&"Beast_Punch", 0.25]
+		Move.LEAP:
+			return [&"Beast_Leap", 0.15]
+		Move.FEINT:
+			return [&"Beast_Swipe", 0.2]
+		Move.HOWL:
+			return [&"Beast_Roar", 0.3, 0.6]
+	return []
+
+
+## Клип сцены своей модели: до боя рвёт жертву, рык при встрече, прыжок и терзание в катсцене и после
+## прыжка, бег в лес.
+func _model_pose() -> StringName:
+	if model == null or model.own_clips.is_empty():
+		return &""
+	if _fleeing:
+		return &"Jog_Fwd"
+	if _scene_clip != &"" and model.own_clips.has(_scene_clip):
+		return _scene_clip
+	if state == State.DORMANT and not _called and not in_scene:
+		if not engaged and model.own_clips.has(&"Beast_Maul"):
+			# До боя склонился над жертвой и рвёт её.
+			return &"Beast_Maul"
+		if engaged and _roar > 0.0 and _roar < _roar_time and model.own_clips.has(&"Beast_Scream"):
+			return &"Beast_Scream"
+	return &""
+
+
 func _land() -> void:
 	Events.camera_shake_requested.emit(0.5, 0.3)
 	HitStop.stop(0.05)
@@ -315,7 +371,7 @@ func _wake_check(delta: float) -> void:
 		return
 	if in_scene:
 		return
-	if engaged and _roar >= ROAR_TIME:
+	if engaged and _roar >= _roar_time:
 		# Прижал героя к земле: стоит над ним.
 		velocity = Vector3.ZERO
 		return
@@ -332,9 +388,14 @@ func _wake_check(delta: float) -> void:
 		Events.boss_engaged.emit(self)
 		Events.camera_shake_requested.emit(0.3, 0.5)
 		Sfx.play_ui(&"heartbeat")
+		# Заметил героя: рык поднял морду от жертвы, следом — рёв на героя (в разгар Zombie Scream).
+		Sfx.play(&"beast_notice", global_position, 2.0)
+		get_tree().create_timer(ROAR_AFTER_NOTICE).timeout.connect(func() -> void:
+			if is_instance_valid(self) and not _called and not in_scene:
+				Sfx.play(&"beast_roar", global_position, 3.0))
 	_roar += delta
 	head.rotation.z = lerpf(head.rotation.z, 0.6, 1.0 - exp(-8.0 * delta))
-	if _roar >= ROAR_TIME:
+	if _roar >= _roar_time:
 		_set_state(State.CHASE)
 
 

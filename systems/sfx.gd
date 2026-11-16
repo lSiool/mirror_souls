@@ -51,6 +51,8 @@ const EVENTS := {
 	&"death_sting": "ui",
 	&"heartbeat": "player",
 	&"distant_howl": "enemy",
+	&"beast_notice": "enemy",
+	&"beast_roar": "enemy",
 	&"villager_call": "enemy",
 }
 

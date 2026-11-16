@@ -12,6 +12,7 @@ extends Node3D
 ## Клавиши: ←/→ — персонаж, ↑/↓ — клип, Пробел — пауза, R — клип сначала, Q/E — повернуть камеру на 45°,
 ## 1 — спереди, 3 — сбоку, колесо или +/− — ближе/дальше, F — кадр по персонажу.
 ## Крупно одну кость: … -- char=werewolf bone=LeftForeArm dist=1.0
+## Дыры в сетке: … -- char=werewolf bg=1,0,1 (без пола, фон насквозь)
 ## Клипы — общие клипы манекена (Quaternius UAL) и, если лежат в assets/characters/anims/mixamo (не в git),
 ## клипы Mixamo под именами «Mx_<файл>» (шаг корня снят, как в tools/characters/anim_sheet.gd).
 
@@ -70,6 +71,10 @@ func _build_stage() -> void:
 	env.environment = Environment.new()
 	env.environment.background_mode = Environment.BG_COLOR
 	env.environment.background_color = Color(0.28, 0.29, 0.31)
+	if _args.has("bg"):
+		# Яркий фон (bg=1,0,1) — дыры и щели в сетке видны насквозь.
+		var c: PackedStringArray = _args["bg"].split(",")
+		env.environment.background_color = Color(float(c[0]), float(c[1]), float(c[2]))
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.environment.ambient_light_color = Color(1, 1, 1)
 	env.environment.ambient_light_energy = 0.55
@@ -83,6 +88,7 @@ func _build_stage() -> void:
 		sun.shadow_enabled = light[1] > 1.0
 		add_child(sun)
 	var floor_mesh := MeshInstance3D.new()
+	floor_mesh.visible = not _args.has("bg")
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(400, 400)
 	var mat := StandardMaterial3D.new()

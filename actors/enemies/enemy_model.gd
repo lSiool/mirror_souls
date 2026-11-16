@@ -38,6 +38,29 @@ const OWN_MODELS := {WEREWOLF_YOUNG: "res://assets/characters/werewolf_young/wer
 ## Торс своей модели толще манекена — руки из клипов уходят в тело; ArmRoom отводит их на край.
 ## Полуоси торса вбок и вперёд-назад, доли длины таз → шея (замер по сетке в Blender).
 const ARM_ROOM := {WEREWOLF_YOUNG: Vector2(0.37, 0.45)}
+## Свои клипы облика (2026-11-16): звериные клипы Mixamo вместо человеческих. Имя в библиотеке → файл
+## в MIXAMO (папка не в git — лицензия Adobe) и обработка: loop — по кругу; ground — таз не выше начала
+## (высоту прыжка даёт физика врага). Шаг корня снят. Файла нет — остаётся клип манекена.
+const MIXAMO := "res://assets/characters/anims/mixamo/%s.fbx"
+const OWN_CLIPS := {WEREWOLF_YOUNG: {
+	&"Idle": ["mutant breathing idle", "loop"],
+	&"Walk": ["mutant walking", "loop"],
+	&"Jog_Fwd": ["mutant run", "loop"],
+	&"Death01": ["mutant dying", ""],
+	&"Beast_Swipe": ["mutant swiping", ""],
+	&"Beast_Punch": ["mutant punch", ""],
+	&"Beast_Leap": ["mutant jump attack", "ground"],
+	&"Beast_Roar": ["mutant roaring", ""],
+	&"Beast_Scream": ["Zombie Scream", ""],
+	&"Beast_Pounce": ["Zombie Biting Standing", ""],
+	&"Beast_Maul": ["Zombie Biting Ground", "loop"],
+}}
+## Своя ходьба и бег: скорость шага клипа при темпе 1 (м/с, по сдвигу корня) и предел ускорения бега.
+const OWN_GAIT := {WEREWOLF_YOUNG: Vector3(1.26, 2.28, 2.8)}
+## Смерть своим клипом: до какой доли клипа (упал) и за сколько секунд.
+const OWN_DEATH := {WEREWOLF_YOUNG: Vector2(0.55, 1.6)}
+## Библиотеки обликов со своими клипами — собираются один раз.
+static var _own_libraries := {}
 ## Кости левой руки: в клипах «со щитом» их поза — из Idle_Shield.
 const SHIELD_ARM: Array[String] = ["LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand"]
 ## Скорость, под которую снят шаг проклятого.
@@ -59,7 +82,8 @@ const SCENE_BLEND := 0.8
 ## Кадр клипа Fixing_Kneeling, где стоит на колене, и переход в него.
 const KNEEL_AT := 1.0
 const KNEEL_BLEND := 0.3
-## Клип удара по облику и доля клипа, где удар попадает (конец замаха).
+## Клип удара по облику и доля клипа, где удар попадает (конец замаха); третьим числом — где кончается
+## удар и начинается отход (по умолчанию 0.75). Свой выбор по приёму — Dummy._model_attack().
 const ATTACKS := {SOLDIER: [&"Sword_Regular_A", 0.42], VAMPIRE: [&"Melee_Hook", 0.45], WEREWOLF_YOUNG: [&"Melee_Hook", 0.45]}
 const JOG_SPEED := 4.0
 ## Критический удар: кадр клипа Hit_Chest, где грудь выбита назад сильнее всего, и доля наклона тела.
@@ -156,6 +180,11 @@ var _eye_light: OmniLight3D
 var _wing_mesh: MeshInstance3D
 var _wing_bones: Array = []
 var _neck: Node3D
+## Свои клипы облика, что нашлись на диске (OWN_CLIPS): имя → true.
+var own_clips := {}
+## Шаг ходьбы и бега клипов (м/с при темпе 1) и предел ускорения бега; смерть — доля клипа (0 — весь) и время.
+var _gait := Vector3(WALK_SPEED, JOG_SPEED, 1.8)
+var _death := Vector2(0.0, 0.5)
 
 
 static func build(enemy: Dummy, visual: Node3D, body_material: Material, model_look: StringName) -> EnemyModel:
@@ -182,7 +211,7 @@ func _setup(body_material: Material) -> void:
 		var player := AnimationPlayer.new()
 		player.name = &"AnimationPlayer"
 		own.add_child(player)
-		player.add_animation_library(&"", HeroModel.clip_library())
+		player.add_animation_library(&"", _library())
 		hero.add_child(own)
 	lean.add_child(hero)
 	var mesh := hero.find_child("Mannequin", true, false) as MeshInstance3D
@@ -207,6 +236,10 @@ func _setup(body_material: Material) -> void:
 		_smith.model_space = lean
 		hero.skeleton.add_child(_smith)
 	_rig_ik()
+	if own_clips.has(&"Walk") and OWN_GAIT.has(look):
+		_gait = OWN_GAIT[look]
+	if own_clips.has(&"Death01") and OWN_DEATH.has(look):
+		_death = OWN_DEATH[look]
 	_weapon = _enemy._grip
 	if _weapon:
 		# Кулак поперёк рукояти — после IK; оружие в ладони — по итоговой позе, как скелет обновился.
@@ -214,6 +247,54 @@ func _setup(body_material: Material) -> void:
 		_grip_hands.name = &"GripHands"
 		hero.skeleton.add_child(_grip_hands)
 		hero.skeleton.skeleton_updated.connect(_weapon_to_hand)
+
+
+## Библиотека клипов своей модели: клипы манекена, поверх — свои клипы облика (OWN_CLIPS), если есть файлы.
+## Своя копия библиотеки: замена Idle и прочих не трогает героя и других врагов.
+func _library() -> AnimationLibrary:
+	var base := HeroModel.clip_library()
+	if not OWN_CLIPS.has(look):
+		return base
+	if not _own_libraries.has(look):
+		var lib := AnimationLibrary.new()
+		for name in base.get_animation_list():
+			lib.add_animation(name, base.get_animation(name))
+		var found := {}
+		for name: StringName in OWN_CLIPS[look]:
+			var entry: Array = OWN_CLIPS[look][name]
+			var clip := _own_clip(MIXAMO % entry[0], entry[1])
+			if clip:
+				lib.add_animation(name, clip)
+				found[name] = true
+		_own_libraries[look] = [lib, found]
+	own_clips = _own_libraries[look][1]
+	return _own_libraries[look][0]
+
+
+## Клип Mixamo с диска: шаг корня по земле снят (враг идёт сам), ground — таз не выше начала.
+static func _own_clip(path: String, mode: String) -> Animation:
+	if not ResourceLoader.exists(path):
+		return null
+	var scene := (load(path) as PackedScene).instantiate()
+	var from := scene.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var clip: Animation = null
+	if from and not from.get_animation_list().is_empty():
+		clip = from.get_animation(from.get_animation_list()[-1]).duplicate(true) as Animation
+	scene.free()
+	if clip == null:
+		return null
+	var track := clip.find_track(NodePath("%GeneralSkeleton:Hips"), Animation.TYPE_POSITION_3D)
+	if track >= 0 and clip.track_get_key_count(track) > 1:
+		var count := clip.track_get_key_count(track)
+		var first: Vector3 = clip.track_get_key_value(track, 0)
+		var drift: Vector3 = clip.track_get_key_value(track, count - 1) - first
+		for k in count:
+			var t := clip.track_get_key_time(track, k) / maxf(clip.length, 0.001)
+			var at: Vector3 = clip.track_get_key_value(track, k)
+			var y := minf(at.y, first.y) if mode == "ground" else at.y
+			clip.track_set_key_value(track, k, Vector3(at.x - drift.x * t, y, at.z - drift.z * t))
+	clip.loop_mode = Animation.LOOP_LINEAR if mode == "loop" else Animation.LOOP_NONE
+	return clip
 
 
 # --- Черты облика ----------------------------------------------------------------
@@ -453,16 +534,18 @@ func update(delta: float) -> void:
 	var clip: StringName = attack[0]
 	var length := hero.anim.get_animation(clip).length
 	var hit: float = length * attack[1]
+	# Где кончается удар и начинается отход (доля клипа): по умолчанию 0.75.
+	var strike_end: float = length * (attack[2] if attack.size() > 2 else 0.75)
 	match state:
 		Dummy.State.WINDUP:
 			if fresh:
 				hero.play_span(clip, 0.0, hit, enemy.windup_time, 0.1)
 		Dummy.State.ATTACK:
 			if fresh:
-				hero.play_span(clip, hit, length * 0.75, enemy.attack_time, 0.03)
+				hero.play_span(clip, hit, strike_end, enemy.attack_time, 0.03)
 		Dummy.State.RECOVER:
 			if fresh:
-				hero.play_span(clip, length * 0.75, 0.0, enemy.recover_time, 0.1)
+				hero.play_span(clip, strike_end, 0.0, enemy.recover_time, 0.1)
 		Dummy.State.STAGGER, Dummy.State.FLINCH:
 			if fresh:
 				hero.play_span(&"Hit_Chest", 0.0, 0.0, maxf(enemy.stagger_time if state == Dummy.State.STAGGER else enemy.flinch_time, 0.2), 0.05)
@@ -484,7 +567,7 @@ func update(delta: float) -> void:
 				hero.play_span(&"Hit_Knockback", 0.0, 0.0, enemy.knockdown_time, 0.05)
 		Dummy.State.DEAD:
 			if fresh:
-				hero.play_span(&"Death01", 0.0, 0.0, 0.5, 0.05)
+				hero.play_span(&"Death01", 0.0, hero.anim.get_animation(&"Death01").length * _death.x, _death.y, 0.05)
 		Dummy.State.BLINDED:
 			if rubbing:
 				if enemy.blind_recoiling():
@@ -506,9 +589,9 @@ func update(delta: float) -> void:
 			elif speed < 0.3:
 				hero.play(&"Sword_Idle" if _sword else &"Idle")
 			elif speed < WALK_SPEED * 1.3:
-				hero.play(&"Walk", speed / WALK_SPEED)
+				hero.play(&"Walk", speed / _gait.x)
 			else:
-				hero.play(&"Jog_Fwd", clampf(speed / JOG_SPEED, 0.7, 1.8))
+				hero.play(&"Jog_Fwd", clampf(speed / _gait.y, 0.7, _gait.z))
 	# Доигранный отрезок держит последний кадр (как у героя).
 	if hero._clip_end > 0.0 and hero.anim.current_animation_position >= hero._clip_end:
 		hero.anim.speed_scale = 0.0
