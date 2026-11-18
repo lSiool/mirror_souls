@@ -52,7 +52,9 @@ const PLACE_NAMES := {&"village_hut": "Хижина", &"village_street": "Ули
 	&"run_village": "Горящая деревня", &"run_exit": "За воротами деревни", &"reflection_run": "Нестабильное отражение",
 	&"hook_range": "Полигон крюка", &"farmyard": "Скотный двор", &"rye_field": "Ржаное поле",
 	&"execution_hill": "Лобное место", &"mill": "Мельница", &"vegetable_patch": "Огороды", &"threshing_barn": "Гумно",
-	&"pass_bridge": "Подвесной перевал", &"ash_peaks": "Пепельные Пики"}
+	&"pass_bridge": "Подвесной перевал", &"ash_peaks": "Пепельные Пики",
+	&"catacombs": "Катакомбы", &"ossuary": "Оссуарий", &"gravedigger_quarter": "Квартал могильщика",
+	&"bell_tower": "Колокольня мёртвых"}
 const SCALING_SHOWN: Array[PlayerStats.Param] = [PlayerStats.Param.STRENGTH, PlayerStats.Param.DEXTERITY,
 	PlayerStats.Param.INTELLIGENCE, PlayerStats.Param.LUCK]
 const SCALING_SHORT := {PlayerStats.Param.STRENGTH: "Сил", PlayerStats.Param.DEXTERITY: "Лов",

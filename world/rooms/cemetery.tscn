@@ -1766,6 +1766,8 @@ partner_path = NodePath("../RobberKnife")
 [node name="RobberKnife" parent="Objects" instance=ExtResource("bandit_knife")]
 position = Vector3(12.5, 2.4, -2.0)
 partner_path = NodePath("../RobberHeavy")
+drop_item = &"crypt_key"
+drop_flag = &"crypt_key"
 
 [node name="RobberEvent" type="Node3D" parent="Objects"]
 position = Vector3(11, 2.4, 0)
@@ -1791,11 +1793,11 @@ material = SubResource("Mat_iron")
 [node name="SealedCryptDoor" type="Area3D" parent="Objects"]
 position = Vector3(-10.0, 0, 0)
 script = ExtResource("door")
-target_room = &"cemetery"
-target_spawn = NodePath("Spawns/FromGate")
-open_prompt = "Открыть склеп"
+target_room = &"catacombs"
+target_spawn = NodePath("Spawns/FromCemetery")
+open_prompt = "Отпереть склеп"
 required_flag = &"crypt_key"
-locked_text = "Склеп запечатан. Тяжёлая плита не сдвинется — пока."
+locked_text = "Склеп заперт: на плите тяжёлый замок. Нужен ключ."
 door_size = Vector3(1.6, 2.4, 0.15)
 door_color = Color(0.08, 0.08, 0.09, 1)
 
@@ -2334,6 +2336,9 @@ position = Vector3(-26.0, 0.1, 0)
 
 [node name="FromForest" type="Marker3D" parent="Spawns"]
 position = Vector3(26.0, 0.1, 0)
+
+[node name="FromCrypt" type="Marker3D" parent="Spawns"]
+position = Vector3(-10.0, 0.1, 0)
 
 [node name="DoorToGate" type="Area3D" parent="Objects"]
 position = Vector3(-27.3, 0, 0)

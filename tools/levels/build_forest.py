@@ -133,15 +133,17 @@ def cemetery():
     s.candles(D, "CryptCandles2", 12.4, 2.4, -1.9, 2, False)
     # Мародёры ждут в склепе (RobberEvent выпустит).
     s.enemy("RobberHeavy", "bandit_heavy", (9.5, 2.4, -2.0), ['partner_path = NodePath("../RobberKnife")'])
-    s.enemy("RobberKnife", "bandit_knife", (12.5, 2.4, -2.0), ['partner_path = NodePath("../RobberHeavy")'])
+    # Ключ от запечатанного склепа — пока у мародёра с ножом (§8.13; в готовой игре — по сюжету, с открытием нежити).
+    s.enemy("RobberKnife", "bandit_knife", (12.5, 2.4, -2.0), ['partner_path = NodePath("../RobberHeavy")',
+                                                               'drop_item = &"crypt_key"', 'drop_flag = &"crypt_key"'])
     s.node("RobberEvent", 'type="Node3D"', "Objects", ["position = Vector3(11, 2.4, 0)", 'script = ExtResource("robbers")',
            "trigger_x = 2.0", "landing = Vector2(-1.5, 2.0)", 'door_path = NodePath("../../Decor/CryptDoor")'])
-    # Нижний путь: запечатанный склеп (будущее подземелье).
+    # Нижний путь: запечатанный склеп — вход в катакомбы (build_graveyard.py, §8.13).
     s.box(D, "SealedCrypt", (-10.0, 2.2, -3.0), (5.0, 4.4, 1.6), "stone_dark")
     s.roof(D, "SealedRoof", (-10.0, 5.2, -3.0), (5.8, 1.6, 2.0), "stone_dark")
     s.box(D, "SealedSlab", (-10.0, 1.2, -2.15), (1.8, 2.4, 0.1), "iron")
-    s.door("SealedCryptDoor", -10.0, 0, "cemetery", "Spawns/FromGate", "Открыть склеп",
-           ['required_flag = &"crypt_key"', 'locked_text = "Склеп запечатан. Тяжёлая плита не сдвинется — пока."',
+    s.door("SealedCryptDoor", -10.0, 0, "catacombs", "Spawns/FromCemetery", "Отпереть склеп",
+           ['required_flag = &"crypt_key"', 'locked_text = "Склеп заперт: на плите тяжёлый замок. Нужен ключ."',
             "door_size = Vector3(1.6, 2.4, 0.15)", "door_color = Color(0.08, 0.08, 0.09, 1)"])
     # Ангелы, могилы, деревья, фонарь.
     s.statue(D, "Angel", -20.0, -3.4, scale=0.9)
@@ -162,6 +164,7 @@ def cemetery():
     s.shard("MirrorShard", 24.0, 0.0)
     s.marker("FromGate", (-26.0, 0.1, 0))
     s.marker("FromForest", (26.0, 0.1, 0))
+    s.marker("FromCrypt", (-10.0, 0.1, 0))
     s.door("DoorToGate", -27.3, 0, "cemetery_gate", "Spawns/FromCemetery", "Назад к воротам")
     s.door("DoorToForest", 27.3, 0, "forest_wall", "Spawns/FromCemetery", "В лес")
     save(s, "cemetery")

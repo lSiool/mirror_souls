@@ -1,0 +1,817 @@
+[gd_scene load_steps=41 format=3]
+
+[ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
+
+[ext_resource type="Script" path="res://world/common/room_door.gd" id="door"]
+
+[ext_resource type="Script" path="res://world/common/item_pickup.gd" id="pickup"]
+
+[ext_resource type="Script" path="res://world/common/ladder.gd" id="ladder"]
+
+[ext_resource type="PackedScene" path="res://world/checkpoints/mirror_shard.tscn" id="shard"]
+
+[ext_resource type="PackedScene" path="res://world/chest/chest.tscn" id="chest"]
+
+[ext_resource type="PackedScene" path="res://world/glass/glass_surface.tscn" id="glass"]
+
+[ext_resource type="PackedScene" path="res://world/hazards/spikes.tscn" id="spikes"]
+
+[ext_resource type="Script" path="res://world/common/note.gd" id="note"]
+
+[ext_resource type="Script" path="res://world/common/bound_captive.gd" id="captive"]
+
+[ext_resource type="Script" path="res://world/common/mud_zone.gd" id="mud"]
+
+[ext_resource type="Script" path="res://world/common/boss_arena.gd" id="arena"]
+
+[ext_resource type="Script" path="res://world/rooms/robber_event.gd" id="robbers"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/rat.tscn" id="rat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bat.tscn" id="bat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/fog_wraith.tscn" id="wraith"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/drowned_knight.tscn" id="knight"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_heavy.tscn" id="bandit_heavy"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_knife.tscn" id="bandit_knife"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/blacksmith.tscn" id="smith"]
+
+[ext_resource type="Script" path="res://world/common/hook_point.gd" id="hookpoint"]
+
+[ext_resource type="Script" path="res://world/common/wall_candle.gd" id="candle"]
+
+[ext_resource type="Script" path="res://world/common/say_line.gd" id="sayline"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_char"]
+albedo_color = Color(0.035, 0.03, 0.03, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_cloth"]
+albedo_color = Color(0.1, 0.09, 0.12, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_iron"]
+albedo_color = Color(0.09, 0.09, 0.1, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_moonpane"]
+albedo_color = Color(0.45, 0.6, 0.85, 1)
+emission_enabled = true
+emission = Color(0.45, 0.6, 0.85, 1)
+emission_energy_multiplier = 1.1
+
+[sub_resource type="StandardMaterial3D" id="Mat_rope"]
+albedo_color = Color(0.45, 0.36, 0.22, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_rust"]
+albedo_color = Color(0.3, 0.16, 0.08, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_shingle"]
+albedo_color = Color(0.08, 0.075, 0.08, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.27, 0.27, 0.29, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone_dark"]
+albedo_color = Color(0.15, 0.15, 0.17, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood_dark"]
+albedo_color = Color(0.12, 0.09, 0.07, 1)
+roughness = 0.95
+
+[sub_resource type="Environment" id="Env_room"]
+background_mode = 1
+background_color = Color(0.0, 0.0, 0.0, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.34, 0.38, 0.48, 1)
+ambient_light_energy = 0.09
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.06
+fog_enabled = true
+fog_light_color = Color(0.02, 0.022, 0.03, 1)
+fog_density = 0.02
+
+[sub_resource type="BoxShape3D" id="Wall_1"]
+size = Vector3(1, 60, 4.4)
+
+[sub_resource type="BoxShape3D" id="Wall_2"]
+size = Vector3(1, 60, 4.4)
+
+[sub_resource type="PrismMesh" id="Roof_3"]
+material = SubResource("Mat_shingle")
+size = Vector3(26.0, 6.0, 3.0)
+
+[sub_resource type="Shader" id="BD_sky_shader"]
+code = "shader_type spatial;
+render_mode unshaded, fog_disabled, shadows_disabled, cull_disabled;
+uniform vec4 top : source_color = vec4(0.03, 0.035, 0.05, 1.0);
+uniform vec4 horizon : source_color = vec4(0.14, 0.15, 0.19, 1.0);
+uniform float horizon_at = 0.6;
+uniform vec4 glow : source_color = vec4(0.0);
+uniform vec2 glow_at = vec2(0.2, 0.6);
+uniform float glow_size = 0.12;
+void fragment() {
+	float t = smoothstep(0.0, horizon_at, UV.y);
+	vec3 c = mix(top.rgb, horizon.rgb, t * t);
+	c *= mix(1.0, 0.6, clamp((UV.y - horizon_at) / (1.0 - horizon_at), 0.0, 1.0));
+	vec2 d = (UV - glow_at) * vec2(1.0, 2.4);
+	c += glow.rgb * glow.a * exp(-dot(d, d) / (glow_size * glow_size));
+	ALBEDO = c;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="BD_sky_Sky"]
+shader = SubResource("BD_sky_shader")
+shader_parameter/top = Color(0.01, 0.012, 0.02, 1)
+shader_parameter/horizon = Color(0.07, 0.08, 0.11, 1)
+shader_parameter/horizon_at = 0.6
+shader_parameter/glow = Color(0.6, 0.68, 0.85, 0.18)
+shader_parameter/glow_at = Vector2(0.62, 0.3)
+shader_parameter/glow_size = 0.035
+
+[sub_resource type="QuadMesh" id="BD_quad_264x100"]
+size = Vector2(264, 100)
+
+[node name="BellTower" type="Node3D"]
+script = ExtResource("room")
+room_id = &"bell_tower"
+center_x = 0.0
+width = 24
+mood = SubResource("Env_room")
+sun_color = Color(0.5, 0.55, 0.7, 1)
+sun_energy = 0.0
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="Decor" type="Node3D" parent="."]
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="WallLeft" type="StaticBody3D" parent="Geometry"]
+position = Vector3(-12.5, 10.0, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallLeft"]
+shape = SubResource("Wall_1")
+
+[node name="WallRight" type="StaticBody3D" parent="Geometry"]
+position = Vector3(12.5, 10.0, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallRight"]
+shape = SubResource("Wall_2")
+
+[node name="Floor" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0.0, -3.0, 0)
+use_collision = true
+size = Vector3(32, 6, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="Tier1" type="CSGBox3D" parent="Geometry"]
+position = Vector3(5.0, 4.75, 0)
+use_collision = true
+size = Vector3(14.0, 0.5, 3.0)
+material = SubResource("Mat_stone")
+
+[node name="Tier2" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-3.0, 9.75, 0)
+use_collision = true
+size = Vector3(18.0, 0.5, 3.0)
+material = SubResource("Mat_stone")
+
+[node name="Tier3" type="CSGBox3D" parent="Geometry"]
+position = Vector3(3.0, 14.75, 0)
+use_collision = true
+size = Vector3(18.0, 0.5, 3.0)
+material = SubResource("Mat_stone")
+
+[node name="Tier4" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-3.0, 19.75, 0)
+use_collision = true
+size = Vector3(18.0, 0.5, 3.0)
+material = SubResource("Mat_stone")
+
+[node name="Tier5" type="CSGBox3D" parent="Geometry"]
+position = Vector3(3.0, 24.75, 0)
+use_collision = true
+size = Vector3(18.0, 0.5, 3.0)
+material = SubResource("Mat_stone")
+
+[node name="Ladder1" type="Area3D" parent="Objects"]
+position = Vector3(-2.6, 0.0, 0)
+script = ExtResource("ladder")
+height = 5.0
+exit_dir = 1.0
+
+[node name="Ladder1RailA" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.9, 2.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1RailB" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.3, 2.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 0.3, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 0.75, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 1.2, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 1.65, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 2.1, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 2.55, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 3.0, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung7" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 3.45, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung8" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 3.9, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung9" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 4.35, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder1Rung10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.6, 4.8, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2" type="Area3D" parent="Objects"]
+position = Vector3(6.6, 5.0, 0)
+script = ExtResource("ladder")
+height = 5.0
+exit_dir = -1.0
+
+[node name="Ladder2RailA" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.3, 7.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2RailB" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.9, 7.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung0" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 5.3, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung1" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 5.75, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung2" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 6.2, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung3" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 6.65, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung4" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 7.1, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung5" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 7.55, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung6" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 8.0, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung7" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 8.45, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung8" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 8.9, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung9" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 9.35, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder2Rung10" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 9.8, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3" type="Area3D" parent="Objects"]
+position = Vector3(-6.6, 10.0, 0)
+script = ExtResource("ladder")
+height = 5.0
+exit_dir = 1.0
+
+[node name="Ladder3RailA" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.9, 12.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3RailB" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.3, 12.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 10.3, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 10.75, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 11.2, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 11.65, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 12.1, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 12.55, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 13.0, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung7" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 13.45, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung8" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 13.9, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung9" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 14.35, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder3Rung10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 14.8, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4" type="Area3D" parent="Objects"]
+position = Vector3(6.6, 15.0, 0)
+script = ExtResource("ladder")
+height = 5.0
+exit_dir = -1.0
+
+[node name="Ladder4RailA" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.3, 17.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4RailB" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.9, 17.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung0" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 15.3, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung1" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 15.75, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung2" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 16.2, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung3" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 16.65, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung4" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 17.1, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung5" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 17.55, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung6" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 18.0, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung7" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 18.45, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung8" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 18.9, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung9" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 19.35, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder4Rung10" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.6, 19.8, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5" type="Area3D" parent="Objects"]
+position = Vector3(-6.6, 20.0, 0)
+script = ExtResource("ladder")
+height = 5.0
+exit_dir = 1.0
+
+[node name="Ladder5RailA" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.9, 22.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5RailB" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.3, 22.5, -0.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 20.3, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 20.75, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 21.2, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 21.65, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 22.1, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 22.55, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 23.0, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung7" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 23.45, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung8" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 23.9, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung9" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 24.35, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Ladder5Rung10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.6, 24.8, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Roof" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0.0, 32.0, 0)
+use_collision = true
+size = Vector3(32.0, 4.0, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="Spire" type="MeshInstance3D" parent="Decor"]
+position = Vector3(0.0, 36.0, -1.0)
+mesh = SubResource("Roof_3")
+
+[node name="Wall" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, 9.0, -2.4)
+size = Vector3(80, 30, 0.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="TowerSide0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-13.0, 12.0, 0.0)
+size = Vector3(1.0, 36.0, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="TowerSide1" type="CSGBox3D" parent="Decor"]
+position = Vector3(13.0, 12.0, 0.0)
+size = Vector3(1.0, 36.0, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="BelfryPier0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-14.0, 27.5, -2.4)
+size = Vector3(2.0, 7.0, 0.6)
+material = SubResource("Mat_stone_dark")
+
+[node name="BelfryPier1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-4.0, 27.5, -2.4)
+size = Vector3(2.0, 7.0, 0.6)
+material = SubResource("Mat_stone_dark")
+
+[node name="BelfryPier2" type="CSGBox3D" parent="Decor"]
+position = Vector3(4.0, 27.5, -2.4)
+size = Vector3(2.0, 7.0, 0.6)
+material = SubResource("Mat_stone_dark")
+
+[node name="BelfryPier3" type="CSGBox3D" parent="Decor"]
+position = Vector3(14.0, 27.5, -2.4)
+size = Vector3(2.0, 7.0, 0.6)
+material = SubResource("Mat_stone_dark")
+
+[node name="BelfryLintel" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, 30.5, -2.4)
+size = Vector3(32.0, 1.0, 0.6)
+material = SubResource("Mat_stone_dark")
+
+[node name="Backdrop" type="Node3D" parent="Decor"]
+
+[node name="Foreground" type="Node3D" parent="Decor"]
+
+[node name="Sky0" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 16, -80)
+mesh = SubResource("BD_quad_264x100")
+material_override = SubResource("BD_sky_Sky")
+cast_shadow = 0
+
+[node name="Slit0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.0, 8.0, -2.18)
+size = Vector3(0.3, 1.6, 0.06)
+material = SubResource("Mat_moonpane")
+
+[node name="SlitLight0" type="OmniLight3D" parent="Decor"]
+position = Vector3(-9.0, 7.4, -1.2)
+light_color = Color(0.5, 0.6, 0.8, 1)
+light_energy = 0.25
+omni_range = 6.0
+
+[node name="Slit1" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.0, 13.0, -2.18)
+size = Vector3(0.3, 1.6, 0.06)
+material = SubResource("Mat_moonpane")
+
+[node name="SlitLight1" type="OmniLight3D" parent="Decor"]
+position = Vector3(9.0, 12.4, -1.2)
+light_color = Color(0.5, 0.6, 0.8, 1)
+light_energy = 0.35
+omni_range = 6.0
+
+[node name="Slit2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.0, 18.0, -2.18)
+size = Vector3(0.3, 1.6, 0.06)
+material = SubResource("Mat_moonpane")
+
+[node name="SlitLight2" type="OmniLight3D" parent="Decor"]
+position = Vector3(-9.0, 17.4, -1.2)
+light_color = Color(0.5, 0.6, 0.8, 1)
+light_energy = 0.45
+omni_range = 6.0
+
+[node name="Slit3" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.0, 22.5, -2.18)
+size = Vector3(0.3, 1.6, 0.06)
+material = SubResource("Mat_moonpane")
+
+[node name="SlitLight3" type="OmniLight3D" parent="Decor"]
+position = Vector3(9.0, 21.9, -1.2)
+light_color = Color(0.5, 0.6, 0.8, 1)
+light_energy = 0.55
+omni_range = 6.0
+
+[node name="BelfryMoon" type="OmniLight3D" parent="Decor"]
+position = Vector3(2.0, 29.0, 1.5)
+light_color = Color(0.5, 0.6, 0.8, 1)
+light_energy = 0.9
+omni_range = 14.0
+
+[node name="BellBeam" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(2.0, 30.0, -0.8)
+rotation = Vector3(0, 0, 1.5708)
+radius = 0.18
+height = 8.0
+sides = 6
+material = SubResource("Mat_wood_dark")
+
+[node name="Bell" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(2.0, 28.4, -0.8)
+radius = 1.2
+height = 2.2
+sides = 14
+cone = true
+material = SubResource("Mat_rust")
+
+[node name="BellLip" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(2.0, 27.35, -0.8)
+radius = 1.25
+height = 0.2
+sides = 14
+material = SubResource("Mat_rust")
+
+[node name="BellClapperRag" type="CSGBox3D" parent="Decor"]
+position = Vector3(2.0, 27.6, -0.8)
+size = Vector3(0.35, 0.6, 0.35)
+material = SubResource("Mat_cloth")
+
+[node name="BellRope" type="CSGBox3D" parent="Decor"]
+position = Vector3(2.9, 13.7, -1.2)
+size = Vector3(0.05, 27.0, 0.05)
+material = SubResource("Mat_rope")
+
+[node name="BellNote" type="Area3D" parent="Objects"]
+position = Vector3(2.0, 25.0, 0)
+script = ExtResource("note")
+title = "Колокол мёртвых"
+lines = PackedStringArray("Язык колокола обмотан тряпьём и перевязан цепью.", "На ободе выбито: «Звоню — и встают. Молчу — и спят».")
+
+[node name="HillDoor" type="CSGBox3D" parent="Decor"]
+position = Vector3(11.2, 26.2, -1.2)
+size = Vector3(1.4, 2.4, 0.2)
+material = SubResource("Mat_wood_dark")
+
+[node name="HillDoorBand" type="CSGBox3D" parent="Decor"]
+position = Vector3(11.2, 26.6, -1.08)
+size = Vector3(1.4, 0.12, 0.05)
+material = SubResource("Mat_iron")
+
+[node name="HillDoorLine" type="Area3D" parent="Objects"]
+position = Vector3(10.0, 25.0, 0)
+script = ExtResource("sayline")
+text = "«Дверь наружу. Засов снаружи — не поддаётся. Оттуда тянет сырой землёй и ветром»."
+size = Vector3(3, 3, 4)
+
+[node name="Candle0Niche" type="CSGBox3D" parent="Decor"]
+position = Vector3(-8.0, 1.6, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="Candle0" type="Area3D" parent="Objects"]
+position = Vector3(-8.0, 0.0, 0)
+script = ExtResource("candle")
+flag = &"candle_bell_tower_Candle0"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="Candle1Niche" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.0, 6.6, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="Candle1" type="Area3D" parent="Objects"]
+position = Vector3(9.0, 5.0, 0)
+script = ExtResource("candle")
+flag = &"candle_bell_tower_Candle1"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="Candle2Niche" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.0, 11.6, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="Candle2" type="Area3D" parent="Objects"]
+position = Vector3(-9.0, 10.0, 0)
+script = ExtResource("candle")
+flag = &"candle_bell_tower_Candle2"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="Candle3Niche" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.0, 16.6, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="Candle3" type="Area3D" parent="Objects"]
+position = Vector3(9.0, 15.0, 0)
+script = ExtResource("candle")
+flag = &"candle_bell_tower_Candle3"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="Candle4Niche" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.0, 21.6, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="Candle4" type="Area3D" parent="Objects"]
+position = Vector3(-9.0, 20.0, 0)
+script = ExtResource("candle")
+flag = &"candle_bell_tower_Candle4"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="Candle5Niche" type="CSGBox3D" parent="Decor"]
+position = Vector3(-3.0, 26.6, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="Candle5" type="Area3D" parent="Objects"]
+position = Vector3(-3.0, 25.0, 0)
+script = ExtResource("candle")
+flag = &"candle_bell_tower_Candle5"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="FromQuarter" type="Marker3D" parent="Spawns"]
+position = Vector3(9.0, 0.1, 0)
+
+[node name="DoorToQuarter" type="Area3D" parent="Objects"]
+position = Vector3(10.5, 0, 0)
+script = ExtResource("door")
+target_room = &"gravedigger_quarter"
+target_spawn = NodePath("Spawns/FromBellTower")
+open_prompt = "В квартал могильщика"

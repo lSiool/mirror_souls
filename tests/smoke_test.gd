@@ -359,6 +359,146 @@ func pass_tour() -> void:
 	player.restore()
 
 
+## Катакомбы кладбища (§8.13): ключ мародёра, склеп, тьма, фонарь фонарщика и свечи, оссуарий,
+## квартал могильщика с открытыми могилами, колокольня мёртвых.
+func crypts_tour() -> void:
+	print("== Катакомбы кладбища: склеп, тьма, фонарь и свечи (§8.13)")
+	player.hurtbox.invulnerable = true
+	check(game_state.has_flag(&"crypt_key") and game_state.item_count(&"crypt_key") > 0, "мародёр с ножом выронил ключ от склепа")
+	var doors_ok := true
+	for crypt_room: StringName in [&"cemetery", &"catacombs", &"ossuary", &"gravedigger_quarter", &"bell_tower"]:
+		var crypt_scene := (load(RoomManager.ROOM_PATH % crypt_room) as PackedScene).instantiate()
+		for door in nodes_where(crypt_scene, func(n: Node) -> bool: return n is RoomDoor):
+			var target_path := RoomManager.ROOM_PATH % (door as RoomDoor).target_room
+			var target := (load(target_path) as PackedScene).instantiate() if ResourceLoader.exists(target_path) else null
+			if target == null or target.get_node_or_null((door as RoomDoor).target_spawn) == null:
+				doors_ok = false
+				print("       дверь ведёт в никуда: ", crypt_room, "/", door.name)
+			if target:
+				target.free()
+		crypt_scene.free()
+	check(doors_ok, "двери катакомб ведут к точкам появления в соседних комнатах")
+	# Склеп на нижней дорожке кладбища: без ключа заперт, с ключом — вниз.
+	game_state.flags.erase(&"crypt_key")
+	await rooms.travel(&"cemetery", ^"Spawns/FromCrypt")
+	await seconds(0.3)
+	var crypt_door := room_node("Objects/SealedCryptDoor") as RoomDoor
+	check(crypt_door.is_locked(), "без ключа склеп заперт")
+	game_state.set_flag(&"crypt_key")
+	check(not crypt_door.is_locked(), "ключ мародёра отпирает склеп")
+	await put(crypt_door.global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"catacombs", "через склеп — вниз, в катакомбы")
+	# Тьма: окружения почти нет; свечи в нишах не горят, без фонаря их не зажечь.
+	game_state.items.erase(Player.LANTERN_ITEM)
+	game_state.flags.erase(Player.LANTERN_OUT)
+	player.show_lantern(false)
+	var mood := (rooms.current_room as Room).mood
+	check(mood != null and mood.ambient_light_energy < 0.15, "в катакомбах тьма (окружение %.2f)" % (mood.ambient_light_energy if mood else -1.0))
+	var candles := nodes_where(rooms.current_room, func(n: Node) -> bool: return n is WallCandle)
+	check(candles.size() >= 6 and candles.all(func(c: Node) -> bool: return not (c as WallCandle).lit), "в нишах свечи — не горят (%d)" % candles.size())
+	var west_candle := room_node("Objects/CandleWest") as WallCandle
+	await put(west_candle.global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	messages.clear()
+	await tap("interact")
+	await frames(3)
+	check(not west_candle.lit and messages.any(func(m: String) -> bool: return m.contains("Нечем зажечь")), "без фонаря свечу не зажечь")
+	# Пешком: вниз по лестнице, по коридору; во тьме — провал в крипту, из неё по лестнице за провал.
+	await put(Vector3(-28.0, 6.1, 0.0), 1.0)
+	check(await walk_to(2.0) and absf(player.global_position.y) < 0.5, "катакомбы: по лестнице вниз и по коридору во тьме (x=%.1f)" % player.global_position.x)
+	await put(Vector3(-2.0, 0.1, 0.0), 1.0)
+	await run_and_jump("move_right", 3.6, 9.5)
+	check(player.global_position.x > 8.0 and player.global_position.y > -0.3,
+		"провал 4 м перепрыгивается с разбега (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	await put(Vector3(2.0, 0.1, 0.0), 1.0)
+	await walk_to(9.5, 5.0)
+	await seconds(0.6)
+	check(player.global_position.y < -3.5, "провал в полу — во тьме герой падает в нижнюю крипту (y=%.1f)" % player.global_position.y)
+	await climb_all_ladders(&"catacombs")
+	check(player.global_position.x > 8.0, "из крипты лестница выводит за провал (x=%.1f)" % player.global_position.x)
+	check(await walk_to(26.5) and absf(player.global_position.y) < 0.5, "через возвышение с саркофагами — к фонарщику (x=%.1f)" % player.global_position.x)
+	# Фонарь фонарщика: сразу в левой руке, щит — за спину; C — убрать и достать; с двуручным — на поясе.
+	var lantern_pickup := room_node("Objects/Lantern") as ItemPickup
+	await put(lantern_pickup.global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	check(player.has_lantern() and player.lantern_out() and player.lantern.visible and player.lantern.at == HandLantern.At.HAND,
+		"у фонарщика — фонарь, сразу в левой руке")
+	check(not player.shield_in_hand(), "с фонарём в руке щита нет — он за спиной")
+	await tap("lantern")
+	check(not player.lantern_out() and not player.lantern.visible, "C — фонарь убран")
+	await tap("lantern")
+	check(player.lantern_out() and player.lantern.visible, "C ещё раз — фонарь снова в руке")
+	var held: StringName = player.weapon.id if player.weapon else &""
+	player.equip(&"candlestick")
+	await frames(2)
+	check(player.lantern.at == HandLantern.At.BELT and player.lantern.visible, "с двуручным оружием фонарь висит на поясе и светит")
+	player.equip(held)
+	await frames(2)
+	# Свечи — только фонарём; горят и после возвращения, и после смерти (флаг в сейве).
+	var lamp_candle := room_node("Objects/CandleLamplighter") as WallCandle
+	await put(lamp_candle.global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(lamp_candle.lit and game_state.has_flag(lamp_candle.flag), "фонарём свеча зажигается — флаг в сейве")
+	for node in nodes_where(rooms.current_room, func(n: Node) -> bool: return n is WallCandle):
+		var each := node as WallCandle
+		if each.lit:
+			continue
+		await put(each.global_position + Vector3(0.0, 0.1, 0.0))
+		await seconds(0.15)
+		await tap("interact")
+		await frames(3)
+	game_state.restore_world()
+	await rooms.travel(&"catacombs", ^"Spawns/FromOssuary")
+	await seconds(0.3)
+	candles = nodes_where(rooms.current_room, func(n: Node) -> bool: return n is WallCandle)
+	check(candles.all(func(c: Node) -> bool: return (c as WallCandle).lit), "назад по катакомбам все свечи зажжены — и горят после смерти")
+	# Оссуарий: осколок, груды костей под засады, лестницы между ярусами; вниз — прыжком с яруса.
+	await rooms.travel(&"ossuary", ^"Spawns/FromCatacombs")
+	await seconds(0.3)
+	check(room_node("Objects/MirrorShard") is MirrorShard, "в оссуарии — осколок")
+	check(room_node("Decor/AmbushSpots").get_child_count() >= 4, "груды костей — места будущих засад")
+	await climb_all_ladders(&"ossuary")
+	await put(Vector3(0.0, -6.9, 0.0), -1.0)
+	check(await walk_to(-17.5) and player.global_position.y < -13.0, "с яруса вниз и к выходу в квартал (y=%.1f)" % player.global_position.y)
+	# Квартал могильщика: из могил — прыжком, из братской могилы — по лестнице.
+	await rooms.travel(&"gravedigger_quarter", ^"Spawns/FromOssuary")
+	await seconds(0.3)
+	check(await walk_to(-2.5, 30.0) and absf(player.global_position.y) < 0.5,
+		"квартал: через открытые могилы — прыжком из ям (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	await walk_to(-6.0, 4.0)
+	await seconds(1.0)
+	check(player.global_position.y < -5.0, "братская могила глубокая — упал на дно (y=%.1f)" % player.global_position.y)
+	await climb_all_ladders(&"gravedigger_quarter")
+	await put(Vector3(-10.0, 0.1, 0.0), -1.0)
+	check(await walk_to(-28.5, 20.0) and absf(player.global_position.y) < 0.5, "квартал: к колокольне (x=%.1f)" % player.global_position.x)
+	# Колокольня: ярус за ярусом по лестницам; наверху колокол и запертая дверь к холму.
+	await rooms.travel(&"bell_tower", ^"Spawns/FromQuarter")
+	await seconds(0.3)
+	await climb_all_ladders(&"bell_tower")
+	check(player.global_position.y > 24.5, "колокольня: по лестницам — на звонницу (y=%.1f)" % player.global_position.y)
+	check(room_node("Objects/BellNote") is Note, "на звоннице — колокол мёртвых")
+	messages.clear()
+	await put(Vector3(10.0, 25.1, 0.0), 1.0)
+	await frames(10)
+	check(messages.any(func(m: String) -> bool: return m.contains("Засов снаружи")), "дверь наружу заперта снаружи — к холму позже")
+	check([&"catacombs", &"ossuary", &"gravedigger_quarter", &"bell_tower"].all(func(r: StringName) -> bool: return game_state.visited(r)),
+		"комнаты катакомб отмечены на карте")
+	check(not WorldMap.is_planned(&"crypts"), "катакомбы на карте — уже не план")
+	game_state.items.erase(Player.LANTERN_ITEM)
+	player.show_lantern(false)
+	player.hurtbox.invulnerable = false
+	player.restore()
+
+
 ## Бежит в сторону, прыгает у x = edge и тормозит в воздухе над x = stop.
 func run_and_jump(dir: String, edge: float, stop: float) -> void:
 	press(dir)
@@ -4149,6 +4289,7 @@ func suite() -> void:
 
 	await fields_tour()
 	await pass_tour()
+	await crypts_tour()
 
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path

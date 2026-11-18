@@ -100,6 +100,13 @@ HOOK = ('<path d="M22 12 Q 22 8 26 8 Q 30 8 30 12 Q 30 16 26 16 Q 22 16 22 12 Z 
 STAKE = ('<path d="M50 12 L 40 26 L 20 46 L 18 44 L 38 24 Z" fill="#cfd3d9" stroke="#f3f5f7" stroke-width="0.8"/>'
          '<path d="M50 12 L 38 24" stroke="#8d939b" stroke-width="1.2"/>'
          '<path d="M22 42 L 14 50" stroke="#5e4530" stroke-width="5" stroke-linecap="round"/>')
+# Ключ от склепа и фонарь фонарщика (§8.13, катакомбы): тяжёлый железный ключ; фонарь с огоньком за стеклом.
+CRYPT_KEY = ('<circle cx="22" cy="22" r="8" fill="none" stroke="#a49f96" stroke-width="3.5"/>'
+             '<path d="M28 28 L 48 48 M40 40 L 44 36 M44 44 L 49 39" stroke="#a49f96" stroke-width="3.5" stroke-linecap="round"/>')
+LANTERN = ('<path d="M26 12 Q 32 6 38 12" fill="none" stroke="#8f8c88" stroke-width="2.5"/>'
+           '<rect x="22" y="16" width="20" height="4" fill="#4a4642"/><rect x="22" y="46" width="20" height="4" fill="#4a4642"/>'
+           '<rect x="24" y="20" width="16" height="26" fill="#f0a64a" stroke="#4a4642" stroke-width="2.5"/>'
+           '<path d="M32 26 Q 36 32 32 40 Q 28 32 32 26 Z" fill="#fff1c9"/>')
 
 ITEMS = {
     "stick": ("#1c1712", STICK), "sword": ("#141a20", SWORD), "candlestick": ("#17181b", HAMMER),
@@ -111,6 +118,7 @@ ITEMS = {
     "arrow": ("#1c1712", ARROW), "fire_arrow": ("#24160e", FIRE_ARROW), "poison": ("#1e1224", POISONED),
     "burning": ("#24140c", BURNING), "corroded": ("#16200c", CORRODED), "tar": ("#141110", TARRED),
     "staff": ("#141a22", STAFF), "glint": ("#1a1a24", GLINT), "silver_stake": ("#161a20", STAKE),
+    "crypt_key": ("#16181c", CRYPT_KEY), "lantern": ("#1c1712", LANTERN),
 }
 
 # Вкладки меню паузы и пустые ячейки снаряжения (§8.12, 2026-11-09): светлый контур на тёмном.

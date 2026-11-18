@@ -28,6 +28,11 @@ const GRIP_OFFSET := Vector3(0.0, 0.08, 0.02)
 const SHIELD_ON_ARM := [Vector3(0.0, PI, 0.0), Vector3(-0.1, 0.16, 0.0)]
 const SHIELD_ON_BACK := [Vector3(0.0, PI * 0.5, 0.0), Vector3(0.0, 0.05, -0.2)]
 const BOW_IN_HAND := [Vector3(0.0, 0.0, PI * 0.5), Vector3(0.0, 0.06, 0.0)]
+## Фонарь (§8.13): ручка — в ладони; на поясе — у левого бедра (поворот не нужен: фонарь висит отвесно сам).
+const LANTERN_IN_HAND := [Vector3.ZERO, Vector3(0.0, 0.08, 0.0)]
+const LANTERN_ON_BELT := [Vector3.ZERO, Vector3(0.17, 0.02, 0.06)]
+## Фонарь перед собой: ладонь впереди и на высоте пояса (доли роста модели), локоть согнут вниз.
+const LANTERN_HOLD := Vector3(0.3, 0.6, -0.1)
 ## Удар в воздухе (2026-11-09, по замечанию автора): вертикальный, снизу вверх, и только
 ## верхом тела — ноги держат позу прыжка. Клип без костей ног собирается на лету.
 const AIR_CLIP := &"Sword_Regular_A"
@@ -68,6 +73,9 @@ var hand: Node3D
 var shield_mount: Node3D
 var back_mount: Node3D
 var bow_grip: Node3D
+## Фонарь (§8.13): ручка в левой ладони или крюк на поясе слева.
+var lantern_grip: Node3D
+var belt_mount: Node3D
 var _clip := &""
 var _clip_end := 0.0
 ## Руки и ноги на перекладинах (лестница, §3.3) — создаётся при первом подъёме.
@@ -99,6 +107,8 @@ func _ready() -> void:
 	shield_mount = _mount(&"LeftLowerArm", &"ShieldMount", SHIELD_ON_ARM)
 	back_mount = _mount(&"UpperChest", &"BackMount", SHIELD_ON_BACK)
 	bow_grip = _mount(&"LeftHand", &"BowGrip", BOW_IN_HAND)
+	lantern_grip = _mount(&"LeftHand", &"LanternGrip", LANTERN_IN_HAND)
+	belt_mount = _mount(&"Hips", &"BeltMount", LANTERN_ON_BELT)
 	play(&"Idle")
 
 
@@ -244,7 +254,7 @@ func update(player: Player) -> void:
 		_on_ladder(player)
 		return
 	_off_ladder()
-	_touch(player.touching)
+	_left_arm(player)
 	if _parry_left > 0.0:
 		_parry_left -= get_physics_process_delta_time()
 		if player.state in [Player.State.MOVE, Player.State.BLOCK]:
@@ -387,13 +397,40 @@ func _off_ladder() -> void:
 	position = Vector3.ZERO
 
 
+## Левая рука: ладонь на кристалле осколка, иначе — фонарь перед собой (§8.13), иначе — по клипу.
+func _left_arm(player: Player) -> void:
+	var crystal := player.touching
+	if crystal != null and is_instance_valid(crystal):
+		_touch(crystal)
+	elif player.lantern_in_hand() and player.state == Player.State.MOVE:
+		_lantern_pose(player.facing)
+	elif _touch_ik:
+		_touch_ik.influence = 0.0
+
+
+## Фонарь на чуть согнутой руке впереди, у пояса: так светят под ноги и вперёд.
+func _lantern_pose(facing: float) -> void:
+	_left_ik()
+	var tall := scale.y / SCALE * 1.75
+	_touch_target.global_position = global_position + Vector3(facing * LANTERN_HOLD.x, LANTERN_HOLD.y * tall, LANTERN_HOLD.z * facing)
+	_touch_pole.global_position = global_position + Vector3(-facing * 0.15, 0.5 * tall, -0.7 * facing)
+	_touch_ik.influence = 1.0
+
+
 ## Ладонь на кристалле осколка (§8.4, 2026-11-10): герой стоит смирно, левая рука — свободная, меч
-## остаётся в правой — тянется к кристаллу. Нет кристалла — рука отпущена.
+## остаётся в правой — тянется к кристаллу.
 func _touch(crystal: Node3D) -> void:
-	if crystal == null or not is_instance_valid(crystal):
-		if _touch_ik:
-			_touch_ik.influence = 0.0
-		return
+	_left_ik()
+	# Ладонь — на ближней к герою грани кристалла, чуть ниже середины; локоть — вниз и наружу.
+	var side := signf(crystal.global_position.x - global_position.x)
+	var at := crystal.global_position + Vector3(-side * 0.18, -0.12, 0.08)
+	_touch_target.global_position = at
+	_touch_pole.global_position = global_position + Vector3(side * 0.1, 0.6, -0.8)
+	_touch_ik.influence = 1.0
+
+
+## IK левой руки (ладонь к точке) — создаётся при первом касании или фонаре.
+func _left_ik() -> void:
 	if _touch_ik == null:
 		_touch_ik = TwoBoneIK3D.new()
 		_touch_ik.name = &"TouchIK"
@@ -410,12 +447,6 @@ func _touch(crystal: Node3D) -> void:
 		add_child(_touch_pole)
 		_touch_ik.set_target_node(0, _touch_ik.get_path_to(_touch_target))
 		_touch_ik.set_pole_node(0, _touch_ik.get_path_to(_touch_pole))
-	# Ладонь — на ближней к герою грани кристалла, чуть ниже середины; локоть — вниз и наружу.
-	var side := signf(crystal.global_position.x - global_position.x)
-	var at := crystal.global_position + Vector3(-side * 0.18, -0.12, 0.08)
-	_touch_target.global_position = at
-	_touch_pole.global_position = global_position + Vector3(side * 0.1, 0.6, -0.8)
-	_touch_ik.influence = 1.0
 
 
 ## Нажат блок, герой умеет парировать: встречный взмах на окно парирования.
