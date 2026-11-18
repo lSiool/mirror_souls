@@ -3765,21 +3765,28 @@ func run() -> void:
 	print("== Карта мира (§8.13)")
 	check(game_state.visited(&"village_street") and game_state.visited(&"cursed_village") and game_state.visited(rooms.current_room_id),
 		"пройденные комнаты отмечены для карты")
-	# Каждая комната игры есть на карте, и осколки в таблице карты совпадают со сценами.
+	# Каждая комната игры есть на карте, её форма снята (tools/world_map/build_map.tscn), осколки формы — те же, что в сцене.
 	var map_ok := true
 	for file in DirAccess.get_files_at("res://world/rooms"):
 		if file.ends_with(".tscn") and not WorldMap.ROOMS.has(StringName(file.get_basename())):
 			map_ok = false
 			print("       нет на карте: ", file)
 	for room_id: StringName in WorldMap.ROOMS:
+		var shape := WorldMap.shape(room_id)
 		var scene := (load(RoomManager.ROOM_PATH % room_id) as PackedScene).instantiate()
-		var shards := nodes_where(scene, func(n: Node) -> bool: return n is MirrorShard)
-		var listed := WorldMap.SHARDS.has(room_id)
-		if shards.size() != (1 if listed else 0) or (listed and scene.get_node_or_null(WorldMap.SHARDS[room_id]["path"]) == null):
+		var found: Array[String] = []
+		for shard in nodes_where(scene, func(n: Node) -> bool: return n is MirrorShard):
+			found.append(String(scene.get_path_to(shard)))
+		var listed: Array[String] = []
+		for path: String in shape.get("shards", {}):
+			listed.append(path)
+		found.sort()
+		listed.sort()
+		if shape.is_empty() or found != listed:
 			map_ok = false
-			print("       осколок на карте не совпадает со сценой: ", room_id)
+			print("       форма комнаты на карте устарела — перезапусти build_map: ", room_id)
 		scene.free()
-	check(map_ok, "все комнаты на карте, осколки карты — те же, что в комнатах")
+	check(map_ok, "все комнаты на карте, их форма снята, осколки карты — те же, что в комнатах")
 	var map_menu := rooms.level_menu
 	var world_map := map_menu.world_map
 	var visited_was: Dictionary = game_state.visited_rooms.duplicate()
@@ -3829,7 +3836,7 @@ func run() -> void:
 	Input.parse_input_event(dev_event)
 	await frames(3)
 	check(map_menu.is_open and world_map.dev and world_map.shown_rooms().size() == WorldMap.ROOMS.size()
-		and world_map.shard_spots().size() == WorldMap.SHARDS.size(), "F4 — тестовая карта: открыты все комнаты и осколки")
+		and world_map.shard_spots().size() == WorldMap.shards().size(), "F4 — тестовая карта: открыты все комнаты и осколки")
 	var dev_checkpoint := [game_state.checkpoint_room, game_state.checkpoint_reality, game_state.checkpoint_path]
 	world_map.choose_shard(&"cemetery")
 	for i in 300:

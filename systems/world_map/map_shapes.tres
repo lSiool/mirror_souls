@@ -1,0 +1,220 @@
+[gd_resource type="Resource" script_class="MapShapes" format=3]
+
+[ext_resource type="Script" path="res://systems/world_map/map_shapes.gd" id="1_xrh3j"]
+
+[resource]
+script = ExtResource("1_xrh3j")
+rooms = {
+&"castle_gallery": {
+"bottom": -1.5,
+"doors": [[Vector2(-14.4, 0), &"room_001"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -15.0,
+"right": 15.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(15, 0, -15, 0, -15, -1.5, 15, -1.5), PackedVector2Array(15, 10, -15, 10, -15, 9, 15, 9)]),
+"top": 15.0
+},
+&"cemetery": {
+"bottom": -1.5,
+"doors": [[Vector2(-10, 0), &"cemetery"], [Vector2(-27.3, 0), &"cemetery_gate"], [Vector2(27.3, 0), &"forest_wall"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -28.0,
+"right": 28.0,
+"shards": {
+"Objects/MirrorShard": Vector2(24, 0)
+},
+"solids": Array[PackedVector2Array]([PackedVector2Array(28, 0, -28, 0, -28, -1.5, 28, -1.5), PackedVector2Array(18, 2.4, 4, 2.4, 4, 0, 18, 0), PackedVector2Array(4.17, 1.8, 3.86, 2.32, -0.17, -0.1, 0.14, -0.62), PackedVector2Array(22.17, -0.1, 18.14, 2.32, 17.83, 1.8, 21.86, -0.62)]),
+"top": 7.4
+},
+&"cemetery_gate": {
+"bottom": -1.5,
+"doors": [[Vector2(-21.3, 0), &"chapel_yard"], [Vector2(21.3, 0), &"cemetery"]],
+"glass": Array[PackedVector2Array]([PackedVector2Array(1.8, 4.4, 0.2, 4.4, 0.2, 4.1, 1.8, 4.1)]),
+"ladders": Array[Vector3]([Vector3(-7.8, 0, 4.4)]),
+"left": -22.0,
+"right": 22.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(22, 0, -22, 0, -22, -1.5, 22, -1.5), PackedVector2Array(0.2, 4.4, -7, 4.4, -7, 3, 0.2, 3), PackedVector2Array(1.8, 3.1, 0.2, 3.1, 0.2, 3, 1.8, 3), PackedVector2Array(4.2, 4.4, 1.8, 4.4, 1.8, 3, 4.2, 3), PackedVector2Array(1.8, 4.4, 0.2, 4.4, 0.2, 3, 1.8, 3)]),
+"top": 9.4
+},
+&"chapel": {
+"bottom": -1.5,
+"doors": [[Vector2(-12.8, 0), &"chapel_yard"], [Vector2(0, 0), &"room_001"]],
+"glass": Array[PackedVector2Array]([PackedVector2Array(11.5, 4.4, 9.5, 4.4, 9.5, 4.1, 11.5, 4.1)]),
+"ladders": Array[Vector3]([Vector3(6.2, 0, 4.4), Vector3(10.5, 0, 4.4)]),
+"left": -14.0,
+"right": 14.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(14, 0, -14, 0, -14, -1.5, 14, -1.5), PackedVector2Array(14, 13, -14, 13, -14, 12, 14, 12), PackedVector2Array(9.5, 4.4, 7.1, 4.4, 7.1, 3.9, 9.5, 3.9), PackedVector2Array(14, 4.4, 11.5, 4.4, 11.5, 3.9, 14, 3.9), PackedVector2Array(8.6, 3.9, 8.2, 3.9, 8.2, 0, 8.6, 0)]),
+"top": 18.0
+},
+&"chapel_yard": {
+"bottom": -1.5,
+"doors": [[Vector2(-24.3, 0), &"village_square"], [Vector2(-2.5, 0), &"chapel"], [Vector2(24.3, 0), &"cemetery_gate"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -25.0,
+"right": 25.0,
+"shards": {
+"Objects/MirrorShard": Vector2(15, 0)
+},
+"solids": Array[PackedVector2Array]([PackedVector2Array(25, 0, -25, 0, -25, -1.5, 25, -1.5)]),
+"top": 5.0
+},
+&"cursed_village": {
+"bottom": -1.5,
+"doors": [[Vector2(-29.3, 0), &"swamp"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -30.0,
+"right": 30.0,
+"shards": {
+"Objects/MirrorShard": Vector2(-24, 0)
+},
+"solids": Array[PackedVector2Array]([PackedVector2Array(30, 0, -30, 0, -30, -1.5, 30, -1.5)]),
+"top": 5.0
+},
+&"fallen_giant": {
+"bottom": -15.5,
+"doors": [[Vector2(-29.3, 0), &"forest_wall"], [Vector2(29.3, 4), &"root_maze"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([Vector3(4.8, -14, 4)]),
+"left": -30.0,
+"right": 30.0,
+"shards": {
+"Objects/MirrorShard": Vector2(16, 4)
+},
+"solids": Array[PackedVector2Array]([PackedVector2Array(-16, 0, -30, 0, -30, -15.5, -16, -15.5), PackedVector2Array(30, 4, 18, 4, 18, -15.5, 30, -15.5), PackedVector2Array(18, -14, -16, -14, -16, -15.5, 18, -15.5), PackedVector2Array(2.23, 2.81, 2, 3.99, -16.23, 0.29, -16, -0.89), PackedVector2Array(4, 4, 2, 4, 2, 2.8, 4, 2.8), PackedVector2Array(18, 4, 5.6, 4, 5.6, 2.8, 18, 2.8)]),
+"top": 9.0
+},
+&"forest_wall": {
+"bottom": -1.5,
+"doors": [[Vector2(-29.3, 0), &"cemetery"], [Vector2(29.3, 0), &"fallen_giant"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([Vector3(-24, 0, 6), Vector3(16, 0, 6.6)]),
+"left": -30.0,
+"right": 30.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(30, 0, -30, 0, -30, -1.5, 30, -1.5), PackedVector2Array(-16.5, 6, -23.5, 6, -23.5, 5.6, -16.5, 5.6), PackedVector2Array(-6, 6.6, -14, 6.6, -14, 6.2, -6, 6.2), PackedVector2Array(5, 6, -3, 6, -3, 5.6, 5, 5.6), PackedVector2Array(15, 6.6, 8, 6.6, 8, 6.2, 15, 6.2)]),
+"top": 11.6
+},
+&"reflection_run": {
+"bottom": -1.5,
+"doors": [[Vector2(326.33, -2.61), &"room_001"]],
+"glass": Array[PackedVector2Array]([PackedVector2Array(78.99, 2.52, 78.74, 2.52, 78.74, -1.08, 78.99, -1.08), PackedVector2Array(91.19, 2.12, 90.94, 2.12, 90.94, -1.48, 91.19, -1.48), PackedVector2Array(96.69, 2.12, 96.44, 2.12, 96.44, -1.48, 96.69, -1.48), PackedVector2Array(113.09, 2.02, 112.84, 2.02, 112.84, -1.5, 113.09, -1.5)]),
+"ladders": Array[Vector3]([]),
+"left": -200.0,
+"right": 200.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(10, 0, -4, 0, -4, -0.8, 10, -0.8)]),
+"top": 7.5200000000000005
+},
+&"room_001": {
+"bottom": -4.5,
+"doors": [[Vector2(-23.2, 0), &"chapel"], [Vector2(17.8, 0), &"castle_gallery"], [Vector2(-9, 0), &"run_village"], [Vector2(-5.2, 0), &"reflection_run"]],
+"glass": Array[PackedVector2Array]([PackedVector2Array(-11, 6, -15, 6, -15, 0, -11, 0), PackedVector2Array(3.56, 2.41, -5.56, 6.97, -5.7, 6.71, 3.42, 2.15), PackedVector2Array(3.56, 2.41, -5.56, 6.97, -5.7, 6.71, 3.42, 2.15), PackedVector2Array(13, 0, 9, 0, 9, -0.3, 13, -0.3), PackedVector2Array(21.6, 3.2, 19.4, 3.2, 19.4, 0, 21.6, 0), PackedVector2Array(21.6, 3.2, 19.4, 3.2, 19.4, 0, 21.6, 0)]),
+"ladders": Array[Vector3]([]),
+"left": -24.0,
+"right": 24.0,
+"shards": {
+"Objects/MirrorShard": Vector2(-18.5, 0)
+},
+"solids": Array[PackedVector2Array]([PackedVector2Array(9, 0, -24, 0, -24, -4, 9, -4), PackedVector2Array(24, 0, 13, 0, 13, -4, 24, -4), PackedVector2Array(13, -3, 9, -3, 9, -4, 13, -4), PackedVector2Array(24, 14, -24, 14, -24, 13, 24, 13), PackedVector2Array(-5.5, 7, -8.5, 7, -8.5, 6.6, -5.5, 6.6), PackedVector2Array(-9, 8.5, -11.5, 8.5, -11.5, 8.1, -9, 8.1), PackedVector2Array(24, 5.2, 23.7, 5.2, 23.7, 0.8, 24, 0.8), PackedVector2Array(21.2, 3.6, 19, 3.6, 19, 3.2, 21.2, 3.2)]),
+"top": 19.0
+},
+&"root_maze": {
+"bottom": -11.5,
+"doors": [[Vector2(-27.3, 8), &"fallen_giant"], [Vector2(27.3, 8), &"swamp"]],
+"glass": Array[PackedVector2Array]([PackedVector2Array(0, 8, -1.4, 8, -1.4, 7.5, 0, 7.5), PackedVector2Array(1.4, 8, 0, 8, 0, 7.5, 1.4, 7.5)]),
+"ladders": Array[Vector3]([Vector3(-13, 3, 8), Vector3(13.4, 3, 8), Vector3(-8, 8, 13), Vector3(12.6, 13, 18), Vector3(-1.5, -10, 3)]),
+"left": -28.0,
+"right": 28.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(28, -10, -28, -10, -28, -11.5, 28, -11.5), PackedVector2Array(-18, 8, -28, 8, -28, -10, -18, -10), PackedVector2Array(28, 8, 18, 8, 18, -10, 28, -10), PackedVector2Array(-13.8, 8, -18, 8, -18, 7.2, -13.8, 7.2), PackedVector2Array(-1.4, 8, -12.2, 8, -12.2, 7.2, -1.4, 7.2), PackedVector2Array(12.6, 8, 1.4, 8, 1.4, 7.2, 12.6, 7.2), PackedVector2Array(18, 8, 14.2, 8, 14.2, 7.2, 18, 7.2), PackedVector2Array(-1.9, 3, -18, 3, -18, 2.2, -1.9, 2.2), PackedVector2Array(18, 3, 1.9, 3, 1.9, 2.2, 18, 2.2), PackedVector2Array(-8.8, 13, -16, 13, -16, 12.2, -8.8, 12.2), PackedVector2Array(5, 13, -7.2, 13, -7.2, 12.2, 5, 12.2), PackedVector2Array(14, 13, 7.5, 13, 7.5, 12.2, 14, 12.2), PackedVector2Array(11.8, 18, 4, 18, 4, 17.2, 11.8, 17.2)]),
+"top": 23.0
+},
+&"run_exit": {
+"bottom": -1.5,
+"doors": [],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -18.0,
+"right": 18.0,
+"shards": {
+"Objects/MirrorShard": Vector2(3, 0)
+},
+"solids": Array[PackedVector2Array]([PackedVector2Array(18, 0, -18, 0, -18, -1.5, 18, -1.5)]),
+"top": 5.0
+},
+&"run_village": {
+"bottom": -7.0,
+"doors": [[Vector2(246, 0), &"run_exit"]],
+"glass": Array[PackedVector2Array]([PackedVector2Array(50, 0, 47, 0, 47, -0.3, 50, -0.3), PackedVector2Array(54.8, -5.5, 47, -1.6, 46.86, -1.86, 54.66, -5.76), PackedVector2Array(115, 5, 111.99, 6.51, 111.86, 6.24, 114.87, 4.73), PackedVector2Array(73.65, 7.4, 73.35, 7.4, 73.35, 5, 73.65, 5), PackedVector2Array(92.15, -3.1, 91.85, -3.1, 91.85, -5.5, 92.15, -5.5)]),
+"ladders": Array[Vector3]([Vector3(55, 0, 5), Vector3(170.5, 5, 8), Vector3(151.5, -5.5, -3.1), Vector3(199.5, -5.5, 0)]),
+"left": -125.0,
+"right": 125.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(0, 21, -1, 21, -1, -7, 0, -7), PackedVector2Array(24, 0, 0, 0, 0, -7, 24, -7), PackedVector2Array(46, 0, 41, 0, 41, -7, 46, -7), PackedVector2Array(47, 0, 46, 0, 46, -1, 47, -1), PackedVector2Array(125, 0, 50, 0, 50, -1, 125, -1), PackedVector2Array(80, -5.5, 46, -5.5, 46, -7, 80, -7), PackedVector2Array(100, -5.5, 83, -5.5, 83, -7, 100, -7), PackedVector2Array(125, -5.5, 121, -5.5, 121, -7, 125, -7), PackedVector2Array(46, -1, 45, -1, 45, -5.5, 46, -5.5), PackedVector2Array(28.5, 0, 24, 0, 24, -0.4, 28.5, -0.4), PackedVector2Array(34.5, 0, 30.5, 0, 30.5, -0.4, 34.5, -0.4), PackedVector2Array(41, 0, 37, 0, 37, -0.4, 41, -0.4), PackedVector2Array(66, 5, 55.5, 5, 55.5, 4.6, 66, 4.6), PackedVector2Array(76, 5, 68, 5, 68, 4.6, 76, 4.6), PackedVector2Array(86, 5, 78.5, 5, 78.5, 4.6, 86, 4.6), PackedVector2Array(98, 5, 89, 5, 89, 4.6, 98, 4.6), PackedVector2Array(104, 5, 100.5, 5, 100.5, 4.6, 104, 4.6), PackedVector2Array(125, 5, 115, 5, 115, 4.6, 125, 4.6), PackedVector2Array(112, 6.5, 104, 6.5, 104, 5, 112, 5), PackedVector2Array(70.5, 0.9, 69.5, 0.9, 69.5, 0, 70.5, 0), PackedVector2Array(122.5, 0.9, 121.5, 0.9, 121.5, 0, 122.5, 0), PackedVector2Array(106, -5.5, 100, -5.5, 100, -5.9, 106, -5.9), PackedVector2Array(112, -5.5, 106, -5.5, 106, -5.9, 112, -5.9), PackedVector2Array(118, -5.5, 112, -5.5, 112, -5.9, 118, -5.9)]),
+"top": 26.0
+},
+&"swamp": {
+"bottom": -1.5,
+"doors": [[Vector2(-29.3, 0), &"root_maze"], [Vector2(29.3, 0), &"cursed_village"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -30.0,
+"right": 30.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(30, 0, -30, 0, -30, -1.5, 30, -1.5), PackedVector2Array(-13.7, 0.35, -16.3, 0.35, -16.3, 0.15, -13.7, 0.15), PackedVector2Array(-3.7, 0.35, -6.3, 0.35, -6.3, 0.15, -3.7, 0.15), PackedVector2Array(5.8, 0.35, 3.2, 0.35, 3.2, 0.15, 5.8, 0.15), PackedVector2Array(24.8, 0.35, 22.2, 0.35, 22.2, 0.15, 24.8, 0.15)]),
+"top": 5.3500000000000005
+},
+&"village_house": {
+"bottom": -1.5,
+"doors": [[Vector2(-11, 0), &"village_street"], [Vector2(11.4, 0), &"village_square"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([Vector3(7.5, 0, 4)]),
+"left": -12.5,
+"right": 12.5,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(12.5, 0, -12.5, 0, -12.5, -1.5, 12.5, -1.5), PackedVector2Array(-12, 10, -12.5, 10, -12.5, -1, -12, -1), PackedVector2Array(12.5, 10, 12, 10, 12, -1, 12.5, -1), PackedVector2Array(12.5, 9.5, -12.5, 9.5, -12.5, 8.5, 12.5, 8.5), PackedVector2Array(6.6, 4, -12, 4, -12, 3.5, 6.6, 3.5), PackedVector2Array(12, 4, 8.4, 4, 8.4, 3.5, 12, 3.5)]),
+"top": 15.0
+},
+&"village_hut": {
+"bottom": -1.5,
+"doors": [[Vector2(7, 0), &"village_street"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -8.0,
+"right": 8.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(8, 0, -8, 0, -8, -1.5, 8, -1.5), PackedVector2Array(8, 7, -8, 7, -8, 6, 8, 6)]),
+"top": 12.0
+},
+&"village_square": {
+"bottom": -1.5,
+"doors": [[Vector2(-17.5, 0), &"village_house"], [Vector2(17.5, 0), &"chapel_yard"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -19.0,
+"right": 19.0,
+"shards": {
+"AfterFire/MirrorShard": Vector2(-4, 0)
+},
+"solids": Array[PackedVector2Array]([PackedVector2Array(19, 0, -19, 0, -19, -1.5, 19, -1.5)]),
+"top": 5.0
+},
+&"village_street": {
+"bottom": -1.5,
+"doors": [[Vector2(-28, 1.2), &"village_hut"], [Vector2(26.5, 0), &"village_house"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -32.0,
+"right": 32.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(-14, 1.2, -32, 1.2, -32, -1.5, -14, -1.5), PackedVector2Array(-7.86, -0.02, -13.94, 1.2, -14.14, 0.22, -8.06, -1), PackedVector2Array(32, 0, -10, 0, -10, -1.5, 32, -1.5), PackedVector2Array(-2.7, 1.1, -5.3, 1.1, -5.3, 0, -2.7, 0)]),
+"top": 6.2
+}
+}

@@ -1285,13 +1285,14 @@ func show_page(page: Page) -> void:
 	_focus_first()
 
 
-## Карта открывается на комнате героя, герой — точкой на своём месте в ней.
+## Карта открывается на комнате героя, герой — булавкой на своём месте в ней.
 func _open_map() -> void:
 	var room := get_tree().get_first_node_in_group(&"room") as Room
-	var t := 0.5
-	if room and _player and room.width > 0.0:
-		t = clampf((_player.global_position.x - room.center_x + room.width * 0.5) / room.width, 0.0, 1.0)
-	world_map.open(room.room_id if room else &"", t, _map_dev)
+	var at := Vector2.ZERO
+	if room and _player:
+		var local := room.to_local(_player.global_position)
+		at = Vector2(local.x, local.y)
+	world_map.open(room.room_id if room else &"", at, _map_dev)
 
 
 func _refresh() -> void:
