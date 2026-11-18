@@ -279,6 +279,86 @@ func fields_tour() -> void:
 	player.restore()
 
 
+## Подвесной перевал и Пепельные Пики (§8.13): мост от ветряка, без крюка — дальше обрыва не пройти;
+## с крюком — три кольца подряд (на запад), Пики пешком.
+func pass_tour() -> void:
+	print("== Подвесной перевал и Пепельные Пики (§8.13)")
+	player.hurtbox.invulnerable = true
+	game_state.items.erase(Player.HOOK_ITEM)
+	await rooms.travel(&"mill", ^"Spawns/FromHill")
+	await seconds(0.3)
+	await put(Vector3(18.0, 14.1, 0.0), -1.0)
+	check(await walk_to(-30.5) and player.global_position.y > 16.5, "мельница: с балкона ветряка по старому мосту к скале (y=%.1f)" % player.global_position.y)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"pass_bridge", "у скалы — дверь на перевал")
+	check(await walk_to(20.5) and absf(player.global_position.y) < 0.5, "перевал: первый пролёт цел (x=%.1f)" % player.global_position.x)
+	await frames(10)
+	check(messages.any(func(m: String) -> bool: return m.contains("Пролёт обрушился")), "у обрыва герой видит: пролёт обрушился")
+	check(player.hook_target == null, "без крюка кольца над пропастью не светятся")
+	var hook_key := InputEventAction.new()
+	hook_key.action = &"debug_hook"
+	hook_key.pressed = true
+	Input.parse_input_event(hook_key)
+	await frames(2)
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	# Обрыв 1: «притянуть» — на опору с башней.
+	await put(Vector3(21.0, 0.1, 0.0), -1.0)
+	press("move_left")
+	await frames(4)
+	press("jump")
+	await frames(10)
+	check(player.hook_target != null and player.hook_target.name == &"RingPull", "в прыжке над обрывом — кольцо «притянуть»")
+	await tap("hook")
+	for i in 150:
+		await frames(1)
+		if i > 30 and player.is_on_floor():
+			break
+	release_all()
+	check(player.is_on_floor() and player.global_position.x < 9.0 and player.global_position.y > -0.5,
+		"крюк перенёс через первый обрыв (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	# Обрыв 2: «качели» под аркой.
+	await put(Vector3(-0.5, 0.1, 0.0), -1.0)
+	press("jump")
+	await frames(12)
+	press("hook")
+	press("move_left")
+	var swung := false
+	for i in 300:
+		await frames(1)
+		swung = swung or (player.state == Player.State.HOOK and player._hook_caught)
+		if player.state == Player.State.HOOK and player.global_position.x < -13.0 and player.velocity.y > 0.0:
+			release("hook")
+		if i > 60 and player.is_on_floor():
+			break
+	release_all()
+	check(swung and player.is_on_floor() and player.global_position.x < -16.0 and player.global_position.y > -0.5,
+		"на качелях — через второй обрыв (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	# Скала: кольцо на кромке — наверх, к Пикам.
+	await put(Vector3(-21.8, 0.1, 0.0), -1.0)
+	await frames(3)
+	await tap("hook")
+	for i in 150:
+		await frames(1)
+		if i > 30 and player.is_on_floor() and player.state == Player.State.MOVE:
+			break
+	check(player.is_on_floor() and player.global_position.y > 5.5 and player.global_position.x < -26.0,
+		"кольцо на кромке скалы — наверх (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	check(await walk_to(-40.5), "по скале — к двери в Пики")
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"ash_peaks", "за перевалом — Пепельные Пики")
+	check(await walk_to(-30.0) and player.global_position.y > 3.5,
+		"Пики: по склону, мимо башни, по хребту дракона — к черепу (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	check(room_node("Objects/MirrorShard") is MirrorShard, "у сторожевой башни — осколок")
+	await climb_all_ladders(&"ash_peaks")
+	Input.parse_input_event(hook_key)
+	await frames(2)
+	player.hurtbox.invulnerable = false
+	player.restore()
+
+
 ## Бежит в сторону, прыгает у x = edge и тормозит в воздухе над x = stop.
 func run_and_jump(dir: String, edge: float, stop: float) -> void:
 	press(dir)
@@ -4068,6 +4148,7 @@ func suite() -> void:
 	player.restore()
 
 	await fields_tour()
+	await pass_tour()
 
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path

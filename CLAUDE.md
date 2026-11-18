@@ -31,8 +31,9 @@ Godot не в PATH, путь — `/c/Program Files/Godot/Godot.exe`.
 | `tools/levels/build_reflection.py` | сюжетный забег «Нестабильное отражение»: `reflection_run` |
 | `tools/levels/build_hook.py` | полигон крюка на цепи: `hook_range` |
 | `tools/levels/build_fields.py` | Поля (§8.13): `farmyard`, `rye_field`, `execution_hill`, `mill`, `vegetable_patch`, `threshing_barn` |
+| `tools/levels/build_mountains.py` (помощники — из `build_fields.py`) | Подвесной перевал и Пепельные Пики: `pass_bridge`, `ash_peaks` |
 
-- Фон и передний план уличных комнат — общий набор `tools/levels/backdrop.py` (`Kit`: небо, горизонт, дальний и средний планы, дымка, подсвеченный путь `path_light`, ближняя земля — не под мостами, редкие затенённые предметы переднего плана; наполнение — функции биомов `village`, `hub`, `cemetery`, `forest`, `swamp`, `dead_village`, `fields`). Свои ext_resource комнаты — `Scene.use()` (общий словарь `EXT` не трогать: иначе меняются все комнаты). Края комнат — невидимые стены `Scene.wall()`, земля и фон идут дальше края.
+- Фон и передний план уличных комнат — общий набор `tools/levels/backdrop.py` (`Kit`: небо, горизонт, дальний и средний планы, дымка, подсвеченный путь `path_light`, ближняя земля — не под мостами, редкие затенённые предметы переднего плана; наполнение — функции биомов `village`, `hub`, `cemetery`, `forest`, `swamp`, `dead_village`, `fields`, `pass_view`, `peaks`). Свои ext_resource комнаты — `Scene.use()` (общий словарь `EXT` не трогать: иначе меняются все комнаты). Края комнат — невидимые стены `Scene.wall()`, земля и фон идут дальше края.
 - Правка комнаты = правка генератора + перегенерация (+ `tools/world_map/build_map.tscn` — форма комнаты на карте). Генераторы воспроизводимы: повторный запуск без изменений не меняет файлы.
 - Каждая комната объявляет все ext_resource из словаря `Scene.ext` (соглашение), даже неиспользуемые.
 - `world/rooms/room_001.tscn` (комната-прототип, полигон для смоук-теста) и `castle_gallery.tscn` (галерея замка с вампиром) сделаны руками.
@@ -50,7 +51,7 @@ Godot не в PATH, путь — `/c/Program Files/Godot/Godot.exe`.
 - `world/` — комнаты (`Room` — только раскладка и данные), зеркала, стекло (`GlassSurface` — одна сцена на все роли стекла), осколки-чекпоинты, отзвуки, `common/` (Interactable, Npc, ItemPickup, RoomDoor, SayLine, Note, Ladder, BossArena, FogGate…; Поля — `RyeField` (рожь на ветру, MultiMesh), `SunflowerRow` (головы на столб, после флага — за героем), `FlagShown` (часть комнаты только при флаге или без него), `Spinner` (крылья мельницы, колесо)).
 - `ui/` — `Hud`, `LevelMenu` (меню у осколка: уровни, грани, закалка, мастерство, смена оружия и лука; оно же меню паузы — `open_pause`, режим `at_shard = false`: корень паузы — компактная панель `PausePanel`, страница `Page.EQUIP` — экран снаряжения `EquipmentScreen` с манекеном героя), `StartMenu`. Настройки игрока — `systems/settings.gd` (`Settings`, отдельный `user://settings.cfg`).
 - `data/` — `.tres`: оружие (`stick`, `sword`, `candlestick`), расходники (`consumables/`), грани, статы героя, особые добивания врагов.
-- `tests/smoke_test.gd` — один сквозной тест всей игры, вводом через `Input.action_press`. `run()` = `setup()` + `suite()`; крупные прогулки — отдельными функциями (`fields_tour()`). Быстро проверить один блок: временная сцена со скриптом `extends "res://tests/smoke_test.gd"`, где `run()` — `setup()` и нужный блок (после проверки удалить).
+- `tests/smoke_test.gd` — один сквозной тест всей игры, вводом через `Input.action_press`. `run()` = `setup()` + `suite()`; крупные прогулки — отдельными функциями (`fields_tour()`, `pass_tour()`). Быстро проверить один блок: временная сцена со скриптом `extends "res://tests/smoke_test.gd"`, где `run()` — `setup()` и нужный блок (после проверки удалить).
 
 **Главное правило архитектуры:** геймплей не смешивается с конкретными комнатами. Системы общаются через `Events`; комната — данные и раскладка, логика — в компонентах и системах.
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=79 format=3]
+[gd_scene load_steps=81 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -96,6 +96,10 @@ emission_energy_multiplier = 5.0
 
 [sub_resource type="StandardMaterial3D" id="Mat_mud"]
 albedo_color = Color(0.2, 0.17, 0.15, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_rope"]
+albedo_color = Color(0.45, 0.36, 0.22, 1)
 roughness = 0.95
 
 [sub_resource type="StandardMaterial3D" id="Mat_shingle"]
@@ -352,6 +356,10 @@ orientation = 1
 
 [sub_resource type="QuadMesh" id="BD_plane_12x3_6"]
 size = Vector2(12, 3.6)
+orientation = 1
+
+[sub_resource type="QuadMesh" id="BD_plane_6x3_6"]
+size = Vector2(6, 3.6)
 orientation = 1
 
 [node name="Mill" type="Node3D"]
@@ -683,146 +691,172 @@ size = Vector3(0.18, 2.6, 0.18)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyLadder" type="Area3D" parent="Objects"]
-position = Vector3(11.4, 6.0, 0)
+position = Vector3(24.6, 6.0, 0)
 script = ExtResource("ladder")
 height = 8.0
-exit_dir = 1.0
+exit_dir = -1.0
 
 [node name="BalconyRailA" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.1, 10.0, -0.4)
+position = Vector3(24.3, 10.0, -0.4)
 size = Vector3(0.08, 8.0, 0.08)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRailB" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.7, 10.0, -0.4)
+position = Vector3(24.9, 10.0, -0.4)
 size = Vector3(0.08, 8.0, 0.08)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung0" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 6.3, -0.4)
+position = Vector3(24.6, 6.3, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung1" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 6.75, -0.4)
+position = Vector3(24.6, 6.75, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung2" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 7.2, -0.4)
+position = Vector3(24.6, 7.2, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung3" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 7.65, -0.4)
+position = Vector3(24.6, 7.65, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung4" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 8.1, -0.4)
+position = Vector3(24.6, 8.1, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung5" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 8.55, -0.4)
+position = Vector3(24.6, 8.55, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung6" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 9.0, -0.4)
+position = Vector3(24.6, 9.0, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung7" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 9.45, -0.4)
+position = Vector3(24.6, 9.45, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung8" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 9.9, -0.4)
+position = Vector3(24.6, 9.9, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung9" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 10.35, -0.4)
+position = Vector3(24.6, 10.35, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung10" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 10.8, -0.4)
+position = Vector3(24.6, 10.8, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung11" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 11.25, -0.4)
+position = Vector3(24.6, 11.25, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung12" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 11.7, -0.4)
+position = Vector3(24.6, 11.7, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung13" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 12.15, -0.4)
+position = Vector3(24.6, 12.15, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung14" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 12.6, -0.4)
+position = Vector3(24.6, 12.6, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung15" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 13.05, -0.4)
+position = Vector3(24.6, 13.05, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="BalconyRung16" type="CSGBox3D" parent="Decor"]
-position = Vector3(11.4, 13.5, -0.4)
+position = Vector3(24.6, 13.5, -0.4)
 size = Vector3(0.6, 0.06, 0.06)
 material = SubResource("Mat_wood_dark")
 
 [node name="PassSign" type="Area3D" parent="Objects"]
-position = Vector3(21.5, 14.0, 0)
+position = Vector3(13.5, 14.0, 0)
 script = ExtResource("note")
 title = "Дорожный столб"
-lines = PackedStringArray("«На перевал — вверх по скале, через мост».", "Ниже кто-то нацарапал: «Моста нет. Цепи остались».")
+lines = PackedStringArray("«На перевал — по мосту к скале, дальше по старой дороге».", "Ниже кто-то нацарапал: «Моста нет. Цепи остались».")
 
-[node name="Cliff" type="CSGBox3D" parent="Decor"]
-position = Vector3(-40.0, 6.0, -6.0)
-size = Vector3(24.0, 26.0, 8.0)
+[node name="RopeBridge" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-7.0098, 15.3754, 0)
+rotation = Vector3(0, 0, -0.0788)
+use_collision = true
+size = Vector3(38.2182, 0.25, 4.4)
+material = SubResource("Mat_wood")
+
+[node name="BridgeRope0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-7.0, 16.6, -1.1)
+rotation = Vector3(0, 0, -0.0788)
+size = Vector3(38.4, 0.06, 0.06)
+material = SubResource("Mat_rope")
+
+[node name="BridgeRope1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-7.0, 16.6, 1.1)
+rotation = Vector3(0, 0, -0.0788)
+size = Vector3(38.4, 0.06, 0.06)
+material = SubResource("Mat_rope")
+
+[node name="BridgeHanger0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-20.0, 17.0263, -1.1)
+size = Vector3(0.06, 1.0, 0.06)
+material = SubResource("Mat_rope")
+
+[node name="BridgeHanger1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.5, 16.4342, -1.1)
+size = Vector3(0.06, 1.0, 0.06)
+material = SubResource("Mat_rope")
+
+[node name="BridgeHanger2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.0, 15.8421, -1.1)
+size = Vector3(0.06, 1.0, 0.06)
+material = SubResource("Mat_rope")
+
+[node name="BridgeHanger3" type="CSGBox3D" parent="Decor"]
+position = Vector3(2.5, 15.25, -1.1)
+size = Vector3(0.06, 1.0, 0.06)
+material = SubResource("Mat_rope")
+
+[node name="BridgeHanger4" type="CSGBox3D" parent="Decor"]
+position = Vector3(10.0, 14.6579, -1.1)
+size = Vector3(0.06, 1.0, 0.06)
+material = SubResource("Mat_rope")
+
+[node name="BridgePinnacle" type="CSGBox3D" parent="Decor"]
+position = Vector3(-8.0, 1.0, -3.2)
+rotation = Vector3(0, 0, 0.04)
+size = Vector3(3.0, 30.0, 3.0)
 material = SubResource("Mat_stone_dark")
 
-[node name="CliffStair0" type="CSGBox3D" parent="Decor"]
-position = Vector3(-28.5, 7.6, -2.8)
-size = Vector3(1.4, 0.4, 1.6)
-material = SubResource("Mat_stone")
+[node name="PassLedge" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-44.0, 16.0, 0)
+use_collision = true
+size = Vector3(36, 2, 4.4)
+material = SubResource("Mat_stone_dark")
 
-[node name="CliffStair1" type="CSGBox3D" parent="Decor"]
-position = Vector3(-29.6, 9.2, -2.8)
-size = Vector3(1.4, 0.4, 1.6)
-material = SubResource("Mat_stone")
-
-[node name="CliffStair2" type="CSGBox3D" parent="Decor"]
-position = Vector3(-30.7, 10.8, -2.8)
-size = Vector3(1.4, 0.4, 1.6)
-material = SubResource("Mat_stone")
-
-[node name="CliffStair3" type="CSGBox3D" parent="Decor"]
-position = Vector3(-31.8, 12.4, -2.8)
-size = Vector3(1.4, 0.4, 1.6)
-material = SubResource("Mat_stone")
-
-[node name="CliffStair4" type="CSGBox3D" parent="Decor"]
-position = Vector3(-32.9, 14.0, -2.8)
-size = Vector3(1.4, 0.4, 1.6)
-material = SubResource("Mat_stone")
-
-[node name="CliffStair5" type="CSGBox3D" parent="Decor"]
-position = Vector3(-34.0, 15.6, -2.8)
-size = Vector3(1.4, 0.4, 1.6)
-material = SubResource("Mat_stone")
+[node name="Cliff" type="CSGBox3D" parent="Decor"]
+position = Vector3(-40.0, 8.0, -6.0)
+size = Vector3(24.0, 30.0, 8.0)
+material = SubResource("Mat_stone_dark")
 
 [node name="MillHouseWall" type="CSGBox3D" parent="Decor"]
 position = Vector3(-17.0, -4.0, -4.6)
@@ -1042,7 +1076,7 @@ omni_range = 6.0
 position = Vector3(7.0, 6.0, 0)
 
 [node name="Widow" type="Area3D" parent="Objects"]
-position = Vector3(25.0, 6.0, 0)
+position = Vector3(21.5, 6.0, 0)
 script = ExtResource("npc")
 npc_name = "Вдова мельника"
 lines = PackedStringArray("Мельница стоит. Жернова молчат. Молоть нечего — поле никто не жнёт.", "Мужа схоронила по весне. Ветряк он сам ставил, крылья до сих пор крутятся. Будто он там.", "Ты с холма пришёл? Не ходи туда. Там столб.")
@@ -2170,12 +2204,22 @@ position = Vector3(29.0, 6.1, 0)
 [node name="FromPatch" type="Marker3D" parent="Spawns"]
 position = Vector3(29.0, -6.4, 0)
 
+[node name="FromPass" type="Marker3D" parent="Spawns"]
+position = Vector3(-29.0, 17.1, 0)
+
 [node name="DoorToHill" type="Area3D" parent="Objects"]
 position = Vector3(30.5, 6, 0)
 script = ExtResource("door")
 target_room = &"execution_hill"
 target_spawn = NodePath("Spawns/FromMill")
 open_prompt = "На холм со столбом"
+
+[node name="DoorToPass" type="Area3D" parent="Objects"]
+position = Vector3(-30.5, 17, 0)
+script = ExtResource("door")
+target_room = &"pass_bridge"
+target_spawn = NodePath("Spawns/FromMill")
+open_prompt = "На перевал"
 
 [node name="DoorToPatch" type="Area3D" parent="Objects"]
 position = Vector3(30.5, -6.5, 0)
@@ -2590,5 +2634,11 @@ cast_shadow = 0
 [node name="PathLight3" type="MeshInstance3D" parent="Decor/Backdrop"]
 position = Vector3(18, 14.015, 0.2)
 mesh = SubResource("BD_plane_12x3_6")
+material_override = SubResource("BD_path_0p06_0p06_0p08_1")
+cast_shadow = 0
+
+[node name="PathLight4" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(-29, 17.015, 0.2)
+mesh = SubResource("BD_plane_6x3_6")
 material_override = SubResource("BD_path_0p06_0p06_0p08_1")
 cast_shadow = 0

@@ -54,6 +54,8 @@ MATS = {
     "window": ((1.0, 0.6, 0.25), 2.2), "moonlit": ((0.35, 0.42, 0.5), 0.6), "ember": ((0.9, 0.35, 0.1), 1.6), "wisp": ((0.45, 0.6, 0.3), 1.4),
     "rye": ((0.14, 0.12, 0.07), 0.0), "rye_dark": ((0.075, 0.065, 0.04), 0.0), "straw": ((0.13, 0.11, 0.065), 0.0),
     "jack": ((1.0, 0.5, 0.12), 1.8),
+    "ash": ((0.05, 0.048, 0.05), 0.0), "snow": ((0.42, 0.44, 0.48), 0.0), "bone": ((0.3, 0.28, 0.24), 0.0),
+    "cinder": ((0.7, 0.25, 0.08), 1.2),
 }
 MESHES = {"box": 'BoxMesh', "prism": 'PrismMesh', "cone": 'CylinderMesh', "ball": 'SphereMesh'}
 
@@ -163,14 +165,40 @@ class Kit:
         self.put("Foreground", "NearSlope", "box", "earth", (cx, cy, (z0 + z1) / 2), (ln + 0.6, 2.0, z1 - z0), tilt=a)
 
     # --- силуэты горизонта
-    def mountains(self, x0, x1, z, base, lo, hi, mat="ridge"):
-        """Гряда: призмы разной ширины и высоты внахлёст."""
+    def mountains(self, x0, x1, z, base, lo, hi, mat="ridge", snow=False):
+        """Гряда: призмы разной ширины и высоты внахлёст. snow — снежные шапки (верхняя треть вершины)."""
         x = x0
         while x < x1:
             h = self.rng.uniform(lo, hi)
             w = h * self.rng.uniform(1.6, 2.6)
-            self.put("Backdrop", "Peak", "prism", mat, (x, base + h / 2, z + self.rng.uniform(-4, 4)), (w, h, 6.0))
+            pz = z + self.rng.uniform(-4, 4)
+            self.put("Backdrop", "Peak", "prism", mat, (x, base + h / 2, pz), (w, h, 6.0))
+            if snow:
+                self.put("Backdrop", "Snowcap", "prism", "snow", (x, base + h * 0.86, pz + 0.05), (w * 0.28, h * 0.28, 6.2))
             x += w * self.rng.uniform(0.35, 0.6)
+
+    def pinnacles(self, x0, x1, z0, z1, base, lo, hi, step=(9.0, 18.0), mat="ridge"):
+        """Скалы-иглы, встающие из пропасти."""
+        x = x0
+        while x < x1:
+            h = self.rng.uniform(lo, hi)
+            r = h * self.rng.uniform(0.07, 0.12)
+            z = self.rng.uniform(z1, z0)
+            t = self.rng.uniform(-0.05, 0.05)
+            self.put("Backdrop", "Spire", "box", mat, (x, base + h / 2, z), (r * 2, h, r * 2), tilt=t)
+            self.put("Backdrop", "SpireTip", "prism", mat, (x - math.sin(t) * h / 2, base + h + r * 2.4, z), (r * 1.9, r * 5.0, r * 2))
+            x += self.rng.uniform(*step)
+
+    def ribs(self, x, z, base, span, count, mat="bone"):
+        """Рёбра дракона вдали: хребет и дуги рёбер над ним. Без случайности."""
+        self.put("Backdrop", "Spine", "box", mat, (x + span / 2, base + 1.0, z), (span, 1.2, 1.4), tilt=0.04)
+        for i in range(count):
+            rx = x + span * (i + 0.5) / count
+            h = span * 0.32 * (1.0 - abs(i - count / 2) / count)
+            for k in range(5):
+                a = math.pi * (0.1 + 0.2 * k)
+                px, py = rx - math.cos(a) * h * 0.45, base + 1.0 + math.sin(a) * h
+                self.put("Backdrop", "Rib", "box", mat, (px, py, z), (h * 0.34, 0.45, 0.45), tilt=a + math.pi / 2)
 
     def firs(self, x0, x1, z0, z1, lo, hi, step=(2.5, 4.5), base=0.0, mat="fir"):
         x = x0
@@ -402,6 +430,12 @@ class Kit:
         self.put("Foreground", "Pumpkin", "ball", "sil_warm", (x, y + s * 0.3, z), (s * 1.3, s * 0.75, s))
         self.put("Foreground", "PumpkinStem", "box", "sil", (x + 0.05, y + s * 0.7, z), (0.06, 0.2, 0.06), tilt=0.3)
 
+    def _fg_bone(self, x, y, z, cap):
+        ln = self.rng.uniform(1.2, 2.2)
+        a = self.rng.uniform(0.5, 1.0)
+        self.put("Foreground", "Bone", "box", "bone", (x, y + ln * 0.3, z), (0.16, ln, 0.16), tilt=a)
+        self.put("Foreground", "Bone", "box", "bone", (x + ln * 0.35, y + ln * 0.62, z), (0.14, ln * 0.6, 0.14), tilt=a + 0.7)
+
     def _fg_skull(self, x, y, z, cap):
         self._fg_rock(x, y, z, cap)
         self.put("Foreground", "Skull", "ball", "stone", (x - 0.4, y + 0.25, z - 0.3), (0.32, 0.28, 0.3))
@@ -416,6 +450,7 @@ FOREGROUND = {
     "dead": ("fence", "skull", "stump"),
     "fields": ("rye", "rye", "sunflower", "rock"),
     "garden": ("pumpkin", "fence", "rye"),
+    "peaks": ("rock", "bone", "rock", "stump"),
 }
 
 
@@ -551,3 +586,28 @@ def fields(k, left, right, fog, ground=0.0, mill_x=None, village=False, bridge_x
     k.haze(left, right, ground + 2, -10, 6, fog, 0.25)
     k.haze(left, right, ground + 4, -24, 12, fog, 0.4)
     k.haze(left, right, ground + 8, -42, 24, fog, 0.55)
+
+
+## Подвесной перевал и Пепельные Пики (§8.13).
+def pass_view(k, left, right, fog, ground=0.0):
+    """Перевал: внизу пропасть в тумане, из неё встают скалы-иглы; за ними — Пепельные Пики со снегом;
+    далеко внизу на востоке — Поля и ветряк, откуда пришёл."""
+    k.far_ground(left, right, ground - 40, mat="rye_dark")
+    k.mountains(left - FAR_PAD - 30, right + 20, -72, ground - 30, 40, 70, snow=True)
+    k.pinnacles(left - 40, right + 40, -16, -34, ground - 44, 30, 52)
+    k.windmill(right + 50, -60, ground - 38, 12)
+    k.haze(left, right, ground - 12, -6, 14, fog, 0.45)
+    k.haze(left, right, ground - 24, -18, 20, fog, 0.55)
+    k.haze(left, right, ground + 4, -42, 30, fog, 0.5)
+
+
+def peaks(k, left, right, fog, ground=0.0):
+    """Пепельные Пики: чёрные хребты в снегу, рёбра дракона на склоне, обгорелые деревья, пепельная мгла."""
+    k.far_ground(left, right, ground - 6, mat="ash")
+    k.mountains(left - FAR_PAD - 20, right + FAR_PAD, -70, ground - 4, 30, 55, snow=True)
+    k.mountains(left - 40, right + 40, -40, ground - 3, 12, 22, mat="ash", snow=True)
+    k.ribs(left + 6, -30, ground - 2, 26, 7)
+    k.dead_trees(left - 20, right + 20, -12, -20, 5, 9, step=(7, 13), base=ground)
+    k.haze(left, right, ground + 2, -10, 7, fog, 0.3)
+    k.haze(left, right, ground + 5, -24, 14, fog, 0.45)
+    k.haze(left, right, ground + 9, -42, 26, fog, 0.55)

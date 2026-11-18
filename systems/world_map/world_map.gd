@@ -20,8 +20,8 @@ const BIOMES := {
 	&"runs": {"name": "Забеги", "color": Color(0.85, 0.45, 0.42)},
 	&"tests": {"name": "Полигоны", "color": Color(0.62, 0.62, 0.66)},
 	&"fields": {"name": "Поля", "color": Color(0.8, 0.72, 0.4)},
-	&"pass": {"name": "Подвесной перевал", "color": Color(0.7, 0.7, 0.75), "planned": Rect2(-68, -7, 10.5, 4)},
-	&"peaks": {"name": "Пепельные Пики", "color": Color(0.6, 0.6, 0.66), "planned": Rect2(-88, -15, 22, 7)},
+	&"pass": {"name": "Подвесной перевал", "color": Color(0.7, 0.7, 0.75)},
+	&"peaks": {"name": "Пепельные Пики", "color": Color(0.6, 0.6, 0.66)},
 	&"crypts": {"name": "Катакомбы кладбища", "color": Color(0.6, 0.65, 0.85), "planned": Rect2(3, 1.5, 10, 3.5)},
 	&"mines": {"name": "Железные копи", "color": Color(0.65, 0.55, 0.45), "planned": Rect2(48, -1, 12, 5)},
 	&"inferno": {"name": "Пекло", "color": Color(0.85, 0.3, 0.2), "planned": Rect2(44, 5, 18, 5)},
@@ -57,6 +57,9 @@ const ROOMS := {
 	&"mill": {"biome": &"fields", "x": -57.5, "y": -0.15},
 	&"vegetable_patch": {"biome": &"fields", "x": -49.5, "y": 0.6625},
 	&"threshing_barn": {"biome": &"fields", "x": -48.4375, "y": 2.6},
+	# Перевал — от мельницы вверх и влево: настил моста на 17 м выше поля, Пики — ещё на 6 м выше.
+	&"pass_bridge": {"biome": &"pass", "x": -68.0, "y": -2.275},
+	&"ash_peaks": {"biome": &"peaks", "x": -78.0, "y": -3.025},
 }
 
 

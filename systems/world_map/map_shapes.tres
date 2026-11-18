@@ -5,6 +5,21 @@
 [resource]
 script = ExtResource("1_xrh3j")
 rooms = {
+&"ash_peaks": {
+"bottom": -1.5,
+"doors": [[Vector2(38.5, 0), &"pass_bridge"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([Vector3(6.6, 4, 12)]),
+"left": -40.0,
+"pillars": Array[PackedVector2Array]([]),
+"right": 40.0,
+"shards": {
+"Objects/MirrorShard": Vector2(-3, 4)
+},
+"solids": Array[PackedVector2Array]([PackedVector2Array(40, 0, 24, 0, 24, -1.5, 40, -1.5), PackedVector2Array(24, 0, 10, 0, 10, -1.5, 24, -1.5), PackedVector2Array(24.05, -0.01, 9.95, 4.01, 9.4, 2.09, 21.97, -1.5, 23.62, -1.5), PackedVector2Array(10, 4, -6, 4, -6, -1.5, 10, -1.5), PackedVector2Array(-24, 4, -40, 4, -40, -1.5, -24, -1.5), PackedVector2Array(6, 12, 0, 12, 0, 11.6, 6, 11.6), PackedVector2Array(-22.18, 4, -24.03, 4, -24.03, 3, -22.18, 3), PackedVector2Array(-20.37, 3.9, -22.22, 3.9, -22.22, 3, -20.37, 3), PackedVector2Array(-18.58, 4, -20.43, 4, -20.43, 3, -18.58, 3), PackedVector2Array(-16.78, 3.9, -18.62, 3.9, -18.62, 3, -16.78, 3), PackedVector2Array(-14.97, 4, -16.82, 4, -16.82, 3, -14.97, 3), PackedVector2Array(-13.18, 3.9, -15.03, 3.9, -15.03, 3, -13.18, 3), PackedVector2Array(-11.37, 4, -13.22, 4, -13.22, 3, -11.37, 3), PackedVector2Array(-9.57, 3.9, -11.43, 3.9, -11.43, 3, -9.57, 3), PackedVector2Array(-7.78, 4, -9.62, 4, -9.62, 3, -7.78, 3), PackedVector2Array(-5.97, 3.9, -7.82, 3.9, -7.82, 3, -5.97, 3)]),
+"space": Array[PackedVector2Array]([PackedVector2Array(40, 3.46, 24.02, 3.46, 10.06, 7.44, 10.06, 7.46, 9.99, 7.46, 9.89, 7.49, 9.89, 7.46, 7.36, 7.46, 7.36, 13.26, 6.06, 13.26, 6.06, 15.46, -0.06, 15.46, -0.06, 11.94, 0, 11.94, 0, 12, 6, 12, 6, 11.6, 5.84, 11.6, 5.84, 7.46, -6.06, 7.46, -6.06, 7.36, -7.72, 7.36, -7.72, 7.46, -9.68, 7.46, -9.68, 7.36, -11.31, 7.36, -11.31, 7.46, -13.28, 7.46, -13.28, 7.36, -14.91, 7.36, -14.91, 7.46, -16.88, 7.46, -16.88, 7.36, -18.52, 7.36, -18.52, 7.46, -20.49, 7.46, -20.49, 7.36, -22.12, 7.36, -22.12, 7.46, -40, 7.46, -40, 4, -22.18, 4, -22.18, 3.9, -20.43, 3.9, -20.43, 4, -18.58, 4, -18.58, 3.9, -16.82, 3.9, -16.82, 4, -14.97, 4, -14.97, 3.9, -13.22, 3.9, -13.22, 4, -11.37, 4, -11.37, 3.9, -9.62, 3.9, -9.62, 4, -7.78, 4, -7.78, 3.9, -6, 3.9, -6, 4, 9.95, 4, 9.95, 4.01, 9.99, 4, 10, 4, 10, 4, 24.01, 0, 40, 0), PackedVector2Array(10, 1.92, 10, 0, 16.72, 0)]),
+"top": 17.0
+},
 &"castle_gallery": {
 "bottom": -1.5,
 "doors": [[Vector2(-14.4, 0), &"room_001"]],
@@ -160,18 +175,31 @@ rooms = {
 },
 &"mill": {
 "bottom": -8.0,
-"doors": [[Vector2(30.5, 6), &"execution_hill"], [Vector2(30.5, -6.5), &"vegetable_patch"]],
+"doors": [[Vector2(30.5, 6), &"execution_hill"], [Vector2(-30.5, 17), &"pass_bridge"], [Vector2(30.5, -6.5), &"vegetable_patch"]],
 "glass": Array[PackedVector2Array]([]),
-"ladders": Array[Vector3]([Vector3(3.4, 0, 6), Vector3(-6.6, -6.5, 0), Vector3(11.4, 6, 14)]),
+"ladders": Array[Vector3]([Vector3(3.4, 0, 6), Vector3(-6.6, -6.5, 0), Vector3(24.6, 6, 14)]),
 "left": -32.0,
 "pillars": Array[PackedVector2Array]([]),
 "right": 32.0,
 "shards": {
 "Objects/MirrorShard": Vector2(7, 6)
 },
-"solids": Array[PackedVector2Array]([PackedVector2Array(32, 6, 4, 6, 4, -1.5, 32, -1.5), PackedVector2Array(32, -6.5, -32, -6.5, -32, -8, 32, -8), PackedVector2Array(4, 0, -6, 0, -6, -0.6, 4, -0.6), PackedVector2Array(24, 14, 12, 14, 12, 13.7, 24, 13.7)]),
-"space": Array[PackedVector2Array]([PackedVector2Array(-32, -6.5, 32, -6.5, 32, -3.04, -5.84, -3.04, -5.84, -0.6, -6, -0.6, -6, 0, 4, 0, 4, 6, 32, 6, 32, 9.46, 12.16, 9.46, 12.16, 13.7, 12, 13.7, 12, 14, 24, 14, 24, 13.94, 24.06, 13.94, 24.06, 17.46, 11.94, 17.46, 11.94, 15.26, 10.64, 15.26, 10.64, 9.46, 3.94, 9.46, 3.94, 7.26, 2.64, 7.26, 2.64, 3.46, -6.06, 3.46, -6.06, 1.26, -7.36, 1.26, -7.36, -3.04, -32, -3.04)]),
-"top": 19.0
+"solids": Array[PackedVector2Array]([PackedVector2Array(32, 6, 4, 6, 4, -1.5, 32, -1.5), PackedVector2Array(32, -6.5, -32, -6.5, -32, -8, 32, -8), PackedVector2Array(4, 0, -6, 0, -6, -0.6, 4, -0.6), PackedVector2Array(24, 14, 12, 14, 12, 13.7, 24, 13.7), PackedVector2Array(12.05, 14, -26.05, 17, -26.07, 16.76, 12.03, 13.75), PackedVector2Array(-26, 17, -32, 17, -32, 15, -26, 15)]),
+"space": Array[PackedVector2Array]([PackedVector2Array(-32, -6.5, 32, -6.5, 32, -3.04, -5.84, -3.04, -5.84, -0.6, -6, -0.6, -6, 0, 4, 0, 4, 6, 32, 6, 32, 9.46, 25.36, 9.46, 25.36, 15.26, 24.06, 15.26, 24.06, 17.46, 12.05, 17.46, -25.94, 20.45, -25.94, 20.46, -26.05, 20.46, -26.11, 20.46, -26.11, 20.46, -32, 20.46, -32, 17, -26, 17, -26, 17, 12.05, 14, 24, 14, 24, 13.7, 23.84, 13.7, 23.84, 9.46, 3.94, 9.46, 3.94, 7.26, 2.64, 7.26, 2.64, 3.46, -6.06, 3.46, -6.06, 1.26, -7.36, 1.26, -7.36, -3.04, -32, -3.04)]),
+"top": 22.0
+},
+&"pass_bridge": {
+"bottom": -1.5,
+"doors": [[Vector2(40.5, 0), &"mill"], [Vector2(-40.5, 6), &"ash_peaks"]],
+"glass": Array[PackedVector2Array]([]),
+"ladders": Array[Vector3]([]),
+"left": -42.0,
+"pillars": Array[PackedVector2Array]([]),
+"right": 42.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(42, 0, 18, 0, 18, -1.5, 42, -1.5), PackedVector2Array(9, 0, -2, 0, -2, -1.5, 9, -1.5), PackedVector2Array(-16, 0, -26, 0, -26, -1.5, -16, -1.5), PackedVector2Array(-26, 6, -42, 6, -42, -1.5, -26, -1.5)]),
+"space": Array[PackedVector2Array]([PackedVector2Array(-2, 0, 9, 0, 9, -0.06, 9.06, -0.06, 9.06, 3.46, -2.06, 3.46, -2.06, -0.06, -2, -0.06), PackedVector2Array(-15.94, 3.46, -26, 3.46, -26, 0, -16, 0, -16, -0.06, -15.94, -0.06), PackedVector2Array(18, 0, 42, 0, 42, 3.46, 17.94, 3.46, 17.94, -0.06, 18, -0.06), PackedVector2Array(-25.94, 9.46, -42, 9.46, -42, 6, -26, 6, -26, 5.94, -25.94, 5.94)]),
+"top": 11.0
 },
 &"reflection_run": {
 "bottom": -1.5,

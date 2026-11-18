@@ -276,3 +276,35 @@ FOCUS: a lantern hanging from a beam as the brightest point of the image.
 OUTPUT: consistent with attached reference images.
 {AVOID}
 ```
+
+---
+
+## 5. Подвесной перевал и Пепельные Пики (`env_pass_*`, `env_peaks_*`, §8.13)
+
+**Мир:** Земля, высоко над Полями. **Настроение:** дорога, которую бросили. Мост держали цепи — цепи держат до сих пор, а камень нет. За перевалом горы, где третью ночь красное небо: там лежит что-то огромное и дышит.
+
+### 5.1. Подвесной перевал — `env_pass_bridge`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a ruined stone causeway high above a misty chasm, cold blue-grey twilight, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+The first span stands whole, then the bridge breaks off: a gap with an iron ring hanging on a chain between two broken towers,
+a pier with the ruins of a gatehouse and one surviving arch over the next gap with another ring on a chain, a rusted cage swinging on a beam,
+needle-like rock pinnacles rising from the fog below, black snowy mountains behind; far below in the east, tiny fields and a windmill.
+Broken parapet stones and old ropes along the near edge of the bridge as foreground, nothing but fog under the spans.
+FOCUS: a lantern at the start of the bridge as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 5.2. Пепельные Пики, хребет дракона — `env_peaks_spine`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: black volcanic mountains under falling ash, a dull red glow behind the ridge, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+A scorched slope with burnt trees, a burnt-out stone watchtower with a charred wooden top, and beyond it the colossal spine of a dead dragon
+lying across a chasm as a bridge, its ribs arching over the path like a cathedral nave; on the far terrace the dragon's skull with open jaws,
+a faint ember glow deep in its eye sockets. Snow only on the highest peaks, grey with ash.
+Clear walkable line along the spine, bone fragments and rocks as dark foreground.
+FOCUS: the ember glow in the skull's eye socket as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
