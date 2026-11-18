@@ -23,7 +23,7 @@ signal effects_changed
 
 enum State {
 	MOVE, ROLL, ATTACK, PLUNGE, SLIDE, CLIMB, HURT, DEAD, BLOCK, GUARD_BROKEN, CRITICAL, BOW,
-	LEDGE_HANG, LEDGE_CLIMB, DRINK, CHARGE, LADDER, THROW, CAST,
+	LEDGE_HANG, LEDGE_CLIMB, DRINK, CHARGE, LADDER, THROW, CAST, HOOK,
 }
 
 ## С какой скоростью выдавливает из босса, если перекат сорвали внутри него.
@@ -122,6 +122,29 @@ const THROW_UP_ANGLE := 20.0
 ## (верх, лево, право, низ — как клавиши 1–4).
 ## Короче — тап правого курка: бросок без заряда.
 const PAD_TAP := 0.2
+## Крюк на цепи (§5, §8.13): предмет, кольца — HookPoint. Пока идёт разработка, крюк выдаёт F5.
+const HOOK_ITEM := &"chain_hook"
+## Докуда достаёт цепь, м (от груди до кольца).
+const HOOK_RANGE := 9.0
+## Цепь летит к кольцу, с.
+const HOOK_THROW_TIME := 0.14
+## Скорость, с которой цепь тянет героя к кольцу, м/с.
+const HOOK_PULL_SPEED := 17.0
+## Где ноги героя, когда он висит на кольце.
+const HOOK_HANG := Vector3(0.0, -1.7, 0.0)
+## Притянуло к кольцу «через пропасть»: бросок дальше по ходу и вверх.
+const HOOK_FLING := 7.5
+const HOOK_FLING_UP := 7.0
+## Кольцо на кромке стены: подбрасывает наверх и чуть вперёд.
+const HOOK_VAULT_UP := 11.5
+const HOOK_VAULT_FORWARD := 3.0
+## Раскачивание: ускорение от ввода вдоль дуги, м/с²; отпустил — вверх добавляется толчок.
+const HOOK_SWING_DRIVE := 10.0
+const HOOK_SWING_KICK := 3.0
+const HOOK_COST := 6.0
+const HOOK_COOLDOWN := 0.3
+## Где кисть, держащая цепь, — от ног героя, смотрящего вправо.
+const HOOK_HAND := Vector3(0.2, 1.5, 0.15)
 const QUICK_PAD := {JOY_BUTTON_DPAD_UP: 0, JOY_BUTTON_DPAD_LEFT: 1, JOY_BUTTON_DPAD_RIGHT: 2, JOY_BUTTON_DPAD_DOWN: 3}
 
 @export var stats: PlayerStats
@@ -238,6 +261,19 @@ var _draw_t := 0.0
 var _draw_sound: AudioStreamPlayer3D
 ## Верхняя точка текущего полёта — от неё считается высота падения.
 var _air_top := 0.0
+## Кольцо, за которое крюк зацепится по кнопке (ближайшее в досягаемости, на виду).
+var hook_target: HookPoint
+var _hook: HookPoint
+var _hook_len := 0.0
+var _hook_caught := false
+## Кольцо на кромке стены: подтянуло — герой перелезает через кромку.
+var _hook_vault := false
+var _hook_buffer := 0.0
+var _hook_cool := 0.0
+var _hook_from := Vector3.ZERO
+var _chain: MeshInstance3D
+## Брошен крюком: до верхней точки полёта отпущенный прыжок подъём не срезает.
+var _hook_launch := false
 var _airborne := false
 ## Где герой последний раз стоял на полу: там остаётся его отзвук, даже если он погиб в яме.
 var last_ground := Vector3.ZERO
@@ -356,6 +392,7 @@ func _physics_process(delta: float) -> void:
 		State.LADDER: _ladder_state(delta)
 		State.THROW: _throw_state(delta)
 		State.CAST: _cast_state(delta)
+		State.HOOK: _hook_state(delta)
 	if _head_slide != 0.0:
 		velocity.x = _head_slide * HEAD_SLIDE_SPEED
 	velocity.z = 0.0
@@ -397,6 +434,8 @@ func _tick(delta: float) -> void:
 	_heal_buffer = maxf(_heal_buffer - delta, 0.0)
 	_quick_buffer = maxf(_quick_buffer - delta, 0.0)
 	_counter_t = maxf(_counter_t - delta, 0.0)
+	_hook_buffer = maxf(_hook_buffer - delta, 0.0)
+	_hook_cool = maxf(_hook_cool - delta, 0.0)
 	_since_slide += delta
 	_since_roll += delta
 	_combat_t += delta
@@ -435,6 +474,9 @@ func _tick(delta: float) -> void:
 			_pad_picked = false
 		if Input.is_action_just_pressed("interact"):
 			_try_interact()
+		# Крюк: своя кнопка или, как у Mandragora, перекат в воздухе.
+		if has_hook() and (Input.is_action_just_pressed("hook") or (Input.is_action_just_pressed("roll") and not is_on_floor())):
+			_hook_buffer = stats.input_buffer
 		# Крестовина геймпада — снаряжение, как в Souls; с правым курком она — расходники.
 		var quick_held := Input.is_action_pressed("quick_hold")
 		if Input.is_action_just_pressed("arrow_swap") and not quick_held and GameState.has_flag(&"has_bow"):
@@ -448,6 +490,7 @@ func _tick(delta: float) -> void:
 			GameState.swap_spell(stats.spell_slots)
 			Sfx.play(&"glass_glint", global_position, -14.0)
 
+	_update_hook_target()
 	_regen_mana(delta)
 	if _stamina_delay > 0.0:
 		_stamina_delay -= delta
@@ -552,6 +595,11 @@ func _set_state(new_state: State) -> void:
 	if state == State.THROW and is_instance_valid(_throw_hand):
 		_throw_hand.queue_free()
 		_throw_hand = null
+	if state == State.HOOK and new_state != State.HOOK:
+		_hook = null
+		_hook_cool = HOOK_COOLDOWN
+		if _chain:
+			_chain.visible = false
 	state = new_state
 	_state_time = 0.0
 	if state == State.BLOCK:
@@ -566,9 +614,11 @@ func _set_state(new_state: State) -> void:
 
 func _apply_gravity(delta: float) -> void:
 	var g := stats.gravity
+	if velocity.y <= 0.0 or is_on_floor():
+		_hook_launch = false
 	if velocity.y < 0.0:
 		g *= stats.fall_multiplier
-	elif not Input.is_action_pressed("jump"):
+	elif not Input.is_action_pressed("jump") and not _hook_launch:
 		g *= stats.jump_cut_multiplier
 	velocity.y = maxf(velocity.y - g * delta, -stats.max_fall_speed)
 
@@ -599,7 +649,9 @@ func _move_state(delta: float) -> void:
 	if ramming:
 		_ram_glass(delta)
 
-	if _jump_buffer > 0.0 and _coyote > 0.0:
+	if _hook_buffer > 0.0 and hook_target and _hook_cool <= 0.0:
+		_start_hook(hook_target)
+	elif _jump_buffer > 0.0 and _coyote > 0.0:
 		_jump()
 	elif _jump_buffer > 0.0 and not on_floor and is_instance_valid(_peg):
 		_peg_jump()
@@ -645,6 +697,168 @@ func _move_state(delta: float) -> void:
 		_set_state(State.CLIMB)
 	elif not on_floor and x != 0.0:
 		_try_grab_ledge(signf(x))
+
+
+# --- Крюк на цепи (§5, §8.13) ------------------------------------------------
+
+func has_hook() -> bool:
+	return GameState.item_count(HOOK_ITEM) > 0
+
+
+## Кисть с цепью в мире.
+func hook_hand() -> Vector3:
+	return global_position + Vector3(HOOK_HAND.x * facing, HOOK_HAND.y, HOOK_HAND.z)
+
+
+## Ближайшее кольцо в досягаемости: впереди или над головой, не ниже пояса, без стены на пути.
+## Кольца в досягаемости слабо светятся, выбранное — ярче.
+func _update_hook_target() -> void:
+	var best: HookPoint = null
+	var best_d := INF
+	var free := has_hook() and state in [State.MOVE, State.ROLL, State.SLIDE, State.CLIMB] and not frozen and not in_menu
+	var chest := global_position + Vector3(0.0, 1.2, 0.0)
+	var space := get_world_3d().direct_space_state
+	for node in get_tree().get_nodes_in_group(&"hook_point"):
+		var point := node as HookPoint
+		var d := point.global_position - chest
+		var reach := free and d.length() <= HOOK_RANGE and d.y > -1.0 and (signf(d.x) == facing or absf(d.x) < 0.8)
+		if reach:
+			var ray := PhysicsRayQueryParameters3D.create(chest, point.global_position, 1, [get_rid()])
+			var hit := space.intersect_ray(ray)
+			reach = hit.is_empty() or (hit["position"] as Vector3).distance_to(point.global_position) < 0.7
+		point.set_shine(1 if reach else 0)
+		if reach and d.length() < best_d:
+			best_d = d.length()
+			best = point
+	hook_target = best
+	if best:
+		best.set_shine(2)
+
+
+func _start_hook(point: HookPoint) -> void:
+	_hook = point
+	_hook_caught = false
+	_hook_vault = false
+	_hook_buffer = 0.0
+	_jump_buffer = 0.0
+	_hook_from = global_position
+	facing = signf(point.global_position.x - global_position.x) if absf(point.global_position.x - global_position.x) > 0.1 else facing
+	_spend_stamina(HOOK_COST)
+	Sfx.play(&"hook_throw", global_position)
+	_set_state(State.HOOK)
+
+
+## Бросок (цепь летит), затем по виду кольца: притянуть и бросить дальше, раскачать или перебросить через стену.
+func _hook_state(delta: float) -> void:
+	if not is_instance_valid(_hook):
+		_set_state(State.MOVE)
+		return
+	var anchor := _hook.global_position
+	if not _hook_caught:
+		# Пока цепь летит, герой почти зависает: прыжок не обрывается, падение медленное.
+		velocity.x = move_toward(velocity.x, 0.0, stats.air_drag * delta)
+		velocity.y = maxf(velocity.y - stats.gravity * 0.3 * delta, -2.0)
+		_draw_chain(clampf(_state_time / HOOK_THROW_TIME, 0.0, 1.0))
+		if _state_time >= HOOK_THROW_TIME:
+			_hook_caught = true
+			_hook_len = maxf((hook_hand() - anchor).length(), 1.5)
+			Sfx.play(&"hook_catch", anchor)
+		return
+	if _hook_vault:
+		_vault(anchor, delta)
+		return
+	_draw_chain(1.0)
+	if _hook.kind == HookPoint.Kind.SWING:
+		_swing(anchor, delta)
+		return
+	var goal := anchor + HOOK_HANG
+	var to := goal - global_position
+	var stuck := _state_time > 0.25 and get_real_velocity().length() < 1.0
+	if to.length() < 0.45 or stuck or _state_time > 1.8:
+		if _hook.kind == HookPoint.Kind.WALL:
+			_hook_vault = true
+			_chain.visible = false
+			velocity = Vector3(facing * HOOK_VAULT_FORWARD, HOOK_VAULT_UP, 0.0)
+		else:
+			var dir := signf(anchor.x - _hook_from.x)
+			_release_hook(Vector3((dir if dir != 0.0 else facing) * HOOK_FLING, HOOK_FLING_UP, 0.0))
+		return
+	velocity = to.normalized() * minf(HOOK_PULL_SPEED, to.length() / delta)
+
+
+## Перелаз через кромку: подъём вдоль стены и шаг вперёд, пока ноги не встанут на верх стены.
+func _vault(anchor: Vector3, delta: float) -> void:
+	velocity.x = facing * HOOK_VAULT_FORWARD
+	velocity.y -= stats.gravity * delta
+	var over := global_position.y > anchor.y + HOOK_HANG.y + 1.0
+	if (is_on_floor() and over) or _state_time > 2.5 or (velocity.y < 0.0 and not over and global_position.y < anchor.y - 3.0):
+		_release_hook(Vector3(velocity.x, maxf(velocity.y, 0.0), 0.0))
+
+
+## Маятник: цепь держит кисть на расстоянии _hook_len от кольца; ввод раскачивает вдоль дуги.
+## Отпустил кнопку или прыгнул — летит с набранной скоростью и толчком вверх.
+func _swing(anchor: Vector3, delta: float) -> void:
+	velocity.y = maxf(velocity.y - stats.gravity * delta, -stats.max_fall_speed)
+	var x := _input_x()
+	if x != 0.0:
+		facing = signf(x)
+	var radial := hook_hand() - anchor
+	if radial.length() > 0.01:
+		var tangent := Vector3(-radial.y, radial.x, 0.0).normalized()
+		if tangent.x * x < 0.0:
+			tangent = -tangent
+		velocity += tangent * HOOK_SWING_DRIVE * absf(x) * delta
+	var next := hook_hand() + velocity * delta - anchor
+	if next.length() > _hook_len:
+		# Цепь натянута: убираем скорость «наружу» и ставим кисть на дугу.
+		var out := next.normalized()
+		var along := velocity.dot(out)
+		if along > 0.0:
+			velocity -= out * along
+		global_position += out * (_hook_len - next.length()) * 0.5
+	var held := Input.is_action_pressed("hook") or Input.is_action_pressed("roll")
+	if not held or _jump_buffer > 0.0 or (is_on_floor() and _state_time > 0.3):
+		_release_hook(velocity + Vector3(0.0, HOOK_SWING_KICK, 0.0))
+
+
+func _release_hook(exit: Vector3) -> void:
+	velocity = exit
+	_hook_launch = true
+	_jump_buffer = 0.0
+	_coyote = 0.0
+	_set_state(State.MOVE)
+
+
+## Цепь от кисти к кольцу; t — какая часть уже долетела.
+func _draw_chain(t: float) -> void:
+	if _chain == null:
+		_chain = MeshInstance3D.new()
+		_chain.top_level = true
+		var links := CylinderMesh.new()
+		links.top_radius = 0.03
+		links.bottom_radius = 0.03
+		links.height = 1.0
+		links.radial_segments = 6
+		var iron := StandardMaterial3D.new()
+		iron.albedo_color = Color(0.2, 0.19, 0.18)
+		iron.metallic = 0.8
+		iron.roughness = 0.4
+		links.material = iron
+		_chain.mesh = links
+		add_child(_chain)
+	var from := hook_hand()
+	var to := from.lerp(_hook.global_position, t)
+	var along := to - from
+	_chain.visible = along.length() > 0.05
+	if not _chain.visible:
+		return
+	var up := along.normalized()
+	var side := up.cross(Vector3.FORWARD).normalized()
+	if side.length() < 0.5:
+		side = Vector3.RIGHT
+	# Ось Y цилиндра — вдоль цепи, длина — масштабом по ней.
+	var basis := Basis(side, up * along.length(), side.cross(up).normalized())
+	_chain.global_transform = Transform3D(basis, from + along * 0.5)
 
 
 func _jump() -> void:
@@ -2255,6 +2469,9 @@ func _update_visual(delta: float) -> void:
 		State.LEDGE_CLIMB:
 			target_scale = Vector3(1.05, 0.8, 1.05)
 			target_tilt = -0.3
+		State.HOOK:
+			# Висит на вытянутой руке, тянется к кольцу.
+			target_scale = Vector3(0.9, 1.08, 0.9)
 	if state == State.DEAD:
 		body.death_pose(_state_time, _death_dir)
 		return

@@ -55,7 +55,7 @@ EXT = {
     "rat": ("PackedScene", "res://actors/enemies/rat.tscn"), "bat": ("PackedScene", "res://actors/enemies/bat.tscn"),
     "wraith": ("PackedScene", "res://actors/enemies/fog_wraith.tscn"), "knight": ("PackedScene", "res://actors/enemies/drowned_knight.tscn"),
     "bandit_heavy": ("PackedScene", "res://actors/enemies/bandit_heavy.tscn"), "bandit_knife": ("PackedScene", "res://actors/enemies/bandit_knife.tscn"),
-    "smith": ("PackedScene", "res://actors/enemies/blacksmith.tscn"),
+    "smith": ("PackedScene", "res://actors/enemies/blacksmith.tscn"), "hookpoint": ("Script", "res://world/common/hook_point.gd"),
 }
 
 
@@ -240,6 +240,10 @@ class Scene:
         if rungs:
             for i in range(int(height / 0.45)):
                 self.box("Decor", f"{name}Rung{i}", (x, y + 0.3 + i * 0.45, -0.4), (0.6, 0.06, 0.06), mat)
+
+    def hook_point(self, name, pos, kind=0):
+        """Кольцо для крюка на цепи (HookPoint): 0 — притянуть, 1 — раскачать, 2 — на кромке стены."""
+        self.node(name, 'type="Node3D"', "Objects", [f"position = {v3(pos)}", 'script = ExtResource("hookpoint")', f"kind = {kind}"])
 
     def shard(self, name, x, y, parent="Objects"):
         self.instance(name, parent, "shard", [f"position = Vector3({x}, {y}, 0)"])

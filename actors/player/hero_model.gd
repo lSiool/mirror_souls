@@ -317,6 +317,12 @@ func update(player: Player) -> void:
 			hold(&"Sword_Dash", 0.25)
 		Player.State.PLUNGE:
 			play(&"Jump")
+		Player.State.HOOK:
+			# Бросок цепи — взмах сверху; дальше висит на руке, как на уступе (своего клипа пока нет).
+			if player._hook_caught:
+				hold(&"ClimbUp_1m", 0.0)
+			else:
+				hold(&"OverhandThrow", 0.45)
 
 
 ## Лестница: лицом к ней, спиной к камере; основа — стойка, руки и ноги — на перекладинах (IK).

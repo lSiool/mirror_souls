@@ -18,6 +18,7 @@ const BIOMES := {
 	&"forest": {"name": "Край Мёртвого Леса", "color": Color(0.45, 0.65, 0.58)},
 	&"castle": {"name": "Зеркальный замок", "color": Color(0.5, 0.7, 1.0)},
 	&"runs": {"name": "Забеги", "color": Color(0.85, 0.45, 0.42)},
+	&"tests": {"name": "Полигоны", "color": Color(0.62, 0.62, 0.66)},
 	&"fields": {"name": "Поля", "color": Color(0.8, 0.72, 0.4), "planned": Rect2(-42, -2.5, 14, 4)},
 	&"pass": {"name": "Подвесной перевал", "color": Color(0.7, 0.7, 0.75), "planned": Rect2(-40, -7, 11, 3.5)},
 	&"peaks": {"name": "Пепельные Пики", "color": Color(0.6, 0.6, 0.66), "planned": Rect2(-56, -14, 18, 6)},
@@ -48,6 +49,7 @@ const ROOMS := {
 	&"run_village": {"biome": &"runs", "x": -32.0, "y": -11.0, "squash": 0.5},
 	&"run_exit": {"biome": &"runs", "x": -16.4, "y": -11.0},
 	&"reflection_run": {"biome": &"runs", "x": -32.0, "y": -15.0, "squash": 0.5},
+	&"hook_range": {"biome": &"tests", "x": -32.0, "y": -19.0},
 }
 
 

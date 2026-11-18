@@ -96,7 +96,7 @@ func tap(action: String) -> void:
 
 
 func release_all() -> void:
-	for a in ["move_left", "move_right", "move_up", "move_down", "jump", "roll", "attack", "interact", "block"]:
+	for a in ["move_left", "move_right", "move_up", "move_down", "jump", "roll", "attack", "interact", "block", "hook"]:
 		Input.action_release(a)
 
 
@@ -3847,6 +3847,78 @@ func run() -> void:
 	check(not map_menu.is_open and rooms.current_room_id == &"cemetery"
 		and absf(player.global_position.x - dev_shard.global_position.x) < 3.0, "щелчок по осколку — перенос к нему")
 	game_state.set_checkpoint(dev_checkpoint[0], dev_checkpoint[1], dev_checkpoint[2])
+
+	print("== Крюк на цепи (§5, §8.13)")
+	await rooms.travel(&"hook_range", ^"Spawns/PlayerStart")
+	player.restore()
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	game_state.items.erase(Player.HOOK_ITEM)
+	await put(Vector3(3.5, 0.1, 0.0), 1.0)
+	await tap("hook")
+	await frames(10)
+	check(not player.has_hook() and player.hook_target == null and player.state == Player.State.MOVE,
+		"без крюка кольца не светятся и кнопка крюка ничего не делает")
+	var hook_event := InputEventAction.new()
+	hook_event.action = &"debug_hook"
+	hook_event.pressed = true
+	Input.parse_input_event(hook_event)
+	await frames(2)
+	check(player.has_hook(), "F5 — крюк на цепи выдан (пока идёт разработка)")
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	# Пропасть: прыжок, крюк — притянуло к кольцу и бросило на ту сторону.
+	await put(Vector3(-17.0, 0.1, 0.0), 1.0)
+	press("move_right")
+	await frames(4)
+	press("jump")
+	await frames(10)
+	check(player.hook_target != null and player.hook_target.name == &"RingPull" and player.hook_target.shine() == 2,
+		"в прыжке кольцо над пропастью выбрано и светится")
+	sfx.history.clear()
+	await tap("hook")
+	var hooked := false
+	for i in 150:
+		await frames(1)
+		hooked = hooked or player.state == Player.State.HOOK
+		if i > 30 and player.is_on_floor():
+			break
+	release_all()
+	check(heard(&"hook_throw") and heard(&"hook_catch"), "у броска и зацепа есть места под звук")
+	check(hooked and player.is_on_floor() and player.global_position.x > -5.0 and player.global_position.y > -1.0,
+		"кольцо «притянуть»: перелетел пропасть (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	# Стена: кольцо на кромке перебрасывает наверх.
+	await put(Vector3(3.5, 0.1, 0.0), 1.0)
+	await frames(3)
+	await tap("hook")
+	for i in 150:
+		await frames(1)
+		if i > 30 and player.is_on_floor() and player.state == Player.State.MOVE:
+			break
+	check(player.is_on_floor() and player.global_position.y > 5.5,
+		"кольцо на кромке стены: подтянуло и перебросило наверх (y=%.1f)" % player.global_position.y)
+	# Качели: держит кнопку — раскачивается; отпустил на взлёте — летит на дальний уступ.
+	await put(Vector3(18.5, 6.1, 0.0), 1.0)
+	press("jump")
+	await frames(12)
+	press("hook")
+	press("move_right")
+	var swung := false
+	for i in 300:
+		await frames(1)
+		swung = swung or (player.state == Player.State.HOOK and player._hook_caught)
+		if player.state == Player.State.HOOK and player.global_position.x > 31.0 and player.velocity.y > 0.0:
+			release("hook")
+		if i > 60 and player.is_on_floor():
+			break
+	release_all()
+	release("hook")
+	check(swung and player.is_on_floor() and player.global_position.x > 34.0 and player.global_position.y > 5.5,
+		"качели: раскачался и долетел до дальнего уступа (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	Input.parse_input_event(hook_event)
+	await frames(2)
+	check(not player.has_hook(), "F5 ещё раз — крюк забран")
+	player.restore()
 
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path

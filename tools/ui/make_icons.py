@@ -94,6 +94,9 @@ FACETS = {
 }
 
 # Серебряный кол (§6.1): гранёное острие, обмотка рукояти.
+HOOK = ('<path d="M22 12 Q 22 8 26 8 Q 30 8 30 12 Q 30 16 26 16 Q 22 16 22 12 Z M30 20 Q 34 18 36 22 Q 38 26 34 28 Q 30 30 28 26 Q 26 22 30 20 Z" fill="none" stroke="#8f8c88" stroke-width="2.5"/>'
+        '<path d="M34 30 L 36 40 Q 37 50 30 52 Q 22 54 20 46 L 26 44 Q 27 48 30 47 Q 33 46 32 40 Z" fill="#9a9690" stroke="#d8d4cc" stroke-width="1"/>'
+        '<path d="M20 46 L 16 42 L 26 44 Z" fill="#9a9690"/>')
 STAKE = ('<path d="M50 12 L 40 26 L 20 46 L 18 44 L 38 24 Z" fill="#cfd3d9" stroke="#f3f5f7" stroke-width="0.8"/>'
          '<path d="M50 12 L 38 24" stroke="#8d939b" stroke-width="1.2"/>'
          '<path d="M22 42 L 14 50" stroke="#5e4530" stroke-width="5" stroke-linecap="round"/>')
@@ -103,7 +106,7 @@ ITEMS = {
     "shield_hoplon": ("#1c1712", SHIELD), "bow_hunter": ("#1c1712", BOW), "bow_guard": ("#161a1e", BOW),
     "has_bow": ("#1c1712", BOW), "flask": ("#1c1214", FLASK), "flask_vessel": ("#1c1214", FLASK),
     "flask_potency": ("#12201c", POTENCY), "tempered_glass": ("#141a22", GLASS), "clear_glass": ("#141a22", CLEAR),
-    "facet_slot": ("#141a22", SLOT), "recipe_heavy_hammer": ("#1c1712", RECIPE), "boss_smith_echo": ("#141a22", ECHO),
+    "facet_slot": ("#141a22", SLOT), "recipe_heavy_hammer": ("#1c1712", RECIPE), "chain_hook": ("#16181c", HOOK), "boss_smith_echo": ("#141a22", ECHO),
     "note": ("#1c1712", NOTE), "mud": ("#2a1f14", MUD), "regen": ("#12201c", REGEN), "unknown": ("#141112", UNKNOWN),
     "arrow": ("#1c1712", ARROW), "fire_arrow": ("#24160e", FIRE_ARROW), "poison": ("#1e1224", POISONED),
     "burning": ("#24140c", BURNING), "corroded": ("#16200c", CORRODED), "tar": ("#141110", TARRED),

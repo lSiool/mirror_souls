@@ -175,6 +175,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		_player.stats.age += 1
 	elif event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F3:
 		age_label.visible = not age_label.visible
+	elif event.is_action_pressed("debug_hook"):
+		# Пока идёт разработка (§8.13): крюк на цепи по кнопке — выдать или забрать.
+		if _player.has_hook():
+			GameState.items.erase(Player.HOOK_ITEM)
+		else:
+			GameState.add_item(Player.HOOK_ITEM)
+			popup.show_item(Player.HOOK_ITEM)
 
 
 func fade_to(alpha: float, duration: float) -> Signal:
