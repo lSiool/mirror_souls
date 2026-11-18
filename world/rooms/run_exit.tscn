@@ -1,4 +1,4 @@
-[gd_scene load_steps=35 format=3]
+[gd_scene load_steps=36 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -74,10 +74,6 @@ roughness = 0.95
 albedo_color = Color(0.27, 0.27, 0.29, 1)
 roughness = 0.95
 
-[sub_resource type="StandardMaterial3D" id="Mat_stone_dark"]
-albedo_color = Color(0.15, 0.15, 0.17, 1)
-roughness = 0.95
-
 [sub_resource type="StandardMaterial3D" id="Mat_wood_dark"]
 albedo_color = Color(0.12, 0.09, 0.07, 1)
 roughness = 0.95
@@ -95,6 +91,12 @@ glow_bloom = 0.06
 fog_enabled = true
 fog_light_color = Color(0.17, 0.13, 0.13, 1)
 fog_density = 0.02
+
+[sub_resource type="BoxShape3D" id="Wall_1"]
+size = Vector3(1, 20.0, 4.4)
+
+[sub_resource type="BoxShape3D" id="Wall_2"]
+size = Vector3(1, 20.0, 4.4)
 
 [node name="RunExit" type="Node3D"]
 script = ExtResource("room")
@@ -116,29 +118,29 @@ sun_energy = 0.3
 [node name="Ground" type="CSGBox3D" parent="Geometry"]
 position = Vector3(0.0, -2.0, 0)
 use_collision = true
-size = Vector3(37, 4, 4.4)
+size = Vector3(97, 4, 4.4)
 material = SubResource("Mat_mud")
 
-[node name="WallLeft" type="CSGBox3D" parent="Geometry"]
+[node name="WallLeft" type="StaticBody3D" parent="Geometry"]
 position = Vector3(-18.5, 6.0, 0)
-use_collision = true
-size = Vector3(1, 20.0, 4.4)
-material = SubResource("Mat_stone_dark")
 
-[node name="WallRight" type="CSGBox3D" parent="Geometry"]
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallLeft"]
+shape = SubResource("Wall_1")
+
+[node name="WallRight" type="StaticBody3D" parent="Geometry"]
 position = Vector3(18.5, 6.0, 0)
-use_collision = true
-size = Vector3(1, 20.0, 4.4)
-material = SubResource("Mat_stone_dark")
+
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallRight"]
+shape = SubResource("Wall_2")
 
 [node name="FarGround" type="CSGBox3D" parent="Decor"]
 position = Vector3(0.0, -2.0, -20)
-size = Vector3(76, 4, 35.6)
+size = Vector3(156, 4, 35.6)
 material = SubResource("Mat_mud")
 
 [node name="Bank" type="CSGBox3D" parent="Decor"]
 position = Vector3(0.0, -2.2, 3.7)
-size = Vector3(38, 4, 3.0)
+size = Vector3(98, 4, 3.0)
 material = SubResource("Mat_earth_dark")
 
 [node name="Glow" type="CSGBox3D" parent="Decor"]

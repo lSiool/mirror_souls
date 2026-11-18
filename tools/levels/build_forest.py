@@ -9,6 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from scenery import Scene  # noqa: E402
+import backdrop as bd  # noqa: E402
 
 G, D = "Geometry", "Decor"
 DUSK = {"bg": (0.035, 0.04, 0.06), "amb": (0.3, 0.33, 0.42), "amb_e": 0.36, "fog": (0.13, 0.14, 0.18), "fog_d": 0.02}
@@ -17,10 +18,15 @@ SWAMP = {"bg": (0.025, 0.03, 0.025), "amb": (0.28, 0.32, 0.25), "amb_e": 0.34, "
 DEAD = {"bg": (0.03, 0.03, 0.035), "amb": (0.32, 0.31, 0.34), "amb_e": 0.34, "fog": (0.15, 0.15, 0.17), "fog_d": 0.026}
 
 
-def firs(s, left, right, z0=-26.0, step=4.0):
-    for i in range(int((right - left) / step) + 1):
-        h = 10 + (i * 7 % 5)
-        s.cyl(D, f"Fir{i}", (left + i * step, h / 2 - 0.5, z0 - (i % 3) * 3), 2.0, h, "fir", cone=True, sides=6)
+## Небо по биому: верх, горизонт. Фон и передний план — tools/levels/backdrop.py (§2.2).
+SKY_DUSK = ((0.03, 0.035, 0.055), (0.17, 0.18, 0.23))
+SKY_FOREST = ((0.015, 0.02, 0.024), (0.19, 0.22, 0.24))
+SKY_SWAMP = ((0.02, 0.026, 0.024), (0.17, 0.2, 0.17))
+SKY_DEAD = ((0.025, 0.025, 0.03), (0.19, 0.19, 0.21))
+VILLAGE_GLOW = (0.75, 0.38, 0.14, 0.55)
+## Подсвеченный путь (§2.2): холодный лунный в лесу и на кладбище, зеленоватый на болоте.
+PATH_MOON = (0.06, 0.07, 0.09)
+PATH_SWAMP = (0.06, 0.075, 0.06)
 
 
 def save(scene, file):
@@ -31,7 +37,12 @@ def save(scene, file):
 def cemetery_gate():
     s = Scene("CemeteryGate", "cemetery_gate", 44.0, DUSK)
     s.frame(-22, 22)
-    firs(s, -24, 24)
+    k = bd.Kit(s)
+    k.sky(-22, 22, *SKY_DUSK, glow=VILLAGE_GLOW, glow_x=0.3)
+    bd.cemetery(k, -22, 22, DUSK["fog"])
+    k.near_ground(-22, 22)
+    k.path_light(-22, 22, 0.0, PATH_MOON)
+    k.foreground("cemetery", -22, 22)
     # Слева дорога из деревни: тёплый свет позади.
     s.box(D, "VillageHouse", (-18.5, 2.2, -5.5), (6, 4.4, 3), "plaster")
     s.roof(D, "VillageRoof", (-18.5, 6.2, -5.5), (7, 3.6, 3.6))
@@ -100,7 +111,13 @@ def cemetery_gate():
 def cemetery():
     s = Scene("Cemetery", "cemetery", 56.0, DUSK)
     s.frame(-28, 28)
-    firs(s, -30, 30)
+    k = bd.Kit(s)
+    k.sky(-28, 28, *SKY_DUSK, glow=VILLAGE_GLOW, glow_x=0.18)
+    bd.cemetery(k, -28, 28, DUSK["fog"])
+    k.near_ground(-28, 28)
+    k.path_light(-28, 28, 0.0, PATH_MOON)
+    k.path_light(4.5, 17.5, 2.4, PATH_MOON)
+    k.foreground("cemetery", -28, 28)
     # Верхняя терраса со склепом и лестницы.
     s.box(G, "Terrace", (11.0, 1.2, 0), (14.0, 2.4, 4.4), "stone", True)
     s.box(G, "StairsUp", (2.0, 0.85, 0), (4.7, 0.6, 4.4), "stone", True, rot=(0, 0, 0.54))
@@ -154,9 +171,19 @@ def cemetery():
 def forest_wall():
     s = Scene("ForestWall", "forest_wall", 60.0, FOREST, sun_energy=0.18)
     s.frame(-30, 30)
+    k = bd.Kit(s)
+    k.sky(-30, 30, *SKY_FOREST)
+    bd.forest(k, -30, 30, FOREST["fog"])
+    # Светлые прорехи между исполинами: за ними туман светлее, холодный свет обводит края стволов.
+    for i, x in enumerate((-21.0, -3.0, 15.0)):
+        k.haze(x - 5, x + 5, 6.0, -9.5, 16, (0.46, 0.52, 0.58), 0.5, pad=0)
+        k.haze(x - 3, x + 3, 3.0, -7.2, 8, (0.5, 0.56, 0.62), 0.3, pad=0)
+        s.light(D, f"RimLight{i}", (x, 5.0, -7.0), (0.55, 0.68, 0.85), 3.0, 10.0)
+    k.near_ground(-30, 30)
+    k.path_light(-30, 30, 0.0, PATH_MOON)
+    k.foreground("forest", -30, 30)
     for i, x in enumerate(range(-27, 30, 6)):
         s.giant_tree(D, f"Giant{i}", float(x), -4.5 - (i % 2) * 1.5, 24.0, r=2.0 + (i % 3) * 0.4)
-        s.box(D, f"Fused{i}", (x + 3.0, 9.0, -6.8), (4.0, 22.0, 1.0), "bark")
         for j in range(3):
             s.box(D, f"Vine{i}_{j}", (x + 1.2 + j * 0.7, 10.0 - j * 1.3, -3.2), (0.07, 5.0 + j, 0.07), "moss")
     # Верхний маршрут: лианы, площадки охотников, лестница вниз.
@@ -202,10 +229,32 @@ def fallen_giant():
     s.box(G, "GroundLeft", (-23.0, -9.0, 0), (14.0, 18.0, 4.4), "mud", True)
     s.box(G, "Cliff", (24.0, -7.0, 0), (12.0, 22.0, 4.4), "stone_dark", True)
     s.box(G, "RavineFloor", (1.0, -16.0, 0), (34.0, 4.0, 4.4), "mud", True)
-    s.box(G, "WallLeft", (-30.5, 0.0, 0), (1.0, 44.0, 4.4), "stone_dark", True)
-    s.box(G, "WallRight", (30.5, 0.0, 0), (1.0, 44.0, 4.4), "stone_dark", True)
-    s.box(D, "FarGround", (0.0, -16.0, -20.0), (100.0, 4.0, 35.6), "mud")
-    firs(s, -32, 32, -28.0)
+    s.wall("WallLeft", (-30.5, 0.0, 0), (1.0, 44.0, 4.4))
+    s.wall("WallRight", (30.5, 0.0, 0), (1.0, 44.0, 4.4))
+    s.box(G, "GroundLeftOut", (-45.0, -9.0, 0), (30.0, 18.0, 4.4), "mud", True)
+    s.box(G, "CliffOut", (42.0, -7.0, 0), (24.0, 22.0, 4.4), "stone_dark", True)
+    s.box(D, "FarGround", (0.0, -16.0, -20.0), (160.0, 4.0, 35.6), "mud")
+    k = bd.Kit(s)
+    k.sky(-30, 30, *SKY_FOREST)
+    # Пропасть в глубину: ели растут со дна, их верхушки — под стволом; на той стороне — обрыв.
+    k.far_ground(-30, 30, -14.0)
+    k.firs(-90, 90, -44, -58, 18, 30, step=(2.0, 3.5), base=-14.0)
+    k.firs(-50, 50, -16, -30, 12, 22, step=(2.5, 4.0), base=-14.0)
+    k.put("Backdrop", "FarCliff", "box", "stone", (-22.0, -6.0, -24.0), (26.0, 20.0, 8.0))
+    k.put("Backdrop", "FarCliff", "box", "stone", (34.0, -4.0, -30.0), (30.0, 24.0, 8.0))
+    k.trunks(-40, -24, -12, -16, 1.6, 2.2, base=-1.0)
+    k.trunks(26, 44, -12, -16, 1.6, 2.2, base=3.0)
+    for i, (y, z, a) in enumerate(((-9.0, -6.0, 0.45), (-4.0, -14.0, 0.4), (0.0, -24.0, 0.45), (4.0, -36.0, 0.5))):
+        k.haze(-30, 30, y, z, 10, FOREST["fog"], a)
+    k.near_ground(-60, -16, y=-0.25, pad=0)
+    k.near_ground(18, 60, y=3.75, pad=0)
+    k.near_ground(-16, 18, y=-14.25, pad=0)
+    k.foreground("forest", -36, -18)
+    k.foreground("forest", 20, 36, ground=lambda x: 4.0)
+    # Путь: край обрыва, верх ствола (мост — без ближней земли, только свет по пути), уступ за пропастью.
+    k.path_light(-30, -16, 0.0, PATH_MOON)
+    k.path_light(5.6, 18.0, 4.0, PATH_MOON, depth=2.4)
+    k.path_light(18.0, 30.0, 4.0, PATH_MOON)
     # Ствол: наклонный от края обрыва и ровный над пропастью.
     s.box(G, "TrunkSlope", (-7.0, 1.55, 0), (18.6, 1.2, 2.6), "bark", True, rot=(0, 0, 0.2))
     s.box(G, "TrunkMid", (3.0, 3.4, 0), (2.0, 1.2, 2.6), "bark", True)
@@ -216,6 +265,12 @@ def fallen_giant():
         s.box(D, f"Hanging{i}", (x + 1.0, -1.0, 0.6), (0.08, 5.0, 0.08), "moss")
     for i, x in enumerate((-8.0, 2.0, 12.0)):
         s.box(D, f"Stub{i}", (x, 5.6 if x > 2 else 3.4, -0.9), (0.5, 1.8, 0.5), "bark", rot=(0, 0, 0.4))
+    # Кора: тёмные борозды по лицевой стороне ствола и обломанные сучья — ствол больше не плита.
+    for i, x in enumerate((-14.0, -10.5, -6.0, -1.5, 6.5, 9.0, 13.5, 16.5)):
+        y = 0.25 + (x + 16.3) * 0.2 if x < 2 else 3.4
+        s.box(D, f"Furrow{i}", (x, y, 1.31), (2.4, 0.08, 0.04), "char", rot=(0, 0, 0.2 if x < 2 else 0.03 * (i % 3 - 1)))
+    for i, (x, y, a, ln) in enumerate(((-5.0, 3.0, 0.9, 2.4), (7.5, 4.3, -0.7, 2.0), (17.5, 4.2, 0.5, 1.6))):
+        s.box(D, f"Snag{i}", (x, y + ln * 0.35, 0.9), (0.22, ln, 0.22), "bark", rot=(0, 0, a))
     # Хижина разбойников на стволе, в разрезе.
     s.box(D, "HutBack", (10.0, 6.2, -1.4), (8.0, 4.4, 0.3), "wood_dark")
     s.box(D, "HutSideL", (6.1, 6.2, -0.6), (0.25, 4.4, 1.8), "wood_dark")
@@ -274,8 +329,26 @@ def root_maze():
         s.box(G, name, ((x0 + x1) / 2, y - 0.4, 0), (x1 - x0, 0.8, 2.6), "root", True)
 
     s.box(G, "AbyssFloor", (0.0, -12.0, 0), (56.0, 4.0, 4.4), "mud", True)
-    s.box(G, "WallLeft", (-28.5, 9.0, 0), (1.0, 42.0, 4.4), "stone_dark", True)
-    s.box(G, "WallRight", (28.5, 9.0, 0), (1.0, 42.0, 4.4), "stone_dark", True)
+    s.wall("WallLeft", (-28.5, 9.0, 0), (1.0, 42.0, 4.4))
+    s.wall("WallRight", (28.5, 9.0, 0), (1.0, 42.0, 4.4))
+    s.box(G, "EntryRootsOut", (-40.0, -1.0, 0), (24.0, 18.0, 4.4), "root", True)
+    s.box(G, "ExitRootsOut", (40.0, -1.0, 0), (24.0, 18.0, 4.4), "root", True)
+    k = bd.Kit(s)
+    k.sky(-28, 28, (0.03, 0.035, 0.04), (0.26, 0.29, 0.31))
+    # Ритм тёмного и светлого: корни-исполины на трёх глубинах, между ними светлые прорехи тумана,
+    # перед камерой — тёмные корни-силуэты (не над путями и лестницами).
+    k.far_ground(-28, 28, -10.0)
+    k.trunks(-60, 60, -9, -12, 1.2, 1.8, h=50.0, base=-12.0, mat="sil", step=(7, 11))
+    k.trunks(-70, 70, -20, -26, 1.6, 2.6, h=55.0, base=-12.0, step=(6, 10))
+    k.firs(-90, 90, -40, -52, 20, 34, step=(2.5, 4.0), base=-10.0)
+    for i, (x, y) in enumerate(((-15.0, 10.0), (-2.0, 15.0), (9.0, 5.0), (20.0, 12.0))):
+        k.haze(x - 5, x + 5, y, -15.0, 9, (0.36, 0.4, 0.43), 0.32, pad=0)
+    for i, (x, a) in enumerate(((-24.5, 0.12), (-7.5, -0.18), (19.5, 0.1))):
+        k.put("Foreground", "FrontRoot", "box", "sil_warm", (x, 6.0, 5.2), (1.1, 34.0, 1.0), tilt=a)
+    k.put("Foreground", "FrontRootArch", "box", "sil_warm", (-16.0, 21.5, 5.0), (18.0, 1.2, 1.0), tilt=-0.08)
+    # Главный путь по корням — подсвечен, ярусы над и под ним остаются в тумане.
+    for x0, x1 in ((-28.0, -13.8), (-12.2, -1.4), (1.4, 12.6), (14.2, 28.0)):
+        k.path_light(x0, x1, 8.0, PATH_MOON, depth=2.4)
     s.box(G, "EntryRoots", (-23.0, -1.0, 0), (10.0, 18.0, 4.4), "root", True)
     s.box(G, "ExitRoots", (23.0, -1.0, 0), (10.0, 18.0, 4.4), "root", True)
     # Главный путь: дыры над лестницами с нижней тропы, подрубленный корень над бездной.
@@ -360,6 +433,14 @@ def root_maze():
 def swamp():
     s = Scene("Swamp", "swamp", 60.0, SWAMP, sun_energy=0.15)
     s.frame(-30, 30)
+    k = bd.Kit(s)
+    k.sky(-30, 30, *SKY_SWAMP, glow=(0.55, 0.6, 0.62, 0.7), glow_x=0.62, glow_size=0.035)
+    bd.swamp(k, -30, 30, SWAMP["fog"])
+    # Лунная дорожка на дальней воде — под луной неба.
+    k.put("Backdrop", "MoonPath", "box", "moonlit", (36.0, -0.04, -26.0), (5.0, 0.02, 16.0))
+    k.near_ground(-30, 30)
+    k.path_light(-30, 30, 0.0, PATH_SWAMP)
+    k.foreground("swamp", -30, 30)
     for name, x, w in (("MudA", -8.0, 26.0), ("MudB", 17.0, 10.0)):
         s.node(name, 'type="Area3D"', "Objects", [f"position = Vector3({x}, 0, 0)", 'script = ExtResource("mud")', f"size = Vector3({w}, 0.3, 4.4)"])
     for i, x in enumerate((-15.0, -5.0, 4.5, 23.5)):
@@ -403,7 +484,12 @@ def swamp():
 def cursed_village():
     s = Scene("CursedVillage", "cursed_village", 60.0, DEAD, sun_energy=0.2)
     s.frame(-30, 30)
-    firs(s, -32, 32)
+    k = bd.Kit(s)
+    k.sky(-30, 30, *SKY_DEAD)
+    bd.dead_village(k, -30, 30, DEAD["fog"])
+    k.near_ground(-30, 30)
+    k.path_light(-30, 30, 0.0, PATH_MOON)
+    k.foreground("dead", -30, 30, skip=((-12.0, 21.0),))
     s.ruined_house(D, "HouseA", -19.0, -5.5, 8.0, 5.0, 4.0, windows=((-2.0, 3.0), (2.0, 3.0)))
     s.ruined_house(D, "HouseB", -5.0, -9.5, 9.0, 5.5, 4.5, windows=((0.0, 3.2),))
     s.ruined_house(D, "HouseC", 24.0, -6.0, 7.0, 4.6, 3.8, windows=((-1.5, 2.8),))

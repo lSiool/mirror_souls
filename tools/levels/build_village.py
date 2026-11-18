@@ -6,13 +6,15 @@ import math
 import zlib
 from pathlib import Path
 
+import backdrop as bd
+
 MATS = {
     "mud": (0.2, 0.17, 0.15), "stone": (0.27, 0.27, 0.29), "stone_dark": (0.15, 0.15, 0.17),
     "wood": (0.25, 0.17, 0.11), "wood_dark": (0.12, 0.09, 0.07), "thatch": (0.2, 0.16, 0.13),
     "plaster": (0.3, 0.27, 0.23), "iron": (0.09, 0.09, 0.1), "cloth": (0.1, 0.09, 0.12),
     "bedding": (0.36, 0.33, 0.27), "statue": (0.3, 0.32, 0.36), "fir": (0.07, 0.09, 0.11), "earth_dark": (0.05, 0.045, 0.05), "char": (0.035, 0.03, 0.03), "rotten": (0.34, 0.27, 0.17), "fur": (0.09, 0.075, 0.07), "garlic": (0.72, 0.68, 0.58),
 }
-GLOW = {"window": ((1.0, 0.6, 0.25), 2.6), "fire": ((1.0, 0.45, 0.12), 4.0), "moonpane": ((0.45, 0.6, 0.85), 1.1), "stained_blue": ((0.1, 0.2, 0.48), 0.9), "stained_red": ((0.6, 0.12, 0.1), 1.0), "stained_gold": ((0.75, 0.5, 0.16), 1.0)}
+GLOW = {"window": ((1.0, 0.6, 0.25), 2.6), "fire": ((1.0, 0.45, 0.12), 4.0), "moonpane": ((0.45, 0.6, 0.85), 1.1), "stained_blue": ((0.1, 0.2, 0.48), 0.9), "stained_dim": ((0.13, 0.15, 0.3), 0.35), "stained_red": ((0.6, 0.12, 0.1), 1.0), "stained_gold": ((0.75, 0.5, 0.16), 1.0)}
 
 BURN = {"bg": (0.07, 0.022, 0.012), "amb": (0.62, 0.36, 0.26), "amb_e": 0.3, "fog": (0.26, 0.085, 0.035), "fog_d": 0.015}
 BURN_IN = {"bg": (0.0, 0.0, 0.0), "amb": (0.6, 0.35, 0.22), "amb_e": 0.3, "fog": (0.03, 0.012, 0.006), "fog_d": 0.004}
@@ -134,6 +136,14 @@ class Scene:
 
     def marker(self, name, pos):
         self.node(name, 'type="Marker3D"', "Spawns", [f"position = Vector3({pos[0]}, {pos[1]}, {pos[2]})"])
+
+    def wall(self, name, pos, size, parent="Geometry"):
+        """Невидимая стена края комнаты: только коллизия; дальше видны земля и фон (§2.2)."""
+        self.meshes += 1
+        sid = f"Wall_{self.meshes}"
+        self.subs.append(f'[sub_resource type="BoxShape3D" id="{sid}"]\nsize = Vector3({size[0]}, {size[1]}, {size[2]})')
+        self.node(name, 'type="StaticBody3D"', parent, [f"position = Vector3({pos[0]}, {pos[1]}, {pos[2]})"])
+        self.node("Shape", 'type="CollisionShape3D"', f"{parent}/{name}", [f'shape = SubResource("{sid}")'])
 
     def house(self, parent, name, x, z, w, h, roof_h, windows=(), plaster="plaster", ground=0.0, fire=None, model=None):
         if model:
@@ -331,13 +341,16 @@ st = Scene("VillageStreet", "village_street", 64.0, 0.0,
            {"bg": (0.045, 0.055, 0.095), "amb": (0.34, 0.4, 0.58), "amb_e": 0.42, "fog": (0.16, 0.19, 0.3), "fog_d": 0.022},
            (0.55, 0.65, 0.9), 0.35, BURN)
 # Земля: хижина на пригорке, тропа спускается к площади
-st.box(g, "GroundHigh", (-23.5, -1.3, 0), (19, 5, 4.4), "mud", True)
+st.box(g, "GroundHigh", (-38.5, -1.3, 0), (49, 5, 4.4), "mud", True)
 slope = math.atan2(1.2, 6.0)
 st.box(g, "Ramp", (-11.0, 0.1, 0), (6.2, 1.0, 4.4), "mud", True, rot=(0, 0, -round(slope, 4)))
-st.box(g, "GroundLow", (11.5, -2, 0), (43, 4, 4.4), "mud", True)
+st.box(g, "GroundLow", (26.5, -2, 0), (73, 4, 4.4), "mud", True)
 st.box(d, "RampBase", (-12.0, -2, 0), (5.0, 4, 4.4), "mud")
-st.box(g, "WallLeft", (-33.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
-st.box(g, "WallRight", (33.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
+st.wall("WallLeft", (-33.5, 6, 0), (1, 20, 4.4))
+st.wall("WallRight", (33.5, 6, 0), (1, 20, 4.4))
+# Края улицы — дома, а не стены: деревня продолжается за кадр.
+st.house(d, "EdgeHouseL", -38.0, -1.8, 8, 4.4, 3.6, ground=1.2, fire=(3.0, 11.0), model="house_twostorey")
+st.house(d, "EdgeHouseR", 38.5, -2.0, 8, 4.6, 3.8, fire=(3.0, 11.0), model="house_narrow")
 # Препятствия на тропе
 st.box(g, "Cart", (-4.0, 0.55, 0), (2.6, 1.1, 1.4), "wood", True)
 for i, x in enumerate((-4.9, -3.1)):
@@ -368,11 +381,10 @@ st.fence(d, "FenceFront", -21, -15, 2.4, 1.2, 1.0)
 st.fence(d, "FenceFront2", 14, 21, 2.4, 0.0, 1.0)
 # Конец деревни закрыт: выйти можно только через дом
 st.box(d, "EndGate", (31.8, 2.0, 0), (0.5, 4.0, 3.5), "wood_dark")
-# Лес вдали стеной
-for i in range(22):
-    x = -36 + i * 3.6
-    h = 9 + (i * 7 % 5)
-    st.cyl(d, f"Fir{i}", (x, h / 2 - 0.5, -30 - (i % 3) * 3), 2.0, h, "fir", cone=True, sides=6)
+# Фон и передний план (tools/levels/backdrop.py): второй ряд домов, зарево и дым, горы на западе, шпиль часовни на востоке.
+STREET_NIGHT = (0.16, 0.19, 0.3)
+k = bd.Kit(st)
+bd.village(k, -33, 33, STREET_NIGHT, burn=BURN["fog"], spire_x=62.0)
 st.marker("FromHut", (-28.0, 1.3, 0))
 st.marker("FromHouse", (26.5, 0.1, 0))
 door(st, "DoorToHut", -28.0, 1.2, "village_hut", "Spawns/FromStreet", "Войти в хижину")
@@ -404,7 +416,7 @@ st.ambience(("…помогите!..", "…кто-нибудь!..", "…сюда
 st.box("AfterFire", "AshA", (-9.5, 0.1, -2.8), (2.4, 0.2, 1.2), "char")
 st.box("AfterFire", "AshB", (11.0, 0.1, -3.2), (2.2, 0.2, 1.2), "char")
 # Земля за тропой, чтобы дома стояли на ней, а не висели в тумане
-st.box(d, "FarGround", (0, -2, -20), (90, 4, 35.6), "mud")
+st.box(d, "FarGround", (0, -2, -20), (150, 4, 35.6), "mud")
 st.box(d, "FarHill", (-24, -0.9, -8.1), (20, 4.2, 11.8), "mud")
 # Второй план: жизнь деревни (по art/concepts/locations)
 st.woodpile(d, "HutWood", -31.7, -0.6, 1.2)
@@ -422,8 +434,16 @@ st.prop(d, "HouseBarrelB", "barrel", (23.6, 0.5 - 0.5, -0.7), 1.1)
 st.crow(d, "Crow", 22.7, 1.0, -0.6)
 st.garlic(d, "HouseGarlic", 22.6, 4.3, -0.85)
 # Передний план: низкие тёмные вещи и берег перед тропой (слои картинки, §2.2)
-st.box(d, "BankHigh", (-23.5, -1.25, 3.7), (19, 4, 3.0), "earth_dark")
-st.box(d, "BankLow", (9.5, -2.2, 3.7), (47, 4, 3.0), "earth_dark")
+st.box(d, "BankHigh", (-38.5, -1.25, 3.7), (49, 4, 3.0), "earth_dark")
+st.box(d, "BankLow", (24.5, -2.2, 3.7), (77, 4, 3.0), "earth_dark")
+k.near_ground(-63, -14, y=0.95, pad=0)
+k.near_ground(-14, 63, y=-0.25, pad=0)
+k.foreground("village", -33, 33, ground=lambda x: 1.2 if x < -14 else 0.0, skip=((-14.5, -10.5),))
+# Подсвеченный путь (§2.2): тропа светлее краёв — в пожаре от огня, после — от луны.
+PATH_FIRE, PATH_NIGHT = (0.13, 0.065, 0.03), (0.06, 0.07, 0.1)
+for parent, light in (("Burning", PATH_FIRE), ("AfterFire", PATH_NIGHT)):
+    k.path_light(-33, -14, 1.2, light, parent=parent)
+    k.path_light(-8, 33, 0.0, light, parent=parent)
 st.wheel(d, "FrontWheelHill", -27.0, 1.55, 3.1, 0.8)
 st.rocks(d, "FrontRocksHill", -31.0, 0.75, 3.4)
 st.tuft(d, "FrontTuftHill", -23.5, 0.75, 3.2)
@@ -492,10 +512,18 @@ ho.nodes.append(f'[node name="Bat" parent="Objects" instance=ExtResource("bat")]
 sq = Scene("VillageSquare", "village_square", 38.0, 0.0,
            {"bg": (0.045, 0.055, 0.095), "amb": (0.34, 0.4, 0.58), "amb_e": 0.42, "fog": (0.16, 0.19, 0.3), "fog_d": 0.022},
            (0.55, 0.65, 0.9), 0.35, BURN)
-sq.box(g, "Ground", (0, -2, 0), (40, 4, 4.4), "mud", True)
-sq.box(g, "WallLeft", (-19.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
-sq.box(g, "WallRight", (19.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
-sq.box(d, "FarGround", (0, -2, -18), (70, 4, 31.6), "mud")
+sq.box(g, "Ground", (0, -2, 0), (100, 4, 4.4), "mud", True)
+sq.wall("WallLeft", (-19.5, 6, 0), (1, 20, 4.4))
+sq.wall("WallRight", (19.5, 6, 0), (1, 20, 4.4))
+sq.box(d, "FarGround", (0, -2, -18), (130, 4, 31.6), "mud")
+sq.house(d, "EdgeHouseL", -24.0, -2.0, 8, 4.6, 3.8, fire=(3.2, 12.0), model="house_hut")
+sq.house(d, "EdgeHouseR", 24.5, -2.4, 8, 4.8, 4.0, fire=(3.2, 12.0), model="house_twostorey")
+k = bd.Kit(sq)
+bd.village(k, -19, 19, (0.16, 0.19, 0.3), burn=BURN["fog"], spire_x=40.0)
+k.near_ground(-19, 19)
+for parent, light in (("Burning", PATH_FIRE), ("AfterFire", PATH_NIGHT)):
+    k.path_light(-19, 19, 0.0, light, parent=parent)
+k.foreground("village", -19, 19)
 sq.house(d, "HouseA", -13.0, -7.0, 8, 4.8, 4.0, windows=((-2.0, 3.0), (2.0, 1.8)), fire=(3.2, 12.0), model="house_twostorey")
 sq.house(d, "HouseB", 0.0, -11.0, 9, 5.0, 4.4, windows=((0, 3.0),), fire=(3.2, 12.0), model="house_narrow")
 sq.house(d, "HouseC", 13.5, -7.5, 8, 4.6, 3.8, windows=((1.5, 2.8),), fire=(3.2, 12.0), model="house_hut")
@@ -519,7 +547,7 @@ sq.lantern_post(d, "Lamp", -14.5, -1.2)
 sq.dead_tree(d, "Tree", 8.0, -5.5, 9.0)
 sq.fence(d, "FenceBack", 15, 19, -1.8)
 sq.fence(d, "FenceFront", -16, -11, 2.4, 0.0, 1.0)
-sq.box(d, "Bank", (0, -2.2, 3.7), (40, 4, 3.0), "earth_dark")
+sq.box(d, "Bank", (0, -2.2, 3.7), (100, 4, 3.0), "earth_dark")
 sq.wheel(d, "FrontWheel", -6.0, 0.75, 3.3, 0.95)
 sq.rocks(d, "FrontRocks", 6.0, -0.2, 3.5)
 sq.tuft(d, "FrontTuft", 0.5, -0.2, 3.2)
@@ -557,14 +585,19 @@ def npc(s, name, x, title, lines, color, extra=()):
 ch = Scene("ChapelYard", "chapel_yard", 50.0, 0.0,
            {"bg": (0.03, 0.035, 0.07), "amb": (0.3, 0.34, 0.5), "amb_e": 0.36, "fog": (0.12, 0.14, 0.24), "fog_d": 0.02},
            (0.55, 0.65, 0.9), 0.25)
-ch.box(g, "Ground", (0, -2, 0), (52, 4, 4.4), "mud", True)
-ch.box(g, "WallLeft", (-25.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
-ch.box(g, "WallRight", (25.5, 6, 0), (1, 20, 4.4), "stone_dark", True)
-ch.box(d, "FarGround", (0, -2, -20), (90, 4, 35.6), "mud")
-for i in range(16):
-    x = -30 + i * 4.0
-    h = 9 + (i * 7 % 5)
-    ch.cyl(d, f"Fir{i}", (x, h / 2 - 0.5, -24 - (i % 3) * 3), 2.0, h, "fir", cone=True, sides=6)
+ch.box(g, "Ground", (0, -2, 0), (112, 4, 4.4), "mud", True)
+ch.wall("WallLeft", (-25.5, 6, 0), (1, 20, 4.4))
+ch.wall("WallRight", (25.5, 6, 0), (1, 20, 4.4))
+ch.box(d, "FarGround", (0, -2, -20), (150, 4, 35.6), "mud")
+# Хаб между мирами: слева на горизонте деревня (откуда пришёл), справа лес и кладбищенский холм (куда идти).
+k = bd.Kit(ch)
+k.sky(-25, 25, (0.025, 0.03, 0.065), (0.15, 0.17, 0.27))
+bd.hub(k, -25, 25, (0.12, 0.14, 0.24))
+k.near_ground(-25, 25)
+k.path_light(-25, 25, 0.0, (0.08, 0.075, 0.08))
+k.foreground("village", -25, 25)
+ch.house(d, "EdgeHouseL", -30.5, -2.2, 8, 4.4, 3.6, windows=((1.5, 2.6),))
+ch.dead_tree(d, "EdgeTreeR", 30.0, -1.6, 9.0)
 # Кузнец: наковальня и горн под открытым небом
 ch.box(d, "AnvilBase", (-18.8, 0.4, -1.5), (0.7, 0.8, 0.7), "wood_dark")
 ch.box(d, "Anvil", (-18.8, 1.0, -1.5), (1.2, 0.4, 0.5), "iron")
@@ -587,7 +620,8 @@ ch.roof(d, "NaveRoof", (-2.5, 10.0, -3.5), (9.0, 4.0, 3.6), "wood_dark")
 ch.box(d, "Tower", (-7.5, 6.5, -3.5), (2.6, 13.0, 2.6), "stone_dark")
 ch.roof(d, "TowerRoof", (-7.5, 15.0, -3.5), (3.2, 4.0, 3.2), "wood_dark")
 ch.box(d, "Bell", (-7.5, 11.0, -2.1), (0.8, 0.9, 0.2), "iron")
-ch.box(d, "FacadeGlass", (-2.5, 5.3, -1.96), (2.6, 4.0, 0.08), "stained_blue")
+# Витраж снаружи — тусклый, свечи внутри: самым ярким во дворе остаётся осколок (§2.2).
+ch.box(d, "FacadeGlass", (-2.5, 5.3, -1.96), (2.6, 4.0, 0.08), "stained_dim")
 ch.box(d, "FacadeCastle", (-2.5, 5.3, -1.9), (0.9, 2.2, 0.04), "stone_dark")
 ch.box(d, "FacadeTowerA", (-3.2, 4.9, -1.9), (0.35, 1.4, 0.04), "stone_dark")
 ch.box(d, "FacadeTowerB", (-1.8, 4.9, -1.9), (0.35, 1.4, 0.04), "stone_dark")
@@ -619,7 +653,7 @@ for i, (x, z) in enumerate(((17.4, -2.0), (19.6, -2.1))):
     ch.box(d, f"Survivor{i}", (x, 0.5, z), (0.5, 1.0, 0.45), "cloth")
 ch.fence(d, "FenceFront", -24, -15, 2.4, 0.0, 1.0)
 ch.fence(d, "FenceFront2", 15, 24, 2.4, 0.0, 1.0)
-ch.box(d, "Bank", (0, -2.2, 3.7), (52, 4, 3.0), "earth_dark")
+ch.box(d, "Bank", (0, -2.2, 3.7), (112, 4, 3.0), "earth_dark")
 ch.wheel(d, "FrontWheel", -21.5, 0.75, 3.3, 0.95)
 ch.rocks(d, "FrontRocks", 6.5, -0.2, 3.5)
 ch.tuft(d, "FrontTuft", -8.0, -0.2, 3.2)

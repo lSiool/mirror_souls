@@ -135,11 +135,19 @@ class Scene:
     def frame(self, left, right, ground=0.0, wall_h=20.0):
         """Пол, стены по краям, дальняя земля и тёмный берег спереди."""
         width = right - left
-        self.box("Geometry", "Ground", ((left + right) / 2, ground - 2, 0), (width + 1, 4, 4.4), "mud", True)
-        self.box("Geometry", "WallLeft", (left - 0.5, ground + wall_h / 2 - 4, 0), (1, wall_h, 4.4), "stone_dark", True)
-        self.box("Geometry", "WallRight", (right + 0.5, ground + wall_h / 2 - 4, 0), (1, wall_h, 4.4), "stone_dark", True)
-        self.box("Decor", "FarGround", ((left + right) / 2, ground - 2, -20), (width + 40, 4, 35.6), "mud")
-        self.box("Decor", "Bank", ((left + right) / 2, ground - 2.2, 3.7), (width + 2, 4, 3.0), "earth_dark")
+        self.box("Geometry", "Ground", ((left + right) / 2, ground - 2, 0), (width + 61, 4, 4.4), "mud", True)
+        self.wall("WallLeft", (left - 0.5, ground + wall_h / 2 - 4, 0), (1, wall_h, 4.4))
+        self.wall("WallRight", (right + 0.5, ground + wall_h / 2 - 4, 0), (1, wall_h, 4.4))
+        self.box("Decor", "FarGround", ((left + right) / 2, ground - 2, -20), (width + 120, 4, 35.6), "mud")
+        self.box("Decor", "Bank", ((left + right) / 2, ground - 2.2, 3.7), (width + 62, 4, 3.0), "earth_dark")
+
+    def wall(self, name, pos, size, parent="Geometry"):
+        """Невидимая стена края комнаты: только коллизия. Видимый край — земля и фон, которые идут дальше (§2.2)."""
+        self.meshes += 1
+        sid = f"Wall_{self.meshes}"
+        self.subs.append(f'[sub_resource type="BoxShape3D" id="{sid}"]\nsize = {v3(size)}')
+        self.node(name, 'type="StaticBody3D"', parent, [f"position = {v3(pos)}"])
+        self.node("Shape", 'type="CollisionShape3D"', f"{parent}/{name}", [f'shape = SubResource("{sid}")'])
 
     # --- декор
     def dead_tree(self, parent, name, x, z, h, ground=0.0, r=0.3, mat="wood_dark"):
