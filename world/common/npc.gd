@@ -8,6 +8,9 @@ extends Interactable
 ## Когда стоит этот флаг, вместо lines звучат lines_after.
 @export var after_flag: StringName
 @export var lines_after := PackedStringArray()
+## Ставится, когда прозвучала последняя реплика lines_after — рассказ дослушан до конца
+## (вдова мельника — о казни у столба, §8.13). Пусто — не нужен.
+@export var told_flag: StringName
 ## Подарок при первом разговоре: оружие и флаг «уже отдал»; пусто — без подарка.
 @export var gift_weapon: StringName
 @export var gift_flag: StringName
@@ -32,6 +35,8 @@ extends Interactable
 @export var look_depth := 1.2
 
 var _next := 0
+## Какие реплики звучали в прошлый раз: сменились (после события) — начинаем их с первой.
+var _after_pool := false
 var _offered := false
 var _leftover_offered: StringName
 
@@ -104,10 +109,16 @@ func interact(by: Player) -> void:
 			_offered = true
 			_say("%s (%d отзвуков, у тебя %d)" % [sell_offer, sell_price, GameState.echoes])
 			return
-	var pool :=lines_after if after_flag != &"" and GameState.has_flag(after_flag) else lines
+	var after := after_flag != &"" and GameState.has_flag(after_flag)
+	var pool := lines_after if after else lines
 	if pool.is_empty():
 		return
+	if after != _after_pool:
+		_after_pool = after
+		_next = 0
 	_say(pool[_next % pool.size()])
+	if after and told_flag != &"" and _next % pool.size() == pool.size() - 1:
+		GameState.set_flag(told_flag)
 	_next += 1
 
 

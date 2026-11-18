@@ -84,7 +84,7 @@ func _ready() -> void:
 	await _shot("map")
 	rooms.level_menu.close()
 	rooms.level_menu.open_map(player, true)
-	for room: StringName in [&"village_square", &"cemetery", &"root_maze"]:
+	for room: StringName in [&"village_square", &"cemetery", &"root_maze", &"rye_field", &"mill"]:
 		rooms.level_menu.world_map.center_on(room)
 		await get_tree().create_timer(0.3).timeout
 		await _shot("map_dev_%s" % room)

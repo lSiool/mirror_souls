@@ -52,6 +52,8 @@ MATS = {
     "fir": ((0.045, 0.06, 0.065), 0.0), "bark": ((0.06, 0.052, 0.048), 0.0), "stone": ((0.1, 0.1, 0.11), 0.0),
     "earth": ((0.04, 0.036, 0.04), 0.0), "reed": ((0.09, 0.085, 0.05), 0.0), "water": ((0.015, 0.02, 0.022), 0.0),
     "window": ((1.0, 0.6, 0.25), 2.2), "moonlit": ((0.35, 0.42, 0.5), 0.6), "ember": ((0.9, 0.35, 0.1), 1.6), "wisp": ((0.45, 0.6, 0.3), 1.4),
+    "rye": ((0.14, 0.12, 0.07), 0.0), "rye_dark": ((0.075, 0.065, 0.04), 0.0), "straw": ((0.13, 0.11, 0.065), 0.0),
+    "jack": ((1.0, 0.5, 0.12), 1.8),
 }
 MESHES = {"box": 'BoxMesh', "prism": 'PrismMesh', "cone": 'CylinderMesh', "ball": 'SphereMesh'}
 
@@ -122,7 +124,7 @@ class Kit:
                             f'{_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])})\nmesh = {self._mesh(shape, mat)}\ncast_shadow = 0')
 
     # --- небо и дымка
-    def sky(self, left, right, top, horizon, glow=None, glow_x=0.2, glow_size=0.12, parent=None, tag="Sky"):
+    def sky(self, left, right, top, horizon, glow=None, glow_x=0.2, glow_size=0.12, parent=None, tag="Sky", glow_y=0.6):
         """Небо — плоскость за всем, без тумана. Горизонт кадра — около y=0 (60 % высоты сверху)."""
         code = SKY_SHADER.replace("\\", "\\\\").replace('"', '\\"')
         shader = self._res("BD_sky_shader", f'[sub_resource type="Shader" id="BD_sky_shader"]\ncode = "{code}"')
@@ -132,7 +134,7 @@ class Kit:
                              f'shader_parameter/top = Color({top[0]}, {top[1]}, {top[2]}, 1)\n'
                              f'shader_parameter/horizon = Color({horizon[0]}, {horizon[1]}, {horizon[2]}, 1)\n'
                              f'shader_parameter/horizon_at = 0.6\nshader_parameter/glow = Color({g[0]}, {g[1]}, {g[2]}, {g[3]})\n'
-                             f'shader_parameter/glow_at = Vector2({glow_x}, 0.6)\nshader_parameter/glow_size = {glow_size}')
+                             f'shader_parameter/glow_at = Vector2({glow_x}, {glow_y})\nshader_parameter/glow_size = {glow_size}')
         w = right - left + 2 * FAR_PAD + 120
         self.quad("Backdrop", tag, ((left + right) / 2, 16.0, -80.0), (w, 100.0), mat, parent)
 
@@ -145,13 +147,20 @@ class Kit:
         self.quad("Backdrop", "Haze", ((left + right) / 2, y, z), (right - left + 2 * pad, h), mat, parent)
 
     # --- земля
-    def far_ground(self, left, right, y=0.0):
+    def far_ground(self, left, right, y=0.0, mat="earth"):
         """Земля до горизонта: дальние слои стоят на ней, а не висят в пустоте."""
-        self.put("Backdrop", "FarLand", "box", "earth", ((left + right) / 2, y - 2.0, -58.0), (right - left + 2 * FAR_PAD + 80, 4.0, 44.0))
+        self.put("Backdrop", "FarLand", "box", mat, ((left + right) / 2, y - 2.0, -58.0), (right - left + 2 * FAR_PAD + 80, 4.0, 44.0))
 
     def near_ground(self, left, right, y=-0.25, z0=2.2, z1=18.0, pad=30.0):
         """Ближняя земля перед героем: камера смотрит на неё сверху, а не в чёрный срез пола."""
         self.put("Foreground", "NearLand", "box", "earth", ((left + right) / 2, y - 1.0, (z0 + z1) / 2), (right - left + 2 * pad, 2.0, z1 - z0))
+
+    def near_slope(self, x0, y0, x1, y1, z0=2.2, z1=18.0):
+        """Ближняя земля на склоне: от (x0, y0) до (x1, y1), как пол в плоскости героя."""
+        a = math.atan2(y1 - y0, x1 - x0)
+        ln = math.hypot(x1 - x0, y1 - y0)
+        cx, cy = (x0 + x1) / 2 + math.sin(a) * 1.25, (y0 + y1) / 2 - math.cos(a) * 1.25
+        self.put("Foreground", "NearSlope", "box", "earth", (cx, cy, (z0 + z1) / 2), (ln + 0.6, 2.0, z1 - z0), tilt=a)
 
     # --- силуэты горизонта
     def mountains(self, x0, x1, z, base, lo, hi, mat="ridge"):
@@ -211,6 +220,47 @@ class Kit:
             if self.rng.random() < windows:
                 self.put("Backdrop", "Window", "box", "window", (x + self.rng.uniform(-w / 4, w / 4), base + h * 0.55, z + 2.05), (0.6, 0.8, 0.05))
             x += w + self.rng.uniform(*step) - 5
+
+    def windmill(self, x, z, base, h, mat="sil", turn=0.4):
+        """Ветряная мельница вдали — ориентир Полей: башня, шатёр, четыре крыла крестом. Без случайности."""
+        self.put("Backdrop", "MillTower", "box", mat, (x, base + h * 0.32, z), (h * 0.22, h * 0.64, h * 0.22))
+        self.put("Backdrop", "MillCap", "prism", mat, (x, base + h * 0.72, z), (h * 0.3, h * 0.16, h * 0.3))
+        hub = (x, base + h * 0.68, z + h * 0.13)
+        for i in range(4):
+            a = turn + i * math.pi / 2
+            ln = h * 0.5
+            self.put("Backdrop", "MillSail", "box", mat, (hub[0] + math.cos(a) * ln / 2, hub[1] + math.sin(a) * ln / 2, hub[2]),
+                     (ln, h * 0.07, 0.1), tilt=a)
+
+    def broken_bridge(self, x, z, base, span, mat="ridge"):
+        """Подвесной перевал вдали (§8.13): две скалы-опоры, от пролёта между ними остались обломки, цепи висят над пропастью."""
+        deck = base + 15.0
+        for side in (-1, 1):
+            self.put("Backdrop", "Crag", "prism", mat, (x + side * span / 2, base + 9.0, z), (span * 0.4, 18.0, 6.0))
+            self.put("Backdrop", "Span", "box", "sil", (x + side * span * 0.36, deck - side * 0.4, z + 2.0), (span * 0.26, 0.6, 2.0), tilt=side * 0.12)
+            self.put("Backdrop", "Chain", "box", "sil", (x + side * span * 0.2, deck - 2.6, z + 2.0), (0.12, 5.0, 0.12), tilt=side * -0.1)
+
+    def stooks(self, x0, x1, z0, z1, base=0.0, mat="straw", step=(3.0, 7.0)):
+        """Копны снопов на сжатом поле."""
+        x = x0
+        while x < x1:
+            h = self.rng.uniform(1.3, 2.0)
+            z = self.rng.uniform(z1, z0)
+            self.put("Backdrop", "Stook", "cone", mat, (x, base + h / 2 - 0.1, z), (h * 0.75, h, h * 0.75), tilt=self.rng.uniform(-0.06, 0.06))
+            self.put("Backdrop", "StookBand", "box", "sil", (x, base + h * 0.55, z), (h * 0.38, 0.07, h * 0.38))
+            x += self.rng.uniform(*step)
+
+    def sunflowers(self, x0, x1, z0, z1, base=0.0, mat="sil", step=(1.0, 2.6), layer="Backdrop"):
+        """Мёртвые подсолнухи: сухой стебель и тяжёлая голова, свесившаяся вниз."""
+        x = x0
+        while x < x1:
+            h = self.rng.uniform(1.8, 2.8)
+            z = self.rng.uniform(z1, z0)
+            t = self.rng.uniform(-0.08, 0.08)
+            self.put(layer, "Stem", "box", mat, (x, base + h / 2, z), (0.06, h, 0.06), tilt=t)
+            side = 1 if self.rng.random() < 0.5 else -1
+            self.put(layer, "Head", "ball", mat, (x - math.sin(t) * h + side * 0.18, base + h - 0.15, z), (0.2, 0.55, 0.5), tilt=side * 0.5)
+            x += self.rng.uniform(*step)
 
     def spire(self, x, z, base, h, mat="sil"):
         """Часовня или колокольня вдали: башня и шпиль — ориентир."""
@@ -336,6 +386,22 @@ class Kit:
         h = self.rng.uniform(0.4, min(cap, 0.9))
         self.put("Foreground", "Stump", "box", "sil_warm", (x, y + h / 2, z), (0.5, h, 0.5), tilt=self.rng.uniform(-0.1, 0.1))
 
+    def _fg_rye(self, x, y, z, cap):
+        h = self.rng.uniform(0.7, cap + 0.4)
+        for k in range(9):
+            t = (k - 4) * 0.09 + self.rng.uniform(-0.05, 0.05)
+            hh = h * self.rng.uniform(0.75, 1.0)
+            self.put("Foreground", "Stalk", "box", "sil", (x + (k - 4) * 0.07, y + hh / 2, z), (0.025, hh, 0.025), tilt=t)
+            self.put("Foreground", "Ear", "box", "sil", (x + (k - 4) * 0.07 - math.sin(t) * hh, y + hh, z), (0.06, 0.22, 0.05), tilt=t)
+
+    def _fg_sunflower(self, x, y, z, cap):
+        self.sunflowers(x, x + 0.5, z, z, base=y, step=(1.0, 1.0), layer="Foreground")
+
+    def _fg_pumpkin(self, x, y, z, cap):
+        s = self.rng.uniform(0.5, 0.8)
+        self.put("Foreground", "Pumpkin", "ball", "sil_warm", (x, y + s * 0.3, z), (s * 1.3, s * 0.75, s))
+        self.put("Foreground", "PumpkinStem", "box", "sil", (x + 0.05, y + s * 0.7, z), (0.06, 0.2, 0.06), tilt=0.3)
+
     def _fg_skull(self, x, y, z, cap):
         self._fg_rock(x, y, z, cap)
         self.put("Foreground", "Skull", "ball", "stone", (x - 0.4, y + 0.25, z - 0.3), (0.32, 0.28, 0.3))
@@ -348,6 +414,8 @@ FOREGROUND = {
     "forest": ("root", "root", "stump", "fern"),
     "swamp": ("reeds", "reeds", "stump"),
     "dead": ("fence", "skull", "stump"),
+    "fields": ("rye", "rye", "sunflower", "rock"),
+    "garden": ("pumpkin", "fence", "rye"),
 }
 
 
@@ -363,7 +431,7 @@ def _f(v):
 ## Каждый биом — небо, горизонт, дальний и средний планы, дымка. Запад (слева) — горы «Пепельные Пики»,
 ## восток (справа) — лес; деревня между ними. Горизонт показывает, где игрок был и куда идёт.
 
-def village(k, left, right, fog, burn=None, spire_x=None, ground=0.0):
+def village(k, left, right, fog, burn=None, spire_x=None, ground=0.0, mill_x=None):
     """Деревня: дома второго ряда, холмы, горы на западе, лес на востоке, шпиль часовни — следующий шаг.
     burn — туман пожара: тогда небо и дымка двух видов, в контейнерах Burning и AfterFire (комната сама
     показывает нужный, `Room.burning_until`), над домами — зарево и столбы дыма."""
@@ -374,6 +442,8 @@ def village(k, left, right, fog, burn=None, spire_x=None, ground=0.0):
     k.houses(left - 30, right + 30, -24, -32, base=ground)
     if spire_x is not None:
         k.spire(spire_x, -36, ground, 16)
+    if mill_x is not None:
+        k.windmill(mill_x, -46, ground + 2, 15)
     states = (("AfterFire", fog, SKY_NIGHT), ("Burning", burn, SKY_FIRE)) if burn else ((None, fog, SKY_NIGHT),)
     for parent, f, (top, hor, glow) in states:
         k.sky(left, right, top, hor, glow=glow if parent else None, glow_x=0.5, glow_size=0.3, parent=parent, tag=f"Sky{parent or ''}")
@@ -457,3 +527,27 @@ def dead_village(k, left, right, fog, ground=0.0):
     k.haze(left, right, ground + 2.5, -13, 7, fog, 0.3)
     k.haze(left, right, ground + 4, -27, 14, fog, 0.45)
     k.haze(left, right, ground + 8, -40, 24, fog, 0.55)
+
+
+## Поля (§8.13). Небо и туман задаёт комната: полдень во ржи, сумерки у мельницы и на огородах.
+def fields(k, left, right, fog, ground=0.0, mill_x=None, village=False, bridge_x=None):
+    """Поля: рожь волнами до горизонта, копны, мёртвые подсолнухи, редкие сухие деревья. На западе близко встают
+    Пепельные Пики, в них — обрушенный мост Подвесного перевала (bridge_x); мельница на холме — ориентир (mill_x);
+    village — на востоке деревня и шпиль часовни, откуда пришёл."""
+    k.far_ground(left, right, ground, mat="rye_dark")
+    k.mountains(left - FAR_PAD - 20, left + 10, -70, ground - 1, 16, 30)
+    if bridge_x is not None:
+        k.broken_bridge(bridge_x, -62, ground + 20, 24)
+    k.hills(left - 40, right + 40, -48, ground - 2, 3, 6, mat="rye")
+    k.hills(left - 30, right + 30, -30, ground - 1.6, 1.5, 3, mat="rye_dark")
+    k.stooks(left - 30, right + 30, -12, -20, base=ground)
+    k.sunflowers(left - 20, right + 20, -7, -11, base=ground)
+    k.dead_trees(left - 20, right + 20, -22, -34, 6, 10, step=(18, 30), base=ground)
+    if mill_x is not None:
+        k.windmill(mill_x, -40, ground + 2, 18)
+    if village:
+        k.houses(right + 6, right + 70, -26, -34, base=ground, windows=0.5)
+        k.spire(right + 60, -40, ground, 16)
+    k.haze(left, right, ground + 2, -10, 6, fog, 0.25)
+    k.haze(left, right, ground + 4, -24, 12, fog, 0.4)
+    k.haze(left, right, ground + 8, -42, 24, fog, 0.55)

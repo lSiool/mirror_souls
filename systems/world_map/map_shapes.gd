@@ -13,7 +13,7 @@ const FOOTROOM := 1.5
 const BAND := 3.4
 ## Ребро круче этого (по отношению высоты к длине) — уже стена, а не пол.
 const STEEP := 1.2
-## Пол выше самой высокой лестницы, двери или осколка больше чем на это — крыша или потолок, герою туда не попасть.
+## Пол выше самой высокой лестницы, двери или кольца крюка больше чем на это — крыша или потолок, герою туда не попасть.
 const REACH := 3.5
 
 ## id комнаты → {left, right, bottom, top (м), solids, glass (Array[PackedVector2Array]),
@@ -41,6 +41,7 @@ static func extract(room: Room) -> Dictionary:
 	var ladders: Array[Vector3] = []
 	var doors: Array = []
 	var shards := {}
+	var hooks: Array[float] = []
 	for node in _descendants(room):
 		var local := to_room * (node as Node3D).global_transform if node is Node3D else Transform3D()
 		if node is CSGBox3D and (node as CSGBox3D).use_collision:
@@ -60,6 +61,8 @@ static func extract(room: Room) -> Dictionary:
 			doors.append([Vector2(_r(local.origin.x), _r(local.origin.y)), (node as RoomDoor).target_room])
 		elif node is MirrorShard:
 			shards[String(room.get_path_to(node))] = Vector2(_r(local.origin.x), _r(local.origin.y))
+		elif node is HookPoint:
+			hooks.append(local.origin.y)
 	# Границы по высоте — от самого низкого пола до самого высокого, с запасом.
 	var floors: Array[float] = []
 	for poly in _clip_all(solids + glass, left, right, -1000.0, 1000.0):
@@ -71,7 +74,7 @@ static func extract(room: Room) -> Dictionary:
 	var top_y: float = (floors.max() + HEADROOM) if floors.size() > 0 else 6.0
 	var clipped_solids := _clip_all(solids, left, right, bottom, top_y)
 	var clipped_glass := _clip_all(glass, left, right, bottom, top_y)
-	var air := _space(clipped_solids, clipped_glass, ladders, doors, left, right, bottom, top_y)
+	var air := _space(clipped_solids, clipped_glass, ladders, doors, hooks, left, right, bottom, top_y)
 	return {"left": left, "right": right, "bottom": _r(bottom), "top": _r(top_y),
 		"solids": clipped_solids, "glass": clipped_glass, "space": _rounded(air[0]), "pillars": _rounded(air[1]),
 		"ladders": ladders, "doors": doors, "shards": shards}
@@ -80,14 +83,16 @@ static func extract(room: Room) -> Dictionary:
 ## Воздух комнаты: полоса BAND над каждым полом и уступом (верхние пологие рёбра твёрдого и стекла),
 ## шахты лестниц, проёмы дверей — всё вместе, без твёрдого. Возвращает [воздух, твёрдое внутри воздуха].
 static func _space(solids: Array[PackedVector2Array], glass: Array[PackedVector2Array], ladders: Array[Vector3],
-		doors: Array, left: float, right: float, bottom: float, top: float) -> Array:
+		doors: Array, hooks: Array[float], left: float, right: float, bottom: float, top: float) -> Array:
 	var bands: Array[PackedVector2Array] = []
-	# Докуда герой может добраться: лестницы, двери, первый пол; выше — крыши и потолки, их воздух не нужен.
+	# Докуда герой может добраться: лестницы, двери, кольца крюка, первый пол; выше — крыши и потолки, их воздух не нужен.
 	var reach := -INF
 	for ladder in ladders:
 		reach = maxf(reach, ladder.z)
 	for door: Array in doors:
 		reach = maxf(reach, (door[0] as Vector2).y)
+	for hook in hooks:
+		reach = maxf(reach, hook)
 	if reach == -INF:
 		reach = 0.0
 	reach += REACH

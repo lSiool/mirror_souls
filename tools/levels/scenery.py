@@ -12,13 +12,17 @@ MATS = {
     "char": (0.035, 0.03, 0.03), "rotten": (0.34, 0.27, 0.17), "bark": (0.1, 0.08, 0.07),
     "root": (0.14, 0.1, 0.08), "moss": (0.16, 0.2, 0.1), "bone": (0.62, 0.58, 0.5), "reed": (0.24, 0.24, 0.12),
     "water": (0.02, 0.025, 0.025), "rust": (0.3, 0.16, 0.08), "rope": (0.45, 0.36, 0.22), "silver": (0.6, 0.6, 0.64),
+    "stubble": (0.19, 0.16, 0.1), "straw": (0.32, 0.26, 0.14), "pumpkin": (0.34, 0.15, 0.05), "turnip": (0.42, 0.37, 0.32),
+    "leaf": (0.12, 0.15, 0.07), "clay": (0.24, 0.2, 0.15), "sack": (0.3, 0.26, 0.18), "shingle": (0.08, 0.075, 0.08),
+    "hide": (0.24, 0.19, 0.15), "wool": (0.42, 0.4, 0.35),
 }
 ## Светящиеся: цвет, сила свечения.
 GLOW = {"window": ((1.0, 0.6, 0.25), 2.6), "fire": ((1.0, 0.45, 0.12), 4.0), "moonpane": ((0.45, 0.6, 0.85), 1.1),
         "candle": ((1.0, 0.7, 0.35), 3.0), "lantern": ((1.0, 0.68, 0.3), 5.0), "gas": ((0.45, 0.6, 0.25), 1.2),
-        "ember": ((0.9, 0.35, 0.1), 1.6)}
+        "ember": ((0.9, 0.35, 0.1), 1.6), "jack": ((1.0, 0.5, 0.12), 2.6)}
 ## Полупрозрачные слои тумана: цвет и непрозрачность. Рисуются шейдером дымки: мягкие края, медленный шум.
-VEILS = {"fog_veil": ((0.42, 0.45, 0.5), 0.2), "fog_thick": ((0.4, 0.43, 0.48), 0.32), "fog_dense": ((0.44, 0.47, 0.52), 0.5)}
+VEILS = {"fog_veil": ((0.42, 0.45, 0.5), 0.2), "fog_thick": ((0.4, 0.43, 0.48), 0.32), "fog_dense": ((0.44, 0.47, 0.52), 0.5),
+         "dust_veil": ((0.55, 0.48, 0.36), 0.18), "spill": ((0.5, 0.56, 0.6), 0.5)}
 MIST_SHADER = """shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
 uniform vec4 tint : source_color = vec4(0.42, 0.45, 0.5, 0.2);
@@ -69,6 +73,11 @@ class Scene:
         self.sun_color, self.sun_energy = sun_color, sun_energy
         self.nodes, self.subs, self.used = [], [], set()
         self.meshes = 0
+        self.ext = dict(EXT)
+
+    def use(self, key, kind, path):
+        """Ещё один ext_resource только для этой комнаты (общий словарь EXT не трогаем: иначе меняются все комнаты)."""
+        self.ext[key] = (kind, path)
 
     # --- примитивы
     def mat(self, name):
@@ -231,6 +240,12 @@ class Scene:
         self.node(name, 'type="Area3D"', "Objects", [f"position = Vector3({x}, {y}, 0)", 'script = ExtResource("door")', f'target_room = &"{target}"',
                   f'target_spawn = NodePath("{spawn}")', f'open_prompt = "{prompt}"'] + list(extra))
 
+    def npc(self, name, x, y, title, lines, color, extra=()):
+        """Житель (Npc): реплики по кругу; extra — свойства узла (after_flag, lines_after, told_flag…). Нужен ext «npc» (Scene.use)."""
+        quoted = ", ".join('"' + line + '"' for line in lines)
+        self.node(name, 'type="Area3D"', "Objects", [f"position = {v3((x, y, 0))}", 'script = ExtResource("npc")', f'npc_name = "{title}"',
+                  f"lines = PackedStringArray({quoted})", f"look_color = Color({color[0]}, {color[1]}, {color[2]}, 1)"] + list(extra))
+
     def ladder(self, name, x, y, height, exit_dir):
         self.node(name, 'type="Area3D"', "Objects", [f"position = Vector3({x}, {y}, 0)", 'script = ExtResource("ladder")', f"height = {height}", f"exit_dir = {exit_dir}"])
 
@@ -271,7 +286,7 @@ class Scene:
                 + (f'\nfog_height = {e["fog_h"]}\nfog_height_density = {e["fog_hd"]}' if "fog_h" in e else ""))
 
     def text(self):
-        ext = [f'[ext_resource type="{kind}" path="{path}" id="{key}"]' for key, (kind, path) in EXT.items()]
+        ext = [f'[ext_resource type="{kind}" path="{path}" id="{key}"]' for key, (kind, path) in self.ext.items()]
         subs = []
         for name in sorted(self.used):
             if name in MATS:

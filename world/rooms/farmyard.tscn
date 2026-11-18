@@ -1,0 +1,2396 @@
+[gd_scene load_steps=88 format=3]
+
+[ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
+
+[ext_resource type="Script" path="res://world/common/room_door.gd" id="door"]
+
+[ext_resource type="Script" path="res://world/common/item_pickup.gd" id="pickup"]
+
+[ext_resource type="Script" path="res://world/common/ladder.gd" id="ladder"]
+
+[ext_resource type="PackedScene" path="res://world/checkpoints/mirror_shard.tscn" id="shard"]
+
+[ext_resource type="PackedScene" path="res://world/chest/chest.tscn" id="chest"]
+
+[ext_resource type="PackedScene" path="res://world/glass/glass_surface.tscn" id="glass"]
+
+[ext_resource type="PackedScene" path="res://world/hazards/spikes.tscn" id="spikes"]
+
+[ext_resource type="Script" path="res://world/common/note.gd" id="note"]
+
+[ext_resource type="Script" path="res://world/common/bound_captive.gd" id="captive"]
+
+[ext_resource type="Script" path="res://world/common/mud_zone.gd" id="mud"]
+
+[ext_resource type="Script" path="res://world/common/boss_arena.gd" id="arena"]
+
+[ext_resource type="Script" path="res://world/rooms/robber_event.gd" id="robbers"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/rat.tscn" id="rat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bat.tscn" id="bat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/fog_wraith.tscn" id="wraith"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/drowned_knight.tscn" id="knight"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_heavy.tscn" id="bandit_heavy"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_knife.tscn" id="bandit_knife"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/blacksmith.tscn" id="smith"]
+
+[ext_resource type="Script" path="res://world/common/hook_point.gd" id="hookpoint"]
+
+[ext_resource type="Script" path="res://world/common/npc.gd" id="npc"]
+
+[ext_resource type="Script" path="res://world/common/say_line.gd" id="sayline"]
+
+[ext_resource type="Script" path="res://world/common/rye_field.gd" id="rye"]
+
+[ext_resource type="Script" path="res://world/common/sunflower_row.gd" id="sunflowers"]
+
+[ext_resource type="Script" path="res://world/common/flag_shown.gd" id="flagshown"]
+
+[ext_resource type="Script" path="res://world/common/spinner.gd" id="spinner"]
+
+[sub_resource type="Shader" id="Shader_mist"]
+code = "shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.42, 0.45, 0.5, 0.2);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
+	return v;
+}
+void fragment() {
+	vec2 uv = UV;
+	float drift = fbm(vec2(uv.x * 6.0 + TIME * 0.03, uv.y * 2.5 - TIME * 0.01));
+	float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x) * smoothstep(0.0, 0.45, uv.y) * smoothstep(1.0, 0.55, uv.y);
+	ALBEDO = tint.rgb;
+	ALPHA = tint.a * edge * clamp(drift * 1.6 - 0.15, 0.0, 1.0);
+}
+"
+
+[sub_resource type="StandardMaterial3D" id="Mat_char"]
+albedo_color = Color(0.035, 0.03, 0.03, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_fire"]
+albedo_color = Color(1.0, 0.45, 0.12, 1)
+emission_enabled = true
+emission = Color(1.0, 0.45, 0.12, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="ShaderMaterial" id="Mat_fog_veil"]
+render_priority = 0
+shader = SubResource("Shader_mist")
+shader_parameter/tint = Color(0.42, 0.45, 0.5, 0.2)
+
+[sub_resource type="StandardMaterial3D" id="Mat_hide"]
+albedo_color = Color(0.24, 0.19, 0.15, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_iron"]
+albedo_color = Color(0.09, 0.09, 0.1, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_lantern"]
+albedo_color = Color(1.0, 0.68, 0.3, 1)
+emission_enabled = true
+emission = Color(1.0, 0.68, 0.3, 1)
+emission_energy_multiplier = 5.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_mud"]
+albedo_color = Color(0.2, 0.17, 0.15, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_rotten"]
+albedo_color = Color(0.34, 0.27, 0.17, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_shingle"]
+albedo_color = Color(0.08, 0.075, 0.08, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.27, 0.27, 0.29, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_straw"]
+albedo_color = Color(0.32, 0.26, 0.14, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_window"]
+albedo_color = Color(1.0, 0.6, 0.25, 1)
+emission_enabled = true
+emission = Color(1.0, 0.6, 0.25, 1)
+emission_energy_multiplier = 2.6
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.25, 0.17, 0.11, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood_dark"]
+albedo_color = Color(0.12, 0.09, 0.07, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_wool"]
+albedo_color = Color(0.42, 0.4, 0.35, 1)
+roughness = 0.95
+
+[sub_resource type="Environment" id="Env_room"]
+background_mode = 1
+background_color = Color(0.05, 0.055, 0.07, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.36, 0.4, 0.48, 1)
+ambient_light_energy = 0.42
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.06
+fog_enabled = true
+fog_light_color = Color(0.2, 0.22, 0.26, 1)
+fog_density = 0.028
+
+[sub_resource type="BoxShape3D" id="Wall_1"]
+size = Vector3(1, 40, 4.4)
+
+[sub_resource type="BoxShape3D" id="Wall_2"]
+size = Vector3(1, 40, 4.4)
+
+[sub_resource type="Shader" id="BD_sky_shader"]
+code = "shader_type spatial;
+render_mode unshaded, fog_disabled, shadows_disabled, cull_disabled;
+uniform vec4 top : source_color = vec4(0.03, 0.035, 0.05, 1.0);
+uniform vec4 horizon : source_color = vec4(0.14, 0.15, 0.19, 1.0);
+uniform float horizon_at = 0.6;
+uniform vec4 glow : source_color = vec4(0.0);
+uniform vec2 glow_at = vec2(0.2, 0.6);
+uniform float glow_size = 0.12;
+void fragment() {
+	float t = smoothstep(0.0, horizon_at, UV.y);
+	vec3 c = mix(top.rgb, horizon.rgb, t * t);
+	c *= mix(1.0, 0.6, clamp((UV.y - horizon_at) / (1.0 - horizon_at), 0.0, 1.0));
+	vec2 d = (UV - glow_at) * vec2(1.0, 2.4);
+	c += glow.rgb * glow.a * exp(-dot(d, d) / (glow_size * glow_size));
+	ALBEDO = c;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="BD_sky_Sky"]
+shader = SubResource("BD_sky_shader")
+shader_parameter/top = Color(0.06, 0.065, 0.085, 1)
+shader_parameter/horizon = Color(0.26, 0.28, 0.32, 1)
+shader_parameter/horizon_at = 0.6
+shader_parameter/glow = Color(0.0, 0.0, 0.0, 0.0)
+shader_parameter/glow_at = Vector2(0.2, 0.6)
+shader_parameter/glow_size = 0.12
+
+[sub_resource type="QuadMesh" id="BD_quad_292x100"]
+size = Vector2(292, 100)
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_rye_dark"]
+albedo_color = Color(0.075, 0.065, 0.04, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="BD_box_rye_dark"]
+material = SubResource("BD_mat_rye_dark")
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_ridge"]
+albedo_color = Color(0.07, 0.075, 0.09, 1)
+roughness = 1.0
+
+[sub_resource type="PrismMesh" id="BD_prism_ridge"]
+material = SubResource("BD_mat_ridge")
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_rye"]
+albedo_color = Color(0.14, 0.12, 0.07, 1)
+roughness = 1.0
+
+[sub_resource type="SphereMesh" id="BD_ball_rye"]
+material = SubResource("BD_mat_rye")
+radius = 0.5
+height = 1.0
+radial_segments = 10
+rings = 5
+
+[sub_resource type="SphereMesh" id="BD_ball_rye_dark"]
+material = SubResource("BD_mat_rye_dark")
+radius = 0.5
+height = 1.0
+radial_segments = 10
+rings = 5
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_straw"]
+albedo_color = Color(0.13, 0.11, 0.065, 1)
+roughness = 1.0
+
+[sub_resource type="CylinderMesh" id="BD_cone_straw"]
+material = SubResource("BD_mat_straw")
+top_radius = 0.0
+bottom_radius = 0.5
+height = 1.0
+radial_segments = 7
+rings = 1
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_sil"]
+albedo_color = Color(0.035, 0.035, 0.042, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="BD_box_sil"]
+material = SubResource("BD_mat_sil")
+
+[sub_resource type="SphereMesh" id="BD_ball_sil"]
+material = SubResource("BD_mat_sil")
+radius = 0.5
+height = 1.0
+radial_segments = 10
+rings = 5
+
+[sub_resource type="PrismMesh" id="BD_prism_sil"]
+material = SubResource("BD_mat_sil")
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_window"]
+albedo_color = Color(1.0, 0.6, 0.25, 1)
+roughness = 1.0
+emission_enabled = true
+emission = Color(1.0, 0.6, 0.25, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="BoxMesh" id="BD_box_window"]
+material = SubResource("BD_mat_window")
+
+[sub_resource type="CylinderMesh" id="BD_cone_sil"]
+material = SubResource("BD_mat_sil")
+top_radius = 0.0
+bottom_radius = 0.5
+height = 1.0
+radial_segments = 7
+rings = 1
+
+[sub_resource type="Shader" id="BD_mist_shader"]
+code = "shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.42, 0.45, 0.5, 0.2);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
+	return v;
+}
+void fragment() {
+	vec2 uv = UV;
+	float drift = fbm(vec2(uv.x * 6.0 + TIME * 0.03, uv.y * 2.5 - TIME * 0.01));
+	float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x) * smoothstep(0.0, 0.45, uv.y) * smoothstep(1.0, 0.55, uv.y);
+	ALBEDO = tint.rgb;
+	ALPHA = tint.a * edge * clamp(drift * 1.6 - 0.15, 0.0, 1.0);
+}
+"
+
+[sub_resource type="ShaderMaterial" id="BD_haze_0p2_0p22_0p26_0p25"]
+shader = SubResource("BD_mist_shader")
+shader_parameter/tint = Color(0.2, 0.22, 0.26, 0.25)
+
+[sub_resource type="QuadMesh" id="BD_quad_172x6"]
+size = Vector2(172, 6)
+
+[sub_resource type="ShaderMaterial" id="BD_haze_0p2_0p22_0p26_0p4"]
+shader = SubResource("BD_mist_shader")
+shader_parameter/tint = Color(0.2, 0.22, 0.26, 0.4)
+
+[sub_resource type="QuadMesh" id="BD_quad_172x12"]
+size = Vector2(172, 12)
+
+[sub_resource type="ShaderMaterial" id="BD_haze_0p2_0p22_0p26_0p55"]
+shader = SubResource("BD_mist_shader")
+shader_parameter/tint = Color(0.2, 0.22, 0.26, 0.55)
+
+[sub_resource type="QuadMesh" id="BD_quad_172x24"]
+size = Vector2(172, 24)
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_fir"]
+albedo_color = Color(0.045, 0.06, 0.065, 1)
+roughness = 1.0
+
+[sub_resource type="CylinderMesh" id="BD_cone_fir"]
+material = SubResource("BD_mat_fir")
+top_radius = 0.0
+bottom_radius = 0.5
+height = 1.0
+radial_segments = 7
+rings = 1
+
+[sub_resource type="PrismMesh" id="Roof_3"]
+material = SubResource("Mat_shingle")
+size = Vector3(15.4, 3.2, 4.8)
+
+[sub_resource type="PrismMesh" id="Roof_4"]
+material = SubResource("Mat_shingle")
+size = Vector3(2.4, 0.9, 1.6)
+
+[sub_resource type="QuadMesh" id="Veil_5"]
+material = SubResource("Mat_fog_veil")
+size = Vector2(2.6, 5.5)
+
+[sub_resource type="PrismMesh" id="Roof_6"]
+material = SubResource("Mat_shingle")
+size = Vector3(4.8, 1.6, 2.8)
+
+[sub_resource type="PrismMesh" id="Roof_7"]
+material = SubResource("Mat_shingle")
+size = Vector3(8.4, 3.4, 4.8)
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_sil_warm"]
+albedo_color = Color(0.055, 0.04, 0.035, 1)
+roughness = 1.0
+
+[sub_resource type="SphereMesh" id="BD_ball_sil_warm"]
+material = SubResource("BD_mat_sil_warm")
+radius = 0.5
+height = 1.0
+radial_segments = 10
+rings = 5
+
+[sub_resource type="BoxMesh" id="BD_box_sil_warm"]
+material = SubResource("BD_mat_sil_warm")
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_earth"]
+albedo_color = Color(0.04, 0.036, 0.04, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="BD_box_earth"]
+material = SubResource("BD_mat_earth")
+
+[sub_resource type="Shader" id="BD_path_shader"]
+code = "shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.1, 0.09, 0.07, 1.0);
+float hash(float p) { return fract(sin(p * 127.1) * 43758.5453); }
+float noise(float x) { float i = floor(x); float f = fract(x); return mix(hash(i), hash(i + 1.0), f * f * (3.0 - 2.0 * f)); }
+void fragment() {
+	float band = smoothstep(0.0, 0.42, UV.y) * smoothstep(1.0, 0.62, UV.y);
+	float ends = smoothstep(0.0, 0.03, UV.x) * smoothstep(1.0, 0.97, UV.x);
+	float patch = 0.65 + 0.35 * noise(UV.x * 18.0);
+	ALBEDO = tint.rgb * tint.a * band * ends * patch;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="BD_path_0p06_0p065_0p075_1"]
+shader = SubResource("BD_path_shader")
+shader_parameter/tint = Color(0.06, 0.065, 0.075, 1.0)
+
+[sub_resource type="QuadMesh" id="BD_plane_52x3_6"]
+size = Vector2(52, 3.6)
+orientation = 1
+
+[node name="Farmyard" type="Node3D"]
+script = ExtResource("room")
+room_id = &"farmyard"
+center_x = 0.0
+width = 52
+mood = SubResource("Env_room")
+sun_color = Color(0.6, 0.66, 0.8, 1)
+sun_energy = 0.3
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="Decor" type="Node3D" parent="."]
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="WallLeft" type="StaticBody3D" parent="Geometry"]
+position = Vector3(-26.5, 6.0, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallLeft"]
+shape = SubResource("Wall_1")
+
+[node name="WallRight" type="StaticBody3D" parent="Geometry"]
+position = Vector3(26.5, 6.0, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallRight"]
+shape = SubResource("Wall_2")
+
+[node name="Ground" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0.0, -2.0, 0)
+use_collision = true
+size = Vector3(112, 4, 4.4)
+material = SubResource("Mat_mud")
+
+[node name="BackGround" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, -3.0, -19.1)
+size = Vector3(172, 6.0, 33.8)
+material = SubResource("Mat_mud")
+
+[node name="Backdrop" type="Node3D" parent="Decor"]
+
+[node name="Foreground" type="Node3D" parent="Decor"]
+
+[node name="Sky0" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 16, -80)
+mesh = SubResource("BD_quad_292x100")
+material_override = SubResource("BD_sky_Sky")
+cast_shadow = 0
+
+[node name="FarLand0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(252, 0, 0, 0, 4, 0, 0, 0, 44, 0, -2, -58)
+mesh = SubResource("BD_box_rye_dark")
+cast_shadow = 0
+
+[node name="Peak0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(74.482, 0, 0, 0, 29.667, 0, 0, 0, 6, -106, 13.834, -73.038)
+mesh = SubResource("BD_prism_ridge")
+cast_shadow = 0
+
+[node name="Peak1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(33.218, 0, 0, 0, 16.514, 0, 0, 0, 6, -69.131, 7.257, -70.256)
+mesh = SubResource("BD_prism_ridge")
+cast_shadow = 0
+
+[node name="Peak2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(35.971, 0, 0, 0, 22.422, 0, 0, 0, 6, -54.944, 10.211, -70.456)
+mesh = SubResource("BD_prism_ridge")
+cast_shadow = 0
+
+[node name="Peak3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(46.388, 0, 0, 0, 22.625, 0, 0, 0, 6, -40.278, 10.312, -73.302)
+mesh = SubResource("BD_prism_ridge")
+cast_shadow = 0
+
+[node name="Peak4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(39.897, 0, 0, 0, 21.24, 0, 0, 0, 6, -19.113, 9.62, -72.615)
+mesh = SubResource("BD_prism_ridge")
+cast_shadow = 0
+
+[node name="Hill0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(21.22, 0, 0, 0, 9.025, 0, 0, 0, 14, -66, -2, -45.23)
+mesh = SubResource("BD_ball_rye")
+cast_shadow = 0
+
+[node name="Hill1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(29.79, 0, 0, 0, 8.44, 0, 0, 0, 14, -53.268, -2, -46.443)
+mesh = SubResource("BD_ball_rye")
+cast_shadow = 0
+
+[node name="Hill2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(20.881, 0, 0, 0, 6.737, 0, 0, 0, 14, -35.394, -2, -50.701)
+mesh = SubResource("BD_ball_rye")
+cast_shadow = 0
+
+[node name="Hill3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(18.076, 0, 0, 0, 11.795, 0, 0, 0, 14, -22.865, -2, -46.35)
+mesh = SubResource("BD_ball_rye")
+cast_shadow = 0
+
+[node name="Hill4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(25.362, 0, 0, 0, 7.266, 0, 0, 0, 14, -12.02, -2, -47.771)
+mesh = SubResource("BD_ball_rye")
+cast_shadow = 0
+
+[node name="Hill5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(29.546, 0, 0, 0, 8.166, 0, 0, 0, 14, 3.198, -2, -50.735)
+mesh = SubResource("BD_ball_rye")
+cast_shadow = 0
+
+[node name="Hill6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(23.024, 0, 0, 0, 7.811, 0, 0, 0, 14, 20.926, -2, -48.494)
+mesh = SubResource("BD_ball_rye")
+cast_shadow = 0
+
+[node name="Hill7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(28.33, 0, 0, 0, 8.946, 0, 0, 0, 14, 34.74, -2, -49.445)
+mesh = SubResource("BD_ball_rye")
+cast_shadow = 0
+
+[node name="Hill8" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(31.907, 0, 0, 0, 10.838, 0, 0, 0, 14, 51.738, -2, -46.092)
+mesh = SubResource("BD_ball_rye")
+cast_shadow = 0
+
+[node name="Hill9" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(32.688, 0, 0, 0, 4.361, 0, 0, 0, 14, -56, -1.6, -32.054)
+mesh = SubResource("BD_ball_rye_dark")
+cast_shadow = 0
+
+[node name="Hill10" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(26.095, 0, 0, 0, 4.126, 0, 0, 0, 14, -36.387, -1.6, -27.88)
+mesh = SubResource("BD_ball_rye_dark")
+cast_shadow = 0
+
+[node name="Hill11" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(23.406, 0, 0, 0, 5.271, 0, 0, 0, 14, -20.731, -1.6, -29.517)
+mesh = SubResource("BD_ball_rye_dark")
+cast_shadow = 0
+
+[node name="Hill12" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(19.4, 0, 0, 0, 5.774, 0, 0, 0, 14, -6.687, -1.6, -29.802)
+mesh = SubResource("BD_ball_rye_dark")
+cast_shadow = 0
+
+[node name="Hill13" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(19.847, 0, 0, 0, 4.923, 0, 0, 0, 14, 4.953, -1.6, -29.594)
+mesh = SubResource("BD_ball_rye_dark")
+cast_shadow = 0
+
+[node name="Hill14" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(20.137, 0, 0, 0, 3.295, 0, 0, 0, 14, 16.861, -1.6, -29.899)
+mesh = SubResource("BD_ball_rye_dark")
+cast_shadow = 0
+
+[node name="Hill15" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(33.237, 0, 0, 0, 5.992, 0, 0, 0, 14, 28.944, -1.6, -30.82)
+mesh = SubResource("BD_ball_rye_dark")
+cast_shadow = 0
+
+[node name="Hill16" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(26.965, 0, 0, 0, 4.861, 0, 0, 0, 14, 48.886, -1.6, -31.774)
+mesh = SubResource("BD_ball_rye_dark")
+cast_shadow = 0
+
+[node name="Stook0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.473, -0.003, 0, 0.002, 1.964, 0, 0, 0, 1.473, -56, 0.882, -14.472)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.746, 0, 0, 0, 0.07, 0, 0, 0, 0.746, -56, 1.08, -14.472)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.992, -0.055, 0, 0.041, 1.323, 0, 0, 0, 0.993, -49.445, 0.562, -12.522)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.503, 0, 0, 0, 0.07, 0, 0, 0, 0.503, -49.445, 0.728, -12.522)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.481, 0.048, 0, -0.036, 1.975, 0, 0, 0, 1.481, -45.581, 0.888, -14.855)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.751, 0, 0, 0, 0.07, 0, 0, 0, 0.751, -45.581, 1.086, -14.855)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.252, 0.059, 0, -0.045, 1.669, 0, 0, 0, 1.253, -39.348, 0.735, -15.455)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.635, 0, 0, 0, 0.07, 0, 0, 0, 0.635, -39.348, 0.919, -15.455)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.323, -0.098, 0, 0.074, 1.765, 0, 0, 0, 1.325, -32.445, 0.784, -12.011)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.672, 0, 0, 0, 0.07, 0, 0, 0, 0.672, -32.445, 0.972, -12.011)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.169, 0.011, 0, -0.008, 1.558, 0, 0, 0, 1.169, -25.608, 0.679, -14.94)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.592, 0, 0, 0, 0.07, 0, 0, 0, 0.592, -25.608, 0.857, -14.94)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.076, 0.082, 0, -0.062, 1.434, 0, 0, 0, 1.077, -20.334, 0.618, -15.385)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.546, 0, 0, 0, 0.07, 0, 0, 0, 0.546, -20.334, 0.79, -15.385)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.991, -0.01, 0, 0.008, 1.322, 0, 0, 0, 0.991, -15.212, 0.561, -17.729)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.502, 0, 0, 0, 0.07, 0, 0, 0, 0.502, -15.212, 0.727, -17.729)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook8" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.367, 0.016, 0, -0.012, 1.823, 0, 0, 0, 1.367, -10.017, 0.812, -18.021)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand8" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.693, 0, 0, 0, 0.07, 0, 0, 0, 0.693, -10.017, 1.003, -18.021)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook9" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.38, 0.035, 0, -0.026, 1.841, 0, 0, 0, 1.381, -6.831, 0.82, -19.336)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand9" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.7, 0, 0, 0, 0.07, 0, 0, 0, 0.7, -6.831, 1.013, -19.336)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook10" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.484, -0.109, 0, 0.082, 1.979, 0, 0, 0, 1.486, -1.576, 0.891, -17.325)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand10" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.753, 0, 0, 0, 0.07, 0, 0, 0, 0.753, -1.576, 1.09, -17.325)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook11" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.393, 0.086, 0, -0.065, 1.857, 0, 0, 0, 1.394, 4.947, 0.829, -15.484)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand11" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.706, 0, 0, 0, 0.07, 0, 0, 0, 0.706, 4.947, 1.022, -15.484)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook12" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.013, 0.046, 0, -0.035, 1.351, 0, 0, 0, 1.014, 11.606, 0.576, -17.253)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand12" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.514, 0, 0, 0, 0.07, 0, 0, 0, 0.514, 11.606, 0.744, -17.253)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook13" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.335, 0.047, 0, -0.035, 1.779, 0, 0, 0, 1.335, 14.618, 0.79, -18.761)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand13" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.676, 0, 0, 0, 0.07, 0, 0, 0, 0.676, 14.618, 0.979, -18.761)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook14" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.449, 0.078, 0, -0.059, 1.932, 0, 0, 0, 1.45, 18.892, 0.867, -16.849)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand14" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.735, 0, 0, 0, 0.07, 0, 0, 0, 0.735, 18.892, 1.064, -16.849)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook15" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.285, -0.08, 0, 0.06, 1.714, 0, 0, 0, 1.287, 24.791, 0.758, -19.864)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand15" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.652, 0, 0, 0, 0.07, 0, 0, 0, 0.652, 24.791, 0.944, -19.864)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook16" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.459, -0.032, 0, 0.024, 1.945, 0, 0, 0, 1.459, 28.158, 0.873, -13.914)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand16" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.739, 0, 0, 0, 0.07, 0, 0, 0, 0.739, 28.158, 1.07, -13.914)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook17" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.396, 0.004, 0, -0.003, 1.861, 0, 0, 0, 1.396, 34.038, 0.831, -18.975)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand17" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.707, 0, 0, 0, 0.07, 0, 0, 0, 0.707, 34.038, 1.024, -18.975)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook18" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.193, -0.036, 0, 0.027, 1.591, 0, 0, 0, 1.193, 37.751, 0.696, -12.311)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand18" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.605, 0, 0, 0, 0.07, 0, 0, 0, 0.605, 37.751, 0.875, -12.311)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook19" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.467, 0.004, 0, -0.003, 1.956, 0, 0, 0, 1.467, 42.751, 0.878, -12.523)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand19" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.743, 0, 0, 0, 0.07, 0, 0, 0, 0.743, 42.751, 1.076, -12.523)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook20" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.047, -0.039, 0, 0.029, 1.396, 0, 0, 0, 1.047, 48.662, 0.598, -19.806)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand20" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.531, 0, 0, 0, 0.07, 0, 0, 0, 0.531, 48.662, 0.768, -19.806)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stook21" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(1.035, 0.078, 0, -0.058, 1.38, 0, 0, 0, 1.037, 54.338, 0.591, -12.505)
+mesh = SubResource("BD_cone_straw")
+cast_shadow = 0
+
+[node name="StookBand21" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.525, 0, 0, 0, 0.07, 0, 0, 0, 0.525, 54.338, 0.76, -12.505)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Stem0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.045, 0, -0.001, 2.154, 0, 0, 0, 0.06, -46, 1.077, -8.734)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -45.775, 2.005, -8.734)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.124, 0, 0.003, 2.674, 0, 0, 0, 0.06, -43.921, 1.339, -9.933)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -43.865, 2.527, -9.933)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.101, 0, -0.003, 2.261, 0, 0, 0, 0.06, -42.122, 1.132, -8.215)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -41.841, 2.113, -8.215)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.057, 0, -0.002, 1.959, 0, 0, 0, 0.06, -39.566, 0.98, -8.808)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -39.689, 1.81, -8.808)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.147, 0, 0.004, 2.026, 0, 0, 0, 0.06, -38.215, 1.016, -9.833)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -38.542, 1.882, -9.833)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.134, 0, 0.003, 2.342, 0, 0, 0, 0.06, -36.992, 1.173, -8.545)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -36.946, 2.196, -8.545)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.031, 0, -0.001, 2.175, 0, 0, 0, 0.06, -34.905, 1.088, -8.392)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -35.053, 2.025, -8.392)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.187, 0, 0.005, 2.366, 0, 0, 0, 0.06, -33.359, 1.187, -8.586)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -33.726, 2.223, -8.586)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem8" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.109, 0, -0.002, 2.722, 0, 0, 0, 0.06, -32.253, 1.362, -9.431)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head8" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -32.324, 2.574, -9.431)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem9" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.064, 0, -0.002, 2.159, 0, 0, 0, 0.06, -30.522, 1.08, -7.154)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head9" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -30.278, 2.01, -7.154)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem10" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.054, 0, 0.001, 2.619, 0, 0, 0, 0.06, -29.073, 1.31, -9.173)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head10" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -29.307, 2.47, -9.173)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem11" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.135, 0, 0.004, 2.137, 0, 0, 0, 0.06, -26.97, 1.071, -8.279)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head11" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -26.925, 1.992, -8.279)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem12" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.154, 0, 0.004, 2.573, 0, 0, 0, 0.06, -25.551, 1.289, -7.77)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head12" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -25.524, 2.428, -7.77)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem13" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.09, 0, 0.002, 2.426, 0, 0, 0, 0.06, -23.703, 1.214, -7.954)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head13" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -23.973, 2.278, -7.954)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem14" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.076, 0, -0.002, 2.484, 0, 0, 0, 0.06, -21.526, 1.243, -9.559)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head14" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -21.63, 2.336, -9.559)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem15" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.086, 0, 0.003, 1.875, 0, 0, 0, 0.06, -19.169, 0.938, -8.878)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head15" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -19.075, 1.727, -8.878)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem16" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.086, 0, 0.002, 2.111, 0, 0, 0, 0.06, -16.754, 1.056, -7.085)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head16" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -16.661, 1.963, -7.085)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem17" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.164, 0, 0.005, 2.06, 0, 0, 0, 0.06, -15.565, 1.033, -7.865)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head17" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -15.91, 1.917, -7.865)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem18" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.121, 0, 0.003, 2.472, 0, 0, 0, 0.06, -13.204, 1.238, -7.725)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head18" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -13.505, 2.325, -7.725)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem19" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.119, 0, -0.004, 1.963, 0, 0, 0, 0.06, -10.747, 0.983, -9.58)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head19" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -10.808, 1.817, -9.58)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem20" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.047, 0, -0.001, 2.158, 0, 0, 0, 0.06, -9.144, 1.079, -8.779)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head20" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -8.916, 2.009, -8.779)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem21" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.147, 0, -0.003, 2.655, 0, 0, 0, 0.06, -7.827, 1.329, -8.357)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head21" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -7.86, 2.509, -8.357)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem22" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.148, 0, 0.004, 2.002, 0, 0, 0, 0.06, -6.52, 1.004, -7.58)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head22" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -6.848, 1.857, -7.58)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem23" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.139, 0, 0.004, 1.914, 0, 0, 0, 0.06, -4.994, 0.959, -8.067)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head23" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -5.312, 1.769, -8.067)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem24" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.009, 0, 0, 2.602, 0, 0, 0, 0.06, -3.057, 1.301, -10.467)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head24" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, -3.246, 2.452, -10.467)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem25" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.039, 0, -0.001, 2.154, 0, 0, 0, 0.06, -1.488, 1.077, -10.316)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head25" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, -1.269, 2.004, -10.316)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem26" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.093, 0, 0.003, 2.103, 0, 0, 0, 0.06, 0.784, 1.053, -7.779)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head26" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 0.511, 1.955, -7.779)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem27" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.092, 0, -0.003, 1.886, 0, 0, 0, 0.06, 2.418, 0.944, -9.906)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head27" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 2.691, 1.738, -9.906)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem28" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.002, 0, 0, 1.941, 0, 0, 0, 0.06, 4.495, 0.97, -8.605)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head28" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 4.317, 1.791, -8.605)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem29" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.079, 0, 0.003, 1.86, 0, 0, 0, 0.06, 6.116, 0.931, -10.37)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head29" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 6.217, 1.711, -10.37)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem30" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.147, 0, 0.005, 1.89, 0, 0, 0, 0.06, 7.612, 0.948, -9.97)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head30" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 7.286, 1.746, -9.97)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem31" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.109, 0, -0.003, 2.588, 0, 0, 0, 0.06, 9.304, 1.295, -9.408)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head31" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 9.233, 2.44, -9.408)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem32" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.021, 0, 0, 2.591, 0, 0, 0, 0.06, 11.085, 1.296, -9.243)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head32" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 11.286, 2.442, -9.243)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem33" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.052, 0, 0.001, 2.134, 0, 0, 0, 0.06, 13.018, 1.067, -8.878)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head33" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 12.786, 1.985, -8.878)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem34" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.099, 0, 0.003, 1.822, 0, 0, 0, 0.06, 14.105, 0.912, -9.102)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head34" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 14.185, 1.675, -9.102)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem35" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.172, 0, -0.005, 2.223, 0, 0, 0, 0.06, 15.168, 1.115, -7.116)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head35" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 15.159, 2.08, -7.116)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem36" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.144, 0, 0.004, 2.05, 0, 0, 0, 0.06, 16.534, 1.028, -7.969)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head36" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 16.57, 1.905, -7.969)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem37" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.108, 0, 0.003, 2.205, 0, 0, 0, 0.06, 17.921, 1.104, -7.52)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head37" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 17.993, 2.058, -7.52)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem38" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.12, 0, 0.003, 2.421, 0, 0, 0, 0.06, 20.2, 1.212, -8.965)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head38" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 19.9, 2.274, -8.965)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem39" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.149, 0, -0.005, 1.917, 0, 0, 0, 0.06, 22.41, 0.961, -8.064)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head39" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 22.379, 1.773, -8.064)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem40" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.099, 0, 0.002, 2.691, 0, 0, 0, 0.06, 23.457, 1.346, -8.25)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head40" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 23.178, 2.543, -8.25)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem41" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.17, 0, 0.004, 2.31, 0, 0, 0, 0.06, 25.163, 1.158, -7.313)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head41" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 24.813, 2.166, -7.313)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem42" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.163, 0, -0.004, 2.228, 0, 0, 0, 0.06, 27.184, 1.117, -10.626)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head42" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 27.167, 2.084, -10.626)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem43" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.147, 0, 0.003, 2.622, 0, 0, 0, 0.06, 29.117, 1.313, -10.289)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head43" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 29.149, 2.476, -10.289)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem44" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.032, 0, -0.001, 2.713, 0, 0, 0, 0.06, 30.72, 1.357, -7.183)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head44" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 30.572, 2.563, -7.183)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem45" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.063, 0, 0.002, 1.886, 0, 0, 0, 0.06, 31.779, 0.943, -10.78)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head45" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 31.537, 1.737, -10.78)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem46" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.029, 0, -0.001, 1.926, 0, 0, 0, 0.06, 33.668, 0.963, -7.122)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head46" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 33.876, 1.776, -7.122)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem47" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.171, 0, -0.004, 2.569, 0, 0, 0, 0.06, 34.982, 1.287, -9.271)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head47" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 34.973, 2.425, -9.271)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem48" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.011, 0, 0, 2.659, 0, 0, 0, 0.06, 36.178, 1.329, -10.781)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head48" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 35.987, 2.509, -10.781)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem49" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.125, 0, 0.003, 2.454, 0, 0, 0, 0.06, 37.351, 1.229, -7.078)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head49" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 37.406, 2.307, -7.078)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem50" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.106, 0, -0.003, 2.465, 0, 0, 0, 0.06, 39.288, 1.234, -9.685)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head50" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 39.574, 2.317, -9.685)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem51" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.134, 0, 0.003, 2.397, 0, 0, 0, 0.06, 40.763, 1.201, -8.68)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head51" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 40.809, 2.251, -8.68)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem52" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, -0.113, 0, 0.003, 1.96, 0, 0, 0, 0.06, 42.218, 0.982, -7.046)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head52" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, -0.264, 0, 0.096, 0.483, 0, 0, 0, 0.5, 42.285, 1.814, -7.046)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Stem53" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0.073, 0, -0.002, 2.216, 0, 0, 0, 0.06, 44.181, 1.108, -9.954)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Head53" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.176, 0.264, 0, -0.096, 0.483, 0, 0, 0, 0.5, 44.075, 2.067, -9.954)
+mesh = SubResource("BD_ball_sil")
+cast_shadow = 0
+
+[node name="Trunk0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.476, 0.18, 0, -0.013, 6.802, 0, 0, 0, 0.476, -46, 3.402, -33.124)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.14, 1.16, 0, -0.162, 1.004, 0, 0, 0, 0.214, -45.42, 3.904, -33.124)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.154, -1.026, 0, 0.149, 1.064, 0, 0, 0, 0.214, -46.513, 5.091, -33.124)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.119, 1.372, 0, -0.178, 0.919, 0, 0, 0, 0.214, -45.314, 6.175, -33.124)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Trunk1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.594, 0.609, 0, -0.043, 8.486, 0, 0, 0, 0.596, -19.839, 4.254, -26.937)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.207, -1.612, 0, 0.17, 1.971, 0, 0, 0, 0.268, -20.645, 5.239, -26.937)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.218, 1.467, 0, -0.155, 2.059, 0, 0, 0, 0.268, -19.106, 6.73, -26.937)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.195, -1.406, 0, 0.184, 1.492, 0, 0, 0, 0.268, -20.542, 7.892, -26.937)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Trunk2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.688, 0.199, 0, -0.014, 9.822, 0, 0, 0, 0.688, 0.918, 4.912, -25.119)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.217, 1.49, 0, -0.221, 1.465, 0, 0, 0, 0.309, 1.663, 5.645, -25.119)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.246, -1.081, 0, 0.188, 1.416, 0, 0, 0, 0.309, 0.377, 7.29, -25.119)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch8" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.21, 1.539, 0, -0.227, 1.425, 0, 0, 0, 0.309, 1.687, 8.965, -25.119)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Trunk3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.54, -0.217, 0, 0.015, 7.711, 0, 0, 0, 0.54, 19.461, 3.857, -28.667)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch9" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.143, -1.778, 0, 0.197, 1.289, 0, 0, 0, 0.243, 18.572, 4.502, -28.667)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch10" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.151, 1.134, 0, -0.19, 0.904, 0, 0, 0, 0.243, 20.028, 5.621, -28.667)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch11" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.168, -1.064, 0, 0.176, 1.015, 0, 0, 0, 0.243, 18.93, 6.988, -28.667)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Trunk4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.531, -0.079, 0, 0.005, 7.589, 0, 0, 0, 0.531, 43.852, 3.795, -26.415)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch12" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.14, -1.45, 0, 0.194, 1.046, 0, 0, 0, 0.239, 43.127, 4.318, -26.415)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch13" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.16, 1.151, 0, -0.178, 1.033, 0, 0, 0, 0.239, 44.428, 5.602, -26.415)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Branch14" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.188, -0.938, 0, 0.147, 1.196, 0, 0, 0, 0.239, 43.383, 6.973, -26.415)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="MillTower0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.96, 0, 0, 0, 11.52, 0, 0, 0, 3.96, -110, 7.76, -40)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="MillCap0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(5.4, 0, 0, 0, 2.88, 0, 0, 0, 5.4, -110, 14.96, -40)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="MillSail0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(8.29, -0.491, 0, 3.505, 1.161, 0, 0, 0, 0.1, -105.855, 15.992, -37.66)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="MillSail1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(-3.505, -1.161, 0, 8.29, -0.491, 0, 0, 0, 0.1, -111.752, 18.385, -37.66)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="MillSail2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(-8.29, 0.491, 0, -3.505, -1.161, 0, 0, 0, 0.1, -114.145, 12.488, -37.66)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="MillSail3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.505, 1.161, 0, -8.29, 0.491, 0, 0, 0, 0.1, -108.248, 10.095, -37.66)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="House0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(6.433, 0, 0, 0, 3.723, 0, 0, 0, 4, 32, 1.861, -26.999)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Roof0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(7.433, 0, 0, 0, 3.682, 0, 0, 0, 4.4, 32, 5.564, -26.999)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="House1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(8.577, 0, 0, 0, 4.579, 0, 0, 0, 4, 43.089, 2.29, -28.244)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Roof1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(9.577, 0, 0, 0, 3.576, 0, 0, 0, 4.4, 43.089, 6.367, -28.244)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Chimney0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.7, 0, 0, 0, 3.576, 0, 0, 0, 0.7, 45.233, 7.083, -28.244)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Window0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.6, 0, 0, 0, 0.8, 0, 0, 0, 0.05, 45.103, 2.519, -26.194)
+mesh = SubResource("BD_box_window")
+cast_shadow = 0
+
+[node name="House2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(6.407, 0, 0, 0, 5.447, 0, 0, 0, 4, 56.8, 2.724, -30.869)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Roof2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(7.407, 0, 0, 0, 3.842, 0, 0, 0, 4.4, 56.8, 7.368, -30.869)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Chimney1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.7, 0, 0, 0, 3.842, 0, 0, 0, 0.7, 58.402, 8.137, -30.869)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Window1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.6, 0, 0, 0, 0.8, 0, 0, 0, 0.05, 58.216, 2.996, -28.819)
+mesh = SubResource("BD_box_window")
+cast_shadow = 0
+
+[node name="House3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(6.509, 0, 0, 0, 4.208, 0, 0, 0, 4, 70.571, 2.104, -29.816)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Roof3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(7.509, 0, 0, 0, 3.994, 0, 0, 0, 4.4, 70.571, 6.205, -29.816)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Window2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.6, 0, 0, 0, 0.8, 0, 0, 0, 0.05, 70.11, 2.314, -27.766)
+mesh = SubResource("BD_box_window")
+cast_shadow = 0
+
+[node name="House4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(6.269, 0, 0, 0, 5.761, 0, 0, 0, 4, 82.335, 2.881, -31.703)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Roof4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(7.269, 0, 0, 0, 4.225, 0, 0, 0, 4.4, 82.335, 7.874, -31.703)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="House5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(7.094, 0, 0, 0, 4.866, 0, 0, 0, 4, 93.347, 2.433, -29.498)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Roof5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(8.094, 0, 0, 0, 3.982, 0, 0, 0, 4.4, 93.347, 6.856, -29.498)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Chimney2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.7, 0, 0, 0, 3.982, 0, 0, 0, 0.7, 95.121, 7.653, -29.498)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Window3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.6, 0, 0, 0, 0.8, 0, 0, 0, 0.05, 93.088, 2.676, -27.448)
+mesh = SubResource("BD_box_window")
+cast_shadow = 0
+
+[node name="Tower0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(2.24, 0, 0, 0, 11.2, 0, 0, 0, 2.24, 86, 5.6, -40)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Spire0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.2, 0, 0, 0, 5.12, 0, 0, 0, 3.2, 86, 13.6, -40)
+mesh = SubResource("BD_cone_sil")
+cast_shadow = 0
+
+[node name="Nave0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(5.44, 0, 0, 0, 6.4, 0, 0, 0, 3.2, 89.52, 3.2, -40)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="NaveRoof0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(6.08, 0, 0, 0, 2.56, 0, 0, 0, 3.52, 89.52, 7.68, -40)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Haze0" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 2, -10)
+mesh = SubResource("BD_quad_172x6")
+material_override = SubResource("BD_haze_0p2_0p22_0p26_0p25")
+cast_shadow = 0
+
+[node name="Haze1" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 4, -24)
+mesh = SubResource("BD_quad_172x12")
+material_override = SubResource("BD_haze_0p2_0p22_0p26_0p4")
+cast_shadow = 0
+
+[node name="Haze2" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 8, -42)
+mesh = SubResource("BD_quad_172x24")
+material_override = SubResource("BD_haze_0p2_0p22_0p26_0p55")
+cast_shadow = 0
+
+[node name="Fir0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.277, 0, 0, 0, 13.365, 0, 0, 0, 4.277, 0, 6.283, -17.174)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.535, 0, 0, 0, 14.171, 0, 0, 0, 4.535, 3.261, 6.685, -22.435)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.175, 0, 0, 0, 13.046, 0, 0, 0, 4.175, 6.924, 6.123, -19.48)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.394, 0, 0, 0, 10.607, 0, 0, 0, 3.394, 9.429, 4.903, -18.863)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.673, 0, 0, 0, 11.479, 0, 0, 0, 3.673, 13.857, 5.34, -21.687)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.625, 0, 0, 0, 14.453, 0, 0, 0, 4.625, 16.813, 6.827, -19.906)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.724, 0, 0, 0, 14.763, 0, 0, 0, 4.724, 20.252, 6.982, -21.5)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.229, 0, 0, 0, 10.092, 0, 0, 0, 3.229, 23.06, 4.646, -20.764)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir8" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.669, 0, 0, 0, 14.589, 0, 0, 0, 4.669, 25.746, 6.895, -18.507)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir9" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.936, 0, 0, 0, 12.301, 0, 0, 0, 3.936, 28.808, 5.75, -23.187)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir10" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.368, 0, 0, 0, 10.525, 0, 0, 0, 3.368, 32.277, 4.863, -17.777)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir11" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.63, 0, 0, 0, 11.345, 0, 0, 0, 3.63, 36.874, 5.273, -22.927)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir12" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.98, 0, 0, 0, 12.437, 0, 0, 0, 3.98, 39.443, 5.819, -23.609)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir13" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.108, 0, 0, 0, 12.838, 0, 0, 0, 4.108, 42.829, 6.019, -18.064)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir14" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.083, 0, 0, 0, 9.635, 0, 0, 0, 3.083, 46.532, 4.417, -21.557)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir15" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.771, 0, 0, 0, 14.908, 0, 0, 0, 4.771, 50.454, 7.054, -17.977)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir16" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.303, 0, 0, 0, 10.322, 0, 0, 0, 3.303, 54.761, 4.761, -20.307)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir17" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(2.908, 0, 0, 0, 9.087, 0, 0, 0, 2.908, 59.397, 4.143, -21.139)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir18" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.737, 0, 0, 0, 14.802, 0, 0, 0, 4.737, 62.605, 7.001, -19.411)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir19" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.31, 0, 0, 0, 10.345, 0, 0, 0, 3.31, 66.344, 4.772, -18.627)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir20" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.825, 0, 0, 0, 11.952, 0, 0, 0, 3.825, 69.112, 5.576, -20.269)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir21" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.384, 0, 0, 0, 10.574, 0, 0, 0, 3.384, 73.839, 4.887, -22.423)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir22" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.317, 0, 0, 0, 13.49, 0, 0, 0, 4.317, 77.044, 6.345, -22.335)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir23" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.931, 0, 0, 0, 12.283, 0, 0, 0, 3.931, 80.31, 5.741, -18.326)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="Fir24" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.207, 0, 0, 0, 13.145, 0, 0, 0, 4.207, 83.289, 6.173, -17.015)
+mesh = SubResource("BD_cone_fir")
+cast_shadow = 0
+
+[node name="BarnWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.0, 2.2, -6.6)
+size = Vector3(14, 4.4, 4.0)
+material = SubResource("Mat_wood_dark")
+
+[node name="BarnRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(-6.0, 6.0, -6.6)
+mesh = SubResource("Roof_3")
+
+[node name="BarnDark" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.0, 1.8, -4.55)
+size = Vector3(12, 3.6, 0.1)
+material = SubResource("Mat_char")
+
+[node name="BarnPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.6, 2.2, -4.45)
+size = Vector3(0.3, 4.4, 0.3)
+material = SubResource("Mat_wood_dark")
+
+[node name="BarnPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-7.0, 2.2, -4.45)
+size = Vector3(0.3, 4.4, 0.3)
+material = SubResource("Mat_wood_dark")
+
+[node name="BarnPost2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, 2.2, -4.45)
+size = Vector3(0.3, 4.4, 0.3)
+material = SubResource("Mat_wood_dark")
+
+[node name="BarnLamp" type="CSGBox3D" parent="Decor"]
+position = Vector3(-3.0, 3.0, -4.35)
+size = Vector3(0.25, 0.4, 0.25)
+material = SubResource("Mat_lantern")
+
+[node name="BarnLampLight" type="OmniLight3D" parent="Decor"]
+position = Vector3(-3.0, 2.8, -3.4)
+light_color = Color(1.0, 0.6, 0.28, 1)
+light_energy = 0.8
+omni_range = 5.0
+
+[node name="PenRail" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.0, 0.9, -2.8)
+size = Vector3(16, 0.08, 0.06)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-14.0, 0.75, -2.8)
+rotation = Vector3(0, 0, -0.06)
+size = Vector3(0.08, 1.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-13.1, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.08, 1.7, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-12.2, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.06)
+size = Vector3(0.08, 1.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-11.3, 0.75, -2.8)
+rotation = Vector3(0, 0, -0.03)
+size = Vector3(0.08, 1.7, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.4, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.03)
+size = Vector3(0.08, 1.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.5, 0.75, -2.8)
+rotation = Vector3(0, 0, -0.06)
+size = Vector3(0.08, 1.7, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-8.6, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.08, 1.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen7" type="CSGBox3D" parent="Decor"]
+position = Vector3(-7.7, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.06)
+size = Vector3(0.08, 1.7, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen8" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.8, 0.75, -2.8)
+rotation = Vector3(0, 0, -0.03)
+size = Vector3(0.08, 1.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen9" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.9, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.03)
+size = Vector3(0.08, 1.7, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.0, 0.75, -2.8)
+rotation = Vector3(0, 0, -0.06)
+size = Vector3(0.08, 1.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen11" type="CSGBox3D" parent="Decor"]
+position = Vector3(-4.1, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.08, 1.7, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen12" type="CSGBox3D" parent="Decor"]
+position = Vector3(-3.2, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.06)
+size = Vector3(0.08, 1.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen13" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.3, 0.75, -2.8)
+rotation = Vector3(0, 0, -0.03)
+size = Vector3(0.08, 1.7, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen14" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.03)
+size = Vector3(0.08, 1.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen15" type="CSGBox3D" parent="Decor"]
+position = Vector3(-0.5, 0.75, -2.8)
+rotation = Vector3(0, 0, -0.06)
+size = Vector3(0.08, 1.7, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen16" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.4, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.0)
+size = Vector3(0.08, 1.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Pen17" type="CSGBox3D" parent="Decor"]
+position = Vector3(1.3, 0.75, -2.8)
+rotation = Vector3(0, 0, 0.06)
+size = Vector3(0.08, 1.7, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Cow0Body" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.0, 1.05, -4.0)
+size = Vector3(1.9, 0.9, 0.7)
+material = SubResource("Mat_hide")
+
+[node name="Cow0Head" type="CSGBox3D" parent="Decor"]
+position = Vector3(-8.85, 1.2, -4.0)
+rotation = Vector3(0, 0, -0.3)
+size = Vector3(0.5, 0.42, 0.38)
+material = SubResource("Mat_hide")
+
+[node name="Cow0Leg00" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.75, 0.35, -4.2)
+size = Vector3(0.13, 0.7, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Cow0Leg01" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.75, 0.35, -3.8)
+size = Vector3(0.13, 0.7, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Cow0Leg10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.25, 0.35, -4.2)
+size = Vector3(0.13, 0.7, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Cow0Leg11" type="CSGBox3D" parent="Decor"]
+position = Vector3(-9.25, 0.35, -3.8)
+size = Vector3(0.13, 0.7, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Cow1Body" type="CSGBox3D" parent="Decor"]
+position = Vector3(-5.4, 1.05, -3.9)
+size = Vector3(1.9, 0.9, 0.7)
+material = SubResource("Mat_hide")
+
+[node name="Cow1Head" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.55, 1.2, -3.9)
+rotation = Vector3(0, 0, 0.3)
+size = Vector3(0.5, 0.42, 0.38)
+material = SubResource("Mat_hide")
+
+[node name="Cow1Leg00" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.15, 0.35, -4.1)
+size = Vector3(0.13, 0.7, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Cow1Leg01" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.15, 0.35, -3.7)
+size = Vector3(0.13, 0.7, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Cow1Leg10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-4.65, 0.35, -4.1)
+size = Vector3(0.13, 0.7, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Cow1Leg11" type="CSGBox3D" parent="Decor"]
+position = Vector3(-4.65, 0.35, -3.7)
+size = Vector3(0.13, 0.7, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Sheep0Body" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.2, 0.68, -3.4)
+size = Vector3(1.0, 0.6, 0.55)
+material = SubResource("Mat_wool")
+
+[node name="Sheep0Head" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.6, 0.78, -3.4)
+size = Vector3(0.3, 0.28, 0.24)
+material = SubResource("Mat_char")
+
+[node name="Sheep0Leg00" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.55, 0.21, -3.6)
+size = Vector3(0.13, 0.42, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Sheep0Leg01" type="CSGBox3D" parent="Decor"]
+position = Vector3(-2.55, 0.21, -3.2)
+size = Vector3(0.13, 0.42, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Sheep0Leg10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.85, 0.21, -3.6)
+size = Vector3(0.13, 0.42, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Sheep0Leg11" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.85, 0.21, -3.2)
+size = Vector3(0.13, 0.42, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Sheep1Body" type="CSGBox3D" parent="Decor"]
+position = Vector3(-0.6, 0.68, -3.7)
+size = Vector3(1.0, 0.6, 0.55)
+material = SubResource("Mat_wool")
+
+[node name="Sheep1Head" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.2, 0.78, -3.7)
+size = Vector3(0.3, 0.28, 0.24)
+material = SubResource("Mat_char")
+
+[node name="Sheep1Leg00" type="CSGBox3D" parent="Decor"]
+position = Vector3(-0.95, 0.21, -3.9)
+size = Vector3(0.13, 0.42, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Sheep1Leg01" type="CSGBox3D" parent="Decor"]
+position = Vector3(-0.95, 0.21, -3.5)
+size = Vector3(0.13, 0.42, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Sheep1Leg10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-0.25, 0.21, -3.9)
+size = Vector3(0.13, 0.42, 0.13)
+material = SubResource("Mat_char")
+
+[node name="Sheep1Leg11" type="CSGBox3D" parent="Decor"]
+position = Vector3(-0.25, 0.21, -3.5)
+size = Vector3(0.13, 0.42, 0.13)
+material = SubResource("Mat_char")
+
+[node name="WellRing" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-17.0, 0.5, -2.2)
+radius = 0.9
+height = 1.0
+sides = 10
+material = SubResource("Mat_stone")
+
+[node name="WellPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-17.8, 1.6, -2.2)
+size = Vector3(0.14, 2.2, 0.14)
+material = SubResource("Mat_wood_dark")
+
+[node name="WellPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-16.2, 1.6, -2.2)
+size = Vector3(0.14, 2.2, 0.14)
+material = SubResource("Mat_wood_dark")
+
+[node name="WellRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(-17.0, 3.1, -2.2)
+mesh = SubResource("Roof_4")
+
+[node name="WellBucket" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-16.6, 1.6, -2.2)
+radius = 0.16
+height = 0.3
+sides = 8
+material = SubResource("Mat_wood")
+
+[node name="Haystack" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-21.5, 1.2, -3.2)
+radius = 1.7
+height = 2.4
+sides = 10
+cone = true
+material = SubResource("Mat_straw")
+
+[node name="HayCart" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-19.0, 0.55, 0)
+use_collision = true
+size = Vector3(2.4, 1.1, 1.4)
+material = SubResource("Mat_wood")
+
+[node name="HayLoad" type="CSGBox3D" parent="Decor"]
+position = Vector3(-19.0, 1.35, 0)
+size = Vector3(2.2, 0.6, 1.2)
+material = SubResource("Mat_straw")
+
+[node name="HayCartWheel0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-19.9, 0.5, 0.8)
+rotation = Vector3(1.5708, 0, 0)
+radius = 0.5
+height = 0.1
+sides = 12
+material = SubResource("Mat_wood_dark")
+
+[node name="HayCartWheel1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-18.1, 0.5, 0.8)
+rotation = Vector3(1.5708, 0, 0)
+radius = 0.5
+height = 0.1
+sides = 12
+material = SubResource("Mat_wood_dark")
+
+[node name="Tripod0" type="CSGBox3D" parent="Decor"]
+position = Vector3(5.44, 1.2, -1.6)
+rotation = Vector3(0, 0, 0.35)
+size = Vector3(0.08, 2.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Tripod1" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.0, 1.2, -1.2)
+rotation = Vector3(0, 0, -0.0)
+size = Vector3(0.08, 2.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Tripod2" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.56, 1.2, -1.6)
+rotation = Vector3(0, 0, -0.35)
+size = Vector3(0.08, 2.5, 0.08)
+material = SubResource("Mat_wood_dark")
+
+[node name="Cauldron" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(6.0, 0.75, -1.6)
+radius = 0.45
+height = 0.6
+sides = 10
+material = SubResource("Mat_iron")
+
+[node name="CauldronFire" type="CSGBox3D" parent="Decor"]
+position = Vector3(6.0, 0.18, -1.6)
+size = Vector3(0.7, 0.35, 0.6)
+material = SubResource("Mat_fire")
+
+[node name="CauldronLight" type="OmniLight3D" parent="Decor"]
+position = Vector3(6.0, 1.2, -0.6)
+light_color = Color(1.0, 0.55, 0.22, 1)
+light_energy = 2.6
+omni_range = 9.0
+
+[node name="CauldronSmoke" type="MeshInstance3D" parent="Decor"]
+position = Vector3(6.0, 4.2, -1.9)
+mesh = SubResource("Veil_5")
+
+[node name="Block" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(4.0, 0.3, -0.8)
+radius = 0.35
+height = 0.6
+sides = 8
+material = SubResource("Mat_wood")
+
+[node name="AxeHandle" type="CSGBox3D" parent="Decor"]
+position = Vector3(4.1, 0.85, -0.8)
+rotation = Vector3(0, 0, 0.4)
+size = Vector3(0.06, 0.7, 0.06)
+material = SubResource("Mat_wood")
+
+[node name="AxeHead" type="CSGBox3D" parent="Decor"]
+position = Vector3(3.95, 0.62, -0.8)
+rotation = Vector3(0, 0, 0.4)
+size = Vector3(0.3, 0.18, 0.05)
+material = SubResource("Mat_iron")
+
+[node name="HangPost0" type="CSGBox3D" parent="Decor"]
+position = Vector3(8.6, 1.6, -2.4)
+size = Vector3(0.18, 3.2, 0.18)
+material = SubResource("Mat_wood_dark")
+
+[node name="HangPost1" type="CSGBox3D" parent="Decor"]
+position = Vector3(10.8, 1.6, -2.4)
+size = Vector3(0.18, 3.2, 0.18)
+material = SubResource("Mat_wood_dark")
+
+[node name="HangBeam" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.7, 3.2, -2.4)
+size = Vector3(2.6, 0.18, 0.18)
+material = SubResource("Mat_wood_dark")
+
+[node name="Carcass" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.7, 2.2, -2.4)
+size = Vector3(0.5, 1.3, 0.4)
+material = SubResource("Mat_rotten")
+
+[node name="Tub" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(9.7, 0.3, -2.4)
+radius = 0.6
+height = 0.6
+sides = 10
+material = SubResource("Mat_wood")
+
+[node name="Crate" type="CSGBox3D" parent="Geometry"]
+position = Vector3(11.8, 0.6, 0)
+use_collision = true
+size = Vector3(1.2, 1.2, 1.2)
+material = SubResource("Mat_wood")
+
+[node name="Granary" type="CSGBox3D" parent="Geometry"]
+position = Vector3(15.0, 2.4, 0)
+use_collision = true
+size = Vector3(4.0, 0.4, 2.4)
+material = SubResource("Mat_wood")
+
+[node name="GranaryStilt0" type="CSGBox3D" parent="Decor"]
+position = Vector3(13.3, 1.1, -0.9)
+size = Vector3(0.2, 2.2, 0.2)
+material = SubResource("Mat_wood_dark")
+
+[node name="GranaryStilt1" type="CSGBox3D" parent="Decor"]
+position = Vector3(16.7, 1.1, -0.9)
+size = Vector3(0.2, 2.2, 0.2)
+material = SubResource("Mat_wood_dark")
+
+[node name="GranaryStilt2" type="CSGBox3D" parent="Decor"]
+position = Vector3(13.3, 1.1, 0.9)
+size = Vector3(0.2, 2.2, 0.2)
+material = SubResource("Mat_wood_dark")
+
+[node name="GranaryStilt3" type="CSGBox3D" parent="Decor"]
+position = Vector3(16.7, 1.1, 0.9)
+size = Vector3(0.2, 2.2, 0.2)
+material = SubResource("Mat_wood_dark")
+
+[node name="GranaryWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(15.0, 3.6, -1.3)
+size = Vector3(4.0, 2.0, 0.2)
+material = SubResource("Mat_wood_dark")
+
+[node name="GranaryRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(15.0, 5.4, -0.4)
+mesh = SubResource("Roof_6")
+
+[node name="GranaryChest" parent="Objects" instance=ExtResource("chest")]
+position = Vector3(15.6, 2.6, -0.6)
+reward = 80
+flag_id = &"farmyard_chest"
+items = Array[StringName]([&"throwing_axe", &"throwing_axe"])
+
+[node name="CharmTreeTrunk" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(19.5, 4.5, -5.0)
+radius = 0.45
+height = 9.0
+sides = 7
+material = SubResource("Mat_wood_dark")
+
+[node name="CharmTreeBranch0" type="CSGBox3D" parent="Decor"]
+position = Vector3(20.6409, 5.5733, -5.0)
+rotation = Vector3(0, 0, 0.5)
+size = Vector3(2.6, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="CharmTreeBranch1" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.6587, 6.8286, -5.0)
+rotation = Vector3(0, 0, -0.7)
+size = Vector3(2.2, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="CharmTreeBranch2" type="CSGBox3D" parent="Decor"]
+position = Vector3(20.0284, 8.0458, -5.0)
+rotation = Vector3(0, 0, 0.9)
+size = Vector3(1.7, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="CharmTreeBranch3" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.8418, 8.6396, -5.0)
+rotation = Vector3(0, 0, -0.5)
+size = Vector3(1.5, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="CharmTreeBranch4" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.7174, 9.5592, -5.0)
+rotation = Vector3(0, 0, 1.2)
+size = Vector3(1.2, 0.13, 0.13)
+material = SubResource("Mat_wood_dark")
+
+[node name="CharmChain0" type="CSGBox3D" parent="Decor"]
+position = Vector3(17.9, 6.65, -4.6)
+size = Vector3(0.03, 0.9, 0.03)
+material = SubResource("Mat_iron")
+
+[node name="Charm0" type="CSGBox3D" parent="Decor"]
+position = Vector3(17.9, 6.1, -4.6)
+rotation = Vector3(0, 0, 0.785)
+size = Vector3(0.32, 0.32, 0.04)
+material = SubResource("Mat_iron")
+
+[node name="CharmChain1" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.6, 5.85, -4.6)
+size = Vector3(0.03, 0.9, 0.03)
+material = SubResource("Mat_iron")
+
+[node name="Charm1" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.6, 5.3, -4.6)
+rotation = Vector3(0, 0, 0.785)
+size = Vector3(0.32, 0.32, 0.04)
+material = SubResource("Mat_iron")
+
+[node name="CharmChain2" type="CSGBox3D" parent="Decor"]
+position = Vector3(20.7, 7.25, -4.6)
+size = Vector3(0.03, 0.9, 0.03)
+material = SubResource("Mat_iron")
+
+[node name="Charm2" type="CSGBox3D" parent="Decor"]
+position = Vector3(20.7, 6.7, -4.6)
+rotation = Vector3(0, 0, 0.785)
+size = Vector3(0.32, 0.32, 0.04)
+material = SubResource("Mat_iron")
+
+[node name="CharmChain3" type="CSGBox3D" parent="Decor"]
+position = Vector3(21.5, 6.25, -4.6)
+size = Vector3(0.03, 0.9, 0.03)
+material = SubResource("Mat_iron")
+
+[node name="Charm3" type="CSGBox3D" parent="Decor"]
+position = Vector3(21.5, 5.7, -4.6)
+rotation = Vector3(0, 0, 0.785)
+size = Vector3(0.32, 0.32, 0.04)
+material = SubResource("Mat_iron")
+
+[node name="CharmChain4" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.9, 7.85, -4.6)
+size = Vector3(0.03, 0.9, 0.03)
+material = SubResource("Mat_iron")
+
+[node name="Charm4" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.9, 7.3, -4.6)
+rotation = Vector3(0, 0, 0.785)
+size = Vector3(0.32, 0.32, 0.04)
+material = SubResource("Mat_iron")
+
+[node name="FarmhouseWall" type="CSGBox3D" parent="Decor"]
+position = Vector3(23.0, 2.2, -4.6)
+size = Vector3(7, 4.4, 4.0)
+material = SubResource("Mat_wood_dark")
+
+[node name="FarmhouseRoof" type="MeshInstance3D" parent="Decor"]
+position = Vector3(23.0, 6.1, -4.6)
+mesh = SubResource("Roof_7")
+
+[node name="FarmhouseWindow0" type="CSGBox3D" parent="Decor"]
+position = Vector3(21.4, 2.6, -2.58)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="FarmhouseWindow1" type="CSGBox3D" parent="Decor"]
+position = Vector3(24.6, 2.6, -2.58)
+size = Vector3(0.8, 1.0, 0.08)
+material = SubResource("Mat_window")
+
+[node name="FarmhouseGlow" type="OmniLight3D" parent="Decor"]
+position = Vector3(23.0, 2.6, -1.8)
+light_color = Color(1.0, 0.6, 0.28, 1)
+light_energy = 1.2
+omni_range = 7.0
+
+[node name="Cowherd" type="Area3D" parent="Objects"]
+position = Vector3(2.0, 0.0, 0)
+script = ExtResource("npc")
+npc_name = "Скотница"
+lines = PackedStringArray("Скотину из поля пригнала затемно. В полдень туда не ходят.", "Во ржи кто-то ходит. Колосья клонятся против ветра — значит, она рядом.", "Полудница спрашивает загадки. Не ответишь — свернёт шею. Ответишь — всё равно свернёт.", "За ржаным полем столб на холме. Вчера там… не хочу говорить. Спроси вдову у мельницы.")
+look_color = Color(0.3, 0.27, 0.22, 1)
+after_flag = &"scarecrow_tale"
+lines_after = PackedStringArray("Видел его? На столбе? Значит, и он тебя видел.", "Вороны с холма улетели. Все до одной.")
+
+[node name="FromStreet" type="Marker3D" parent="Spawns"]
+position = Vector3(23.0, 0.1, 0)
+
+[node name="FromRye" type="Marker3D" parent="Spawns"]
+position = Vector3(-23.0, 0.1, 0)
+
+[node name="DoorToStreet" type="Area3D" parent="Objects"]
+position = Vector3(24.5, 0, 0)
+script = ExtResource("door")
+target_room = &"village_street"
+target_spawn = NodePath("Spawns/FromFarm")
+open_prompt = "В деревню"
+
+[node name="DoorToRye" type="Area3D" parent="Objects"]
+position = Vector3(-24.5, 0, 0)
+script = ExtResource("door")
+target_room = &"rye_field"
+target_spawn = NodePath("Spawns/FromFarm")
+open_prompt = "В поле"
+
+[node name="Wheel0" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(1.176, -0.238, 0, 0.238, 1.176, 0, 0, 0, 0.12, -27.581, 0.17, 5.314)
+mesh = SubResource("BD_ball_sil_warm")
+cast_shadow = 0
+
+[node name="Wheel1" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(0.823, -0.167, 0, 0.167, 0.823, 0, 0, 0, 0.12, -13.16, 0.044, 4.218)
+mesh = SubResource("BD_ball_sil_warm")
+cast_shadow = 0
+
+[node name="Picket0" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(0.1, 0.038, 0, -0.003, 1.199, 0, 0, 0, 0.08, 2.382, 0.35, 5.371)
+mesh = SubResource("BD_box_sil_warm")
+cast_shadow = 0
+
+[node name="Picket1" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(0.1, -0.019, 0, 0.002, 1.056, 0, 0, 0, 0.08, 2.932, 0.35, 5.371)
+mesh = SubResource("BD_box_sil_warm")
+cast_shadow = 0
+
+[node name="Picket2" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(0.1, -0.062, 0, 0.007, 0.91, 0, 0, 0, 0.08, 3.482, 0.35, 5.371)
+mesh = SubResource("BD_box_sil_warm")
+cast_shadow = 0
+
+[node name="Rail0" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(1.6, 0.001, 0, -0.025, 0.07, 0, 0, 0, 0.05, 2.932, 0.47, 5.421)
+mesh = SubResource("BD_box_sil_warm")
+cast_shadow = 0
+
+[node name="Wheel2" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(0.823, -0.167, 0, 0.167, 0.823, 0, 0, 0, 0.12, 17.796, 0.044, 4.022)
+mesh = SubResource("BD_ball_sil_warm")
+cast_shadow = 0
+
+[node name="Picket3" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(0.1, 0.081, 0, -0.007, 1.197, 0, 0, 0, 0.08, 31.214, 0.35, 4.811)
+mesh = SubResource("BD_box_sil_warm")
+cast_shadow = 0
+
+[node name="Picket4" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(0.1, 0.019, 0, -0.002, 1.056, 0, 0, 0, 0.08, 31.764, 0.35, 4.811)
+mesh = SubResource("BD_box_sil_warm")
+cast_shadow = 0
+
+[node name="Picket5" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(0.1, -0.029, 0, 0.003, 0.912, 0, 0, 0, 0.08, 32.314, 0.35, 4.811)
+mesh = SubResource("BD_box_sil_warm")
+cast_shadow = 0
+
+[node name="Rail1" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(1.599, 0.002, 0, -0.054, 0.07, 0, 0, 0, 0.05, 31.764, 0.47, 4.861)
+mesh = SubResource("BD_box_sil_warm")
+cast_shadow = 0
+
+[node name="NearLand0" type="MeshInstance3D" parent="Decor/Foreground"]
+transform = Transform3D(112, 0, 0, 0, 2, 0, 0, 0, 15.8, 0, -1.25, 10.1)
+mesh = SubResource("BD_box_earth")
+cast_shadow = 0
+
+[node name="PathLight0" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 0.015, 0.2)
+mesh = SubResource("BD_plane_52x3_6")
+material_override = SubResource("BD_path_0p06_0p065_0p075_1")
+cast_shadow = 0

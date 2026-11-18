@@ -192,3 +192,87 @@ OBJECT: the twin of the attached First Mirror, identical pointed bronze frame re
 the bronze cleaner and better kept, as if someone has tended it for centuries. 3/4 view, isolated, plain flat neutral grey background, soft cold rim light from upper left, no cast shadow, consistent with attached reference images.
 {AVOID}
 ```
+
+---
+
+## 4. Поля (`env_fields_*`, §8.13)
+
+**Мир:** Земля, за околицей деревни. **Настроение:** поле, где никто не жнёт. Рожь стоит перезрелая, подсолнухи сгнили на корню, люди обходят холм со столбом. Днём в поле не ходят: в полдень во ржи бродит Полудница.
+Свет по кадрам — как в игре: двор утром в тумане (кадр 1.2 `env_village_farmyard` — вход в Поля), рожь и холм в выцветший пыльный полдень, низина и мельница в сумерках.
+Сначала утвердите 4.1. Он задаёт палитру полдня; остальные кадры делаются с ним как с референсом. Из утверждённых кадров потом генерируются ассеты: копна, тыква-фонарь, столб, ветряк, колесо.
+
+### 4.0. Дальний план биома — `env_fields_farplane`
+Слой параллакса за всеми комнатами Полей. Без героя и тропы.
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: an endless over-ripe rye field rolling in low waves to the horizon under a bleached, dusty noon sky, wide 16:9 panoramic background plate for parallax, no foreground, no characters.
+Rows of sheaf stooks and black dead sunflowers fade into heat haze, a lone windmill on a far hill, a few dead trees;
+on the left horizon black jagged mountains rise close, and high between two crags hang the broken remains of a stone bridge with chains dangling into the void.
+Atmospheric perspective, contrast falls off with distance, haze the colour of dust and old straw.
+FOCUS: the pale veiled disc of the sun as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 4.1. Ржаное поле в полдень — `env_fields_rye`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a chest-high rye field at noon, the air bleached and shimmering with heat and dust, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+A trampled path runs through the rye, the stalks lean against the wind in a long wave as if something unseen is walking through them,
+a wooden roadside cross with a tiny roof and an icon lamp, a scythe stuck blade-down in the earth with a rag tied to it, a crow watchtower on stilts above the field,
+a gully crossed by rickety planks. Colours of old straw, dust and dry earth, no green.
+Clear walkable ground line in lower third, dark rye ears as foreground silhouettes.
+FOCUS: the small flame of the icon lamp on the roadside cross as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 4.2. Холм со столбом казни — `env_fields_post` (два состояния)
+Сначала пустой столб; второй вариант — тот же кадр с Пугалом на столбе (приложите первый как референс).
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a bare hilltop above a dead sunflower field at noon, a lone execution post with a crossbar in the middle, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+Frayed cut ropes hang from the crossbar, the wood worn smooth where someone hung for a long time, crows on the beam, a ring of stones and dark stained earth at its foot;
+hundreds of black dead sunflowers on the slopes all turn their heavy heads toward the post. A dead tree and a broken stone fence on the crest.
+Clear flat walkable hilltop in lower third, sunflower stems as dark foreground framing.
+FOCUS: the empty post against the bleached sky as the brightest contrast of the image.
+VARIANT B: the same scene, but on the post hangs a tall scarecrow in a ragged coat with a sack head and a wide hat, straw spilling from its sleeves, a heavy iron hook on a chain hanging from its belt, and the sunflowers now turn toward the viewer.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 4.3. Мельница и запруда — `env_fields_mill`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: dusk at the edge of the fields, a tall wooden windmill with a stone base on a hill, its torn canvas sails turning slowly, a balcony around the tower;
+below, a water mill with a big wheel by a brook, and behind it an old stone dam holding back a dark millpond higher than the road, water spilling over the sluice,
+wide 16:9 side-view composition for a 2.5D platformer with two levels: the hilltop and the brook below, connected by ladders down a rocky shelf.
+On the far left, black mountains and an old road cut into the cliff, leading up toward a collapsed bridge.
+FOCUS: the warm open door of the windmill as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 4.4. Огороды — `env_fields_garden`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: terraced kitchen gardens in a hollow below a hill at dusk, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+Beds of pumpkins and turnips stepping up in low terraces held by wattle, carved pumpkin lanterns glowing along the path — the only light,
+straw dolls on stakes among the beds, a gardener's shed, an open cellar hatch with its lid propped up, a big dark threshing barn with light leaking between its doors,
+a brook coming out of a stone culvert under the hill; on the hilltop above, the silhouette of a lone post.
+Clear walkable ground line in lower third, pumpkins and wattle as foreground framing.
+FOCUS: the face of the nearest carved pumpkin lantern as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 4.5. Гумно изнутри — `env_fields_barn`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: inside a huge dark threshing barn, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+A beaten clay threshing floor, sheaves stacked against the walls, flails hanging on pegs, grain bins, a winnowing basket,
+a hayloft reached by a ladder, rough beams under the roof, thin shafts of dusty light falling through gaps in the roof.
+FOCUS: a lantern hanging from a beam as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```

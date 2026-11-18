@@ -384,10 +384,14 @@ st.box(d, "EndGate", (31.8, 2.0, 0), (0.5, 4.0, 3.5), "wood_dark")
 # Фон и передний план (tools/levels/backdrop.py): второй ряд домов, зарево и дым, горы на западе, шпиль часовни на востоке.
 STREET_NIGHT = (0.16, 0.19, 0.3)
 k = bd.Kit(st)
-bd.village(k, -33, 33, STREET_NIGHT, burn=BURN["fog"], spire_x=62.0)
+bd.village(k, -33, 33, STREET_NIGHT, burn=BURN["fog"], spire_x=62.0, mill_x=-80.0)
 st.marker("FromHut", (-28.0, 1.3, 0))
 st.marker("FromHouse", (26.5, 0.1, 0))
+st.marker("FromFarm", (-30.0, 1.3, 0))
 door(st, "DoorToHut", -28.0, 1.2, "village_hut", "Spawns/FromStreet", "Войти в хижину")
+# Калитка за хижиной — на скотный двор и в Поля (§8.13); пока горит деревня, туда не пройти.
+door(st, "DoorToFarm", -31.2, 1.2, "farmyard", "Spawns/FromStreet", "На скотный двор",
+     ['required_flag = &"fire_out"', 'locked_text = "За околицей всё в дыму. Пока горит, не пройти."'])
 door(st, "DoorToHouse", 26.5, 0, "village_house", "Spawns/FromStreet", "Войти в дом",
      ['required_flag = &"got_stick"', 'locked_text = "С голыми руками туда лучше не соваться. У хижины была поленница…"'])
 # Поленница у стены хижины. Топоры похватали жители, когда услышали крики, — остались только дрова.

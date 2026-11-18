@@ -940,6 +940,36 @@ transform = Transform3D(6.08, 0, 0, 0, 2.56, 0, 0, 0, 3.52, 65.52, 7.68, -36)
 mesh = SubResource("BD_prism_sil")
 cast_shadow = 0
 
+[node name="MillTower0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.3, 0, 0, 0, 9.6, 0, 0, 0, 3.3, -80, 6.8, -46)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="MillCap0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.5, 0, 0, 0, 2.4, 0, 0, 0, 4.5, -80, 12.8, -46)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="MillSail0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(6.908, -0.409, 0, 2.921, 0.967, 0, 0, 0, 0.1, -76.546, 13.66, -44.05)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="MillSail1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(-2.921, -0.967, 0, 6.908, -0.409, 0, 0, 0, 0.1, -81.46, 15.654, -44.05)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="MillSail2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(-6.908, 0.409, 0, -2.921, -0.967, 0, 0, 0, 0.1, -83.454, 10.74, -44.05)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="MillSail3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(2.921, 0.967, 0, -6.908, 0.409, 0, 0, 0, 0.1, -78.54, 8.746, -44.05)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
 [node name="SkyAfterFire0" type="MeshInstance3D" parent="AfterFire"]
 position = Vector3(0, 16, -80)
 mesh = SubResource("BD_quad_306x100")
@@ -1018,12 +1048,24 @@ position = Vector3(-28.0, 1.3, 0)
 [node name="FromHouse" type="Marker3D" parent="Spawns"]
 position = Vector3(26.5, 0.1, 0)
 
+[node name="FromFarm" type="Marker3D" parent="Spawns"]
+position = Vector3(-30.0, 1.3, 0)
+
 [node name="DoorToHut" type="Area3D" parent="Objects"]
 position = Vector3(-28.0, 1.2, 0)
 script = ExtResource("door")
 target_room = &"village_hut"
 target_spawn = NodePath("Spawns/FromStreet")
 open_prompt = "Войти в хижину"
+
+[node name="DoorToFarm" type="Area3D" parent="Objects"]
+position = Vector3(-31.2, 1.2, 0)
+script = ExtResource("door")
+target_room = &"farmyard"
+target_spawn = NodePath("Spawns/FromStreet")
+open_prompt = "На скотный двор"
+required_flag = &"fire_out"
+locked_text = "За околицей всё в дыму. Пока горит, не пройти."
 
 [node name="DoorToHouse" type="Area3D" parent="Objects"]
 position = Vector3(26.5, 0, 0)

@@ -19,9 +19,9 @@ const BIOMES := {
 	&"castle": {"name": "Зеркальный замок", "color": Color(0.5, 0.7, 1.0)},
 	&"runs": {"name": "Забеги", "color": Color(0.85, 0.45, 0.42)},
 	&"tests": {"name": "Полигоны", "color": Color(0.62, 0.62, 0.66)},
-	&"fields": {"name": "Поля", "color": Color(0.8, 0.72, 0.4), "planned": Rect2(-42, -2.5, 14, 4)},
-	&"pass": {"name": "Подвесной перевал", "color": Color(0.7, 0.7, 0.75), "planned": Rect2(-40, -7, 11, 3.5)},
-	&"peaks": {"name": "Пепельные Пики", "color": Color(0.6, 0.6, 0.66), "planned": Rect2(-56, -14, 18, 6)},
+	&"fields": {"name": "Поля", "color": Color(0.8, 0.72, 0.4)},
+	&"pass": {"name": "Подвесной перевал", "color": Color(0.7, 0.7, 0.75), "planned": Rect2(-68, -7, 10.5, 4)},
+	&"peaks": {"name": "Пепельные Пики", "color": Color(0.6, 0.6, 0.66), "planned": Rect2(-88, -15, 22, 7)},
 	&"crypts": {"name": "Катакомбы кладбища", "color": Color(0.6, 0.65, 0.85), "planned": Rect2(3, 1.5, 10, 3.5)},
 	&"mines": {"name": "Железные копи", "color": Color(0.65, 0.55, 0.45), "planned": Rect2(48, -1, 12, 5)},
 	&"inferno": {"name": "Пекло", "color": Color(0.85, 0.3, 0.2), "planned": Rect2(44, 5, 18, 5)},
@@ -31,7 +31,7 @@ const BIOMES := {
 ## squash — сжать длинный забег по ширине. Соседние комнаты стыкуются краями, полы — по дверям.
 ## Имена — LevelMenu.PLACE_NAMES.
 const ROOMS := {
-	&"village_hut": {"biome": &"village", "x": -26.5, "y": -0.15},
+	&"village_hut": {"biome": &"village", "x": -25.875, "y": -1.5},
 	&"village_street": {"biome": &"village", "x": -24.5, "y": 0.0},
 	&"village_house": {"biome": &"village", "x": -16.5, "y": 0.0},
 	&"village_square": {"biome": &"village", "x": -13.375, "y": 0.0},
@@ -50,6 +50,13 @@ const ROOMS := {
 	&"run_exit": {"biome": &"runs", "x": -16.4, "y": -11.0},
 	&"reflection_run": {"biome": &"runs", "x": -32.0, "y": -15.0, "squash": 0.5},
 	&"hook_range": {"biome": &"tests", "x": -32.0, "y": -19.0},
+	# Поля (§8.13): высоты общие для области, ноль комнат — земля двора; огороды и гумно ниже.
+	&"farmyard": {"biome": &"fields", "x": -31.0, "y": -0.15},
+	&"rye_field": {"biome": &"fields", "x": -42.0, "y": -0.15},
+	&"execution_hill": {"biome": &"fields", "x": -49.5, "y": -0.15},
+	&"mill": {"biome": &"fields", "x": -57.5, "y": -0.15},
+	&"vegetable_patch": {"biome": &"fields", "x": -49.5, "y": 0.6625},
+	&"threshing_barn": {"biome": &"fields", "x": -48.4375, "y": 2.6},
 }
 
 

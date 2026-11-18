@@ -8,6 +8,8 @@ const LAYER_PLAYER := 1 << 1
 @export_multiline var text := ""
 ## Когда этот флаг поставлен, реплика больше не звучит. Пусто — звучит всегда.
 @export var until_flag: StringName
+## Флаг, который реплика ставит: герой увидел и понял (пустой столб казни, §8.13). Пусто — не ставит.
+@export var sets_flag: StringName
 @export var size := Vector3(3.0, 3.0, 3.0)
 
 var _said := false
@@ -33,3 +35,5 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	_said = true
 	Events.message.emit(text)
+	if sets_flag != &"":
+		GameState.set_flag(sets_flag)

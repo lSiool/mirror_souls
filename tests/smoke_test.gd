@@ -140,6 +140,145 @@ func climb(dir: String) -> void:
 	await seconds(0.2)
 
 
+## Бот идёт по полу комнаты к x: держит направление, упёрся в уступ — прыгает. Дошёл — true (Поля, §8.13).
+func walk_to(x: float, limit := 15.0) -> bool:
+	var dir := "move_right" if x > player.global_position.x else "move_left"
+	press(dir)
+	var stuck := 0
+	for i in int(limit * 60.0):
+		await frames(1)
+		if absf(player.global_position.x - x) < 0.8:
+			release(dir)
+			return true
+		stuck = stuck + 1 if player.is_on_floor() and absf(player.velocity.x) < 0.3 else 0
+		if stuck > 8:
+			stuck = 0
+			press("jump")
+			await frames(14)
+			release("jump")
+	release(dir)
+	return false
+
+
+## Лезет по каждой лестнице комнаты снизу доверху: встал на пол наверху.
+func climb_all_ladders(room_id: StringName) -> void:
+	for node in nodes_where(rooms.current_room, func(n: Node) -> bool: return n is Ladder):
+		var each := node as Ladder
+		await put(each.global_position + Vector3(0.0, 0.1, 0.0), each.exit_dir)
+		press("move_up")
+		await seconds(each.height / player.stats.climb_speed + 1.2)
+		release("move_up")
+		await seconds(0.6)
+		check(player.is_on_floor() and player.global_position.y >= each.top_y() - 0.3,
+			"%s/%s: долез и встал на пол (y=%.2f, верх %.2f)" % [room_id, each.name, player.global_position.y, each.top_y()])
+
+
+## Поля (§8.13): двери, проход пешком по каждой комнате, лестницы, сторожка с крюком, история столба.
+func fields_tour() -> void:
+	print("== Поля: скотный двор, рожь, холм со столбом, мельница, огороды, гумно (§8.13)")
+	player.hurtbox.invulnerable = true
+	game_state.set_flag(&"fire_out")
+	for flag: StringName in [&"saw_post", &"scarecrow_tale"]:
+		game_state.flags.erase(flag)
+	# Каждая дверь Полей ведёт в существующую комнату, к существующей точке появления.
+	var doors_ok := true
+	for field_room: StringName in [&"village_street", &"farmyard", &"rye_field", &"execution_hill", &"mill", &"vegetable_patch", &"threshing_barn"]:
+		var field_scene := (load(RoomManager.ROOM_PATH % field_room) as PackedScene).instantiate()
+		for door in nodes_where(field_scene, func(n: Node) -> bool: return n is RoomDoor):
+			var target_path := RoomManager.ROOM_PATH % (door as RoomDoor).target_room
+			var target := (load(target_path) as PackedScene).instantiate() if ResourceLoader.exists(target_path) else null
+			if target == null or target.get_node_or_null((door as RoomDoor).target_spawn) == null:
+				doors_ok = false
+				print("       дверь ведёт в никуда: ", field_room, "/", door.name)
+			if target:
+				target.free()
+		field_scene.free()
+	check(doors_ok, "двери Полей ведут к точкам появления в соседних комнатах")
+	# С улицы — калитка за хижиной (после пожара открыта).
+	await rooms.travel(&"village_street", ^"Spawns/FromFarm")
+	await seconds(0.3)
+	var farm_gate := room_node("Objects/DoorToFarm") as RoomDoor
+	check(farm_gate != null and not farm_gate.is_locked(), "калитка с улицы на скотный двор после пожара открыта")
+	await put(farm_gate.global_position + Vector3(0.6, 0.1, 0.0), -1.0)
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"farmyard", "через калитку — на скотный двор")
+	check(await walk_to(-23.0), "скотный двор: пешком до ворот в поле (x=%.1f)" % player.global_position.x)
+	# Рожь: пешком через увалы; на краю мостков — дыра с лестницей в овраг, оттуда труба под холмом.
+	await rooms.travel(&"rye_field", ^"Spawns/FromFarm")
+	await seconds(0.3)
+	check(nodes_where(rooms.current_room, func(n: Node) -> bool: return n is RyeField).size() >= 3, "во ржи — полосы колосьев")
+	check(await walk_to(-20.0) and absf(player.global_position.y) < 0.5, "рожь: через увалы до оврага (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	# Дыру у мостков пешком не провалить: герой цепляется за край и вылезает на мостки. В овраг — «вниз» по лестнице.
+	check(await walk_to(-26.0, 4.0) and player.global_position.y > -0.3, "дыру у мостков герой переходит, не падая (y=%.1f)" % player.global_position.y)
+	var gully_ladder := room_node("Objects/GullyLadder") as Ladder
+	await put(Vector3(gully_ladder.global_position.x + gully_ladder.exit_dir * 0.9, gully_ladder.top_y() + 0.05, 0.0), -gully_ladder.exit_dir)
+	await seconds(0.3)
+	press("move_down")
+	await seconds(gully_ladder.height / player.stats.climb_speed + 0.8)
+	release_all()
+	check(player.is_on_floor() and player.global_position.y < -6.0, "«вниз» у дыры — по лестнице на дно оврага (y=%.1f)" % player.global_position.y)
+	check(await walk_to(-41.0) and player.global_position.y < -6.0, "по дну оврага — в трубу под холмом (x=%.1f)" % player.global_position.x)
+	await put(Vector3(-27.0, 0.4, 0.0), -1.0)
+	check(await walk_to(-41.0) and player.global_position.y > 2.5, "по мосткам и склону — на холм (y=%.1f)" % player.global_position.y)
+	await climb_all_ladders(&"rye_field")
+	# Сторожка: кольцо на кромке настила — только с крюком.
+	var hook_key := InputEventAction.new()
+	hook_key.action = &"debug_hook"
+	hook_key.pressed = true
+	Input.parse_input_event(hook_key)
+	await frames(2)
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	await put(Vector3(22.0, 0.1, 0.0), 1.0)
+	await frames(3)
+	await tap("hook")
+	for i in 150:
+		await frames(1)
+		if i > 30 and player.is_on_floor() and player.state == Player.State.MOVE:
+			break
+	check(player.is_on_floor() and player.global_position.y > 6.5, "сторожка во ржи: крюком на настил (y=%.1f)" % player.global_position.y)
+	Input.parse_input_event(hook_key)
+	await frames(2)
+	# Холм: пустой столб — герой понимает, что здесь казнили.
+	await rooms.travel(&"execution_hill", ^"Spawns/FromRye")
+	await seconds(0.3)
+	check(room_node("Decor/PostEmpty") != null and room_node("Decor/PostScarecrow") == null, "до рассказа столб пуст")
+	check(await walk_to(-27.0) and player.global_position.y > 5.5, "холм: вверх по склону, через вершину (y=%.1f)" % player.global_position.y)
+	check(game_state.has_flag(&"saw_post"), "у пустого столба — реплика, флаг saw_post")
+	# Мельница: наверху осколок и вдова, к ручью — две лестницы, внизу проход под холмом.
+	await rooms.travel(&"mill", ^"Spawns/FromHill")
+	await seconds(0.3)
+	check(room_node("Objects/MirrorShard") is MirrorShard, "у ветряка — осколок")
+	await put(room_node("Objects/Widow").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	for i in 6:
+		await tap("interact")
+		await frames(3)
+	check(game_state.has_flag(&"scarecrow_tale"), "вдова мельника дорассказала о казни — флаг scarecrow_tale")
+	await climb_all_ladders(&"mill")
+	await put(Vector3(-20.0, -6.4, 0.0), 1.0)
+	check(await walk_to(29.0) and player.global_position.y < -5.5, "низом вдоль ручья, под холмом — к огородам (x=%.1f)" % player.global_position.x)
+	# Холм после рассказа: на столбе Пугало.
+	await rooms.travel(&"execution_hill", ^"Spawns/FromMill")
+	await seconds(0.3)
+	check(room_node("Decor/PostEmpty") == null and room_node("Decor/PostScarecrow") != null, "после рассказа на столбе висит Пугало")
+	var rows := nodes_where(rooms.current_room, func(n: Node) -> bool: return n is SunflowerRow)
+	check(rows.size() > 0 and rows.all(func(r: Node) -> bool: return r.is_processing()), "головы подсолнухов следят за героем")
+	# Огороды: уступы грядок, люк в погреб.
+	await rooms.travel(&"vegetable_patch", ^"Spawns/FromMill")
+	await seconds(0.3)
+	check(await walk_to(16.0) and absf(player.global_position.y) < 0.5, "огороды: через грядки к гумну (x=%.1f)" % player.global_position.x)
+	await climb_all_ladders(&"vegetable_patch")
+	await rooms.travel(&"threshing_barn", ^"Spawns/FromPatch")
+	await seconds(0.3)
+	await climb_all_ladders(&"threshing_barn")
+	check(game_state.visited(&"farmyard") and game_state.visited(&"threshing_barn"), "комнаты Полей отмечены на карте")
+	player.hurtbox.invulnerable = false
+	player.restore()
+
+
 ## Бежит в сторону, прыгает у x = edge и тормозит в воздухе над x = stop.
 func run_and_jump(dir: String, edge: float, stop: float) -> void:
 	press(dir)
@@ -440,6 +579,12 @@ func run_reflection() -> float:
 
 
 func run() -> void:
+	await setup()
+	await suite()
+
+
+## Игра в комнате-прототипе, с мечом и луком, без записи на диск; подписки теста.
+func setup() -> void:
 	main = load("res://main.tscn").instantiate()
 	# Тест идёт в комнате-прототипе, с мечом и луком и без записи на диск.
 	GameState.saves_enabled = false
@@ -464,6 +609,8 @@ func run() -> void:
 		last_arrow_speed = a.velocity.length())
 	await seconds(0.5)
 
+
+func suite() -> void:
 	print("== Звук: банки")
 	var chosen: Array[StringName] = [&"player_step_floor", &"player_land", &"player_roll", &"player_knee",
 		&"player_body_fall", &"death_sting", &"sword_block", &"sword_parry", &"critical_pierce",
@@ -3919,6 +4066,8 @@ func run() -> void:
 	await frames(2)
 	check(not player.has_hook(), "F5 ещё раз — крюк забран")
 	player.restore()
+
+	await fields_tour()
 
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path
