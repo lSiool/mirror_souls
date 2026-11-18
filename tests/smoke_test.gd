@@ -499,6 +499,114 @@ func crypts_tour() -> void:
 	player.restore()
 
 
+## Двери этих комнат ведут в существующие комнаты, к существующим точкам появления.
+func doors_lead_somewhere(room_ids: Array[StringName]) -> bool:
+	var ok := true
+	for room_id in room_ids:
+		var scene := (load(RoomManager.ROOM_PATH % room_id) as PackedScene).instantiate()
+		for door in nodes_where(scene, func(n: Node) -> bool: return n is RoomDoor):
+			var target_path := RoomManager.ROOM_PATH % (door as RoomDoor).target_room
+			var target := (load(target_path) as PackedScene).instantiate() if ResourceLoader.exists(target_path) else null
+			if target == null or target.get_node_or_null((door as RoomDoor).target_spawn) == null:
+				ok = false
+				print("       дверь ведёт в никуда: ", room_id, "/", door.name)
+			if target:
+				target.free()
+		scene.free()
+	return ok
+
+
+## Железные копи (§8.13): вход за Кузнецом, подъёмник вниз и рычаг вызова, уклон и лестницы шахт,
+## тайник крюком, штрек с зумпфом и завалом, доски над провалом в глубокой выработке.
+func mines_tour() -> void:
+	print("== Железные копи (§8.13)")
+	player.hurtbox.invulnerable = true
+	var smith_was: bool = game_state.has_flag(&"boss_smith")
+	check(doors_lead_somewhere([&"cursed_village", &"mine_yard", &"mine_shafts", &"flooded_drift", &"deep_gallery"]),
+		"двери копей ведут к точкам появления в соседних комнатах")
+	game_state.set_flag(&"boss_smith")
+	await rooms.travel(&"cursed_village", ^"Spawns/FromMines")
+	await seconds(0.3)
+	var mines_gate := room_node("Objects/DoorToMines") as RoomDoor
+	game_state.flags.erase(&"boss_smith")
+	check(mines_gate != null and mines_gate.is_locked(), "пока Кузнец у горна, к копям не пройти")
+	game_state.set_flag(&"boss_smith")
+	check(not mines_gate.is_locked(), "Кузнец побеждён — тропа к копям открыта")
+	await put(mines_gate.global_position + Vector3(-0.4, 0.1, 0.0), 1.0)
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"mine_yard", "с восточного края деревни — на рудный двор")
+	# Подъёмник: встал на площадку — поехал вниз, в галерею.
+	var lift := room_node("Objects/Lift") as Lift
+	check(lift != null and lift.at_top, "площадка подъёмника ждёт наверху")
+	check(await walk_to(10.0), "рудный двор: мимо вагонеток к шахте (x=%.1f)" % player.global_position.x)
+	await walk_to(14.0, 3.0)
+	for i in 600:
+		await frames(1)
+		if not lift.moving and not lift.at_top:
+			break
+	await seconds(0.3)
+	check(not lift.at_top and player.is_on_floor() and player.global_position.y < -11.0,
+		"подъёмник опустил героя в галерею (y=%.1f)" % player.global_position.y)
+	check(await walk_to(20.0), "из клети — в галерею под скалой")
+	await put(Vector3(10.6, 0.1, 0.0), 1.0)
+	await seconds(0.2)
+	await tap("interact")
+	for i in 600:
+		await frames(1)
+		if lift.at_top and not lift.moving:
+			break
+	check(lift.at_top, "рычаг наверху вызвал площадку обратно")
+	# Шахты: уклон, полка с осколком, лестницы; рудоспуск с сундуком — крюком.
+	await rooms.travel(&"mine_shafts", ^"Spawns/FromYard")
+	await seconds(0.3)
+	check(await walk_to(4.0) and absf(player.global_position.y + 4.5) < 0.5,
+		"шахты: по рельсовому уклону — к полке (y=%.1f)" % player.global_position.y)
+	check(room_node("Objects/MirrorShard") is MirrorShard, "в шахтах — осколок")
+	await climb_all_ladders(&"mine_shafts")
+	var hook_key := InputEventAction.new()
+	hook_key.action = &"debug_hook"
+	hook_key.pressed = true
+	Input.parse_input_event(hook_key)
+	await frames(2)
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	await put(Vector3(-21.0, 5.1, 0.0), 1.0)
+	press("move_right")
+	await frames(4)
+	press("jump")
+	await frames(10)
+	check(player.hook_target != null and player.hook_target.name == &"RingPull", "над выработкой — кольцо «притянуть»")
+	await tap("hook")
+	for i in 150:
+		await frames(1)
+		if i > 30 and player.is_on_floor():
+			break
+	release_all()
+	check(player.is_on_floor() and player.global_position.x > -9.0 and player.global_position.y > 4.5,
+		"крюком — к рудоспуску с сундуком (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	Input.parse_input_event(hook_key)
+	await frames(2)
+	# Затопленный штрек: зумпф по пояс, завал поверху.
+	await rooms.travel(&"flooded_drift", ^"Spawns/FromShafts")
+	await seconds(0.3)
+	check(await walk_to(-8.0) and player.global_position.y < -2.0, "штрек: в зумпф по пояс (y=%.1f)" % player.global_position.y)
+	check(player.mud_zones > 0, "вода в зумпфе вязкая, как болотная грязь")
+	check(await walk_to(24.0, 20.0) and absf(player.global_position.y) < 0.5,
+		"через зумпф и завал — к забою (x=%.1f)" % player.global_position.x)
+	# Глубокая выработка: доски над провалом держат.
+	await rooms.travel(&"deep_gallery", ^"Spawns/FromDrift")
+	await seconds(0.3)
+	check(await walk_to(20.0) and absf(player.global_position.y) < 0.6,
+		"выработка: по доскам над провалом — к молельне (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	check(game_state.visited(&"mine_yard") and game_state.visited(&"deep_gallery"), "комнаты копей отмечены на карте")
+	if not smith_was:
+		game_state.flags.erase(&"boss_smith")
+	player.hurtbox.invulnerable = false
+	player.restore()
+
+
 ## Бежит в сторону, прыгает у x = edge и тормозит в воздухе над x = stop.
 func run_and_jump(dir: String, edge: float, stop: float) -> void:
 	press(dir)
@@ -4290,6 +4398,7 @@ func suite() -> void:
 	await fields_tour()
 	await pass_tour()
 	await crypts_tour()
+	await mines_tour()
 
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path

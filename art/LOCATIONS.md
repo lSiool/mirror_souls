@@ -376,3 +376,44 @@ FOCUS: the night sky seen through the belfry arches as the brightest point of th
 OUTPUT: consistent with attached reference images.
 {AVOID}
 ```
+
+---
+
+## 7. Железные копи (`env_mines_*`, §8.13)
+
+**Мир:** Земля, под мёртвой деревней Кузнеца. **Настроение:** копи бросили посреди смены. Железо брали для кузни, и чем глубже — тем лучше; на самой глубине руда стала тёплой, а под забоем что-то дышит.
+
+### 7.1. Рудный двор и копёр — `env_mines_yard`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: an abandoned mine yard at grey ashen dusk behind a dead village, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+A tall timber headframe with a big wheel over a mine shaft at the foot of a black cliff, ore carts on rusted rails, heaps of grey slag,
+a sagging miners' barrack, a cold stone smelter with a soot-black chimney, picks left in the mud, a wooden lift cage hanging in the shaft on chains.
+Clear walkable ground line in lower third, slag stones and broken rails as dark foreground.
+FOCUS: a single lantern burning on a post near the shaft as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 7.2. Затопленный штрек — `env_mines_drift`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a long flooded mine tunnel under the ground, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+Square timber supports along rough rock walls with rusty ore veins, black still water waist-deep in a sump, a wooden water-lifting wheel with buckets turning by itself,
+a collapse of rubble to climb over, candles in niches in the wall, a miner's lamp hanging on a hook, the ceiling low and heavy.
+FOCUS: the lamp on the hook reflected in the black water as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 7.3. Глубокая выработка — `env_mines_deep`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: the deepest working of an iron mine, a tall rough chamber, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+Ore veins in the walls smoulder dull red like embers, cracks in the floor breathe heat, in the middle a breach in the floor crudely covered with planks,
+a deep red glow and heat haze rising between the boards; beyond it a miners' small shrine — a wooden cross, stubs of candles, an old pick left against the warm wall.
+Low saturation soot and rust colours, the red glow the only strong colour.
+FOCUS: the red glow between the planks over the breach as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```

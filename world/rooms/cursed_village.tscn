@@ -1498,3 +1498,15 @@ script = ExtResource("door")
 target_room = &"swamp"
 target_spawn = NodePath("Spawns/FromVillage")
 open_prompt = "Назад к болоту"
+
+[node name="FromMines" type="Marker3D" parent="Spawns"]
+position = Vector3(28.0, 0.1, 0)
+
+[node name="DoorToMines" type="Area3D" parent="Objects"]
+position = Vector3(29.3, 0, 0)
+script = ExtResource("door")
+target_room = &"mine_yard"
+target_spawn = NodePath("Spawns/FromVillage")
+open_prompt = "К копям"
+required_flag = &"boss_smith"
+locked_text = "Тропа к копям за горном. Пока у горна сидит Кузнец, туда не пройти."

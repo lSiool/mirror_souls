@@ -530,6 +530,10 @@ def cursed_village():
     s.shard("MirrorShard", -24.0, 0.0)
     s.marker("FromSwamp", (-28.0, 0.1, 0))
     s.door("DoorToSwamp", -29.3, 0, "swamp", "Spawns/FromVillage", "Назад к болоту")
+    # Восточный край — к Железным копям (§8.13, build_mines.py): открыто, когда Кузнец побеждён.
+    s.marker("FromMines", (28.0, 0.1, 0))
+    s.door("DoorToMines", 29.3, 0, "mine_yard", "Spawns/FromVillage", "К копям",
+           ['required_flag = &"boss_smith"', 'locked_text = "Тропа к копям за горном. Пока у горна сидит Кузнец, туда не пройти."'])
     save(s, "cursed_village")
 
 

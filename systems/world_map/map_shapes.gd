@@ -42,6 +42,7 @@ static func extract(room: Room) -> Dictionary:
 	var doors: Array = []
 	var shards := {}
 	var hooks: Array[float] = []
+	var shafts: Array[PackedVector2Array] = []
 	for node in _descendants(room):
 		var local := to_room * (node as Node3D).global_transform if node is Node3D else Transform3D()
 		if node is CSGBox3D and (node as CSGBox3D).use_collision:
@@ -63,6 +64,11 @@ static func extract(room: Room) -> Dictionary:
 			shards[String(room.get_path_to(node))] = Vector2(_r(local.origin.x), _r(local.origin.y))
 		elif node is HookPoint:
 			hooks.append(local.origin.y)
+		elif node is Lift:
+			# Шахта подъёмника — воздух во всю ширину площадки, от нижней остановки до верхней.
+			var lift := node as Lift
+			var half := lift.size.x * 0.5 + 0.2
+			shafts.append(_box(local.origin.x - half, local.origin.y, local.origin.x + half, local.origin.y + lift.travel + 1.2))
 	# Границы по высоте — от самого низкого пола до самого высокого, с запасом.
 	var floors: Array[float] = []
 	for poly in _clip_all(solids + glass, left, right, -1000.0, 1000.0):
@@ -74,7 +80,7 @@ static func extract(room: Room) -> Dictionary:
 	var top_y: float = (floors.max() + HEADROOM) if floors.size() > 0 else 6.0
 	var clipped_solids := _clip_all(solids, left, right, bottom, top_y)
 	var clipped_glass := _clip_all(glass, left, right, bottom, top_y)
-	var air := _space(clipped_solids, clipped_glass, ladders, doors, hooks, left, right, bottom, top_y)
+	var air := _space(clipped_solids, clipped_glass, ladders, doors, hooks, shafts, left, right, bottom, top_y)
 	return {"left": left, "right": right, "bottom": _r(bottom), "top": _r(top_y),
 		"solids": clipped_solids, "glass": clipped_glass, "space": _rounded(air[0]), "pillars": _rounded(air[1]),
 		"ladders": ladders, "doors": doors, "shards": shards}
@@ -83,7 +89,7 @@ static func extract(room: Room) -> Dictionary:
 ## Воздух комнаты: полоса BAND над каждым полом и уступом (верхние пологие рёбра твёрдого и стекла),
 ## шахты лестниц, проёмы дверей — всё вместе, без твёрдого. Возвращает [воздух, твёрдое внутри воздуха].
 static func _space(solids: Array[PackedVector2Array], glass: Array[PackedVector2Array], ladders: Array[Vector3],
-		doors: Array, hooks: Array[float], left: float, right: float, bottom: float, top: float) -> Array:
+		doors: Array, hooks: Array[float], shafts: Array[PackedVector2Array], left: float, right: float, bottom: float, top: float) -> Array:
 	var bands: Array[PackedVector2Array] = []
 	# Докуда герой может добраться: лестницы, двери, кольца крюка, первый пол; выше — крыши и потолки, их воздух не нужен.
 	var reach := -INF
@@ -93,6 +99,8 @@ static func _space(solids: Array[PackedVector2Array], glass: Array[PackedVector2
 		reach = maxf(reach, (door[0] as Vector2).y)
 	for hook in hooks:
 		reach = maxf(reach, hook)
+	for shaft in shafts:
+		reach = maxf(reach, shaft[2].y)
 	if reach == -INF:
 		reach = 0.0
 	reach += REACH
@@ -117,6 +125,7 @@ static func _space(solids: Array[PackedVector2Array], glass: Array[PackedVector2
 	for door: Array in doors:
 		var at: Vector2 = door[0]
 		bands.append(_box(at.x - 1.2, at.y, at.x + 1.2, at.y + 3.0))
+	bands.append_array(shafts)
 	var air := _union(bands, 0.06)
 	# Твёрдое вырезается из воздуха; то, что оказалось целиком внутри (колонна посреди хода), — отдельно.
 	var pillars: Array[PackedVector2Array] = []
