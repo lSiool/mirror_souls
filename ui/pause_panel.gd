@@ -12,6 +12,7 @@ const TABS := [
 	[&"menu_equipment", "Снаряжение", LevelMenu.Page.EQUIP],
 	[&"menu_items", "Предметы", LevelMenu.Page.ITEMS],
 	[&"menu_status", "Статус", LevelMenu.Page.LEVEL],
+	[&"menu_map", "Карта", LevelMenu.Page.MAP],
 	[&"menu_settings", "Настройки", LevelMenu.Page.SETTINGS],
 	[&"menu_exit", "Выход", -1],
 ]

@@ -118,6 +118,7 @@ MENU = {
     "menu_items": ("#16181c", f'<path d="M20 24 H 44 L 46 50 H 18 Z" {LINE}/><path d="M26 24 Q 26 14 32 14 Q 38 14 38 24" {LINE}/>'),
     "menu_status": ("#16181c", f'<circle cx="32" cy="20" r="6" {LINE}/><path d="M20 50 Q 20 32 32 30 Q 44 32 44 50" {LINE}/>'),
     "menu_settings": ("#16181c", f'<circle cx="32" cy="32" r="8" {LINE}/><path d="M32 12 V 18 M32 46 V 52 M12 32 H 18 M46 32 H 52 M18 18 L 22 22 M42 42 L 46 46 M46 18 L 42 22 M22 42 L 18 46" {LINE}/>'),
+    "menu_map": ("#16181c", f'<path d="M14 18 L 26 14 L 38 18 L 50 14 V 46 L 38 50 L 26 46 L 14 50 Z" {LINE}/><path d="M26 14 V 46 M38 18 V 50" {LINE}/>'),
     "menu_exit": ("#16181c", f'<path d="M22 14 H 42 V 50 H 22" {LINE}/><path d="M34 32 H 14 M20 26 L 14 32 L 20 38" {LINE}/>'),
     "slot_head": ("#121315", f'<path d="M20 40 V 28 Q 20 14 32 14 Q 44 14 44 28 V 40 L 38 46 H 26 Z M26 30 H 38" {DIM}/>'),
     "slot_body": ("#121315", f'<path d="M20 16 L 26 14 Q 32 20 38 14 L 44 16 L 46 30 L 40 30 V 50 H 24 V 30 L 18 30 Z" {DIM}/>'),

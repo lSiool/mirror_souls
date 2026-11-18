@@ -1891,8 +1891,8 @@ func run() -> void:
 	await seconds(0.3)
 	release("move_right")
 	check(absf(player.global_position.x - paused_x) < 0.05, "в меню герой не ходит")
-	check(pause_menu.pause_panel.visible and not pause_menu._margin.visible and pause_menu.pause_panel.tabs.size() == 5,
-		"пауза — компактная панель с пятью вкладками, мир виден")
+	check(pause_menu.pause_panel.visible and not pause_menu._margin.visible and pause_menu.pause_panel.tabs.size() == 6,
+		"пауза — компактная панель с шестью вкладками, мир виден")
 	pause_menu.show_page(LevelMenu.Page.EQUIP)
 	var equip := pause_menu.equipment
 	check(pause_menu._pages[LevelMenu.Page.EQUIP].visible and pause_menu._title.text == "Снаряжение"
@@ -3761,6 +3761,85 @@ func run() -> void:
 	game_state.set_flag(&"reflection_done", false)
 	game_state.set_checkpoint(refl_checkpoint[0], refl_checkpoint[1], refl_checkpoint[2])
 	player.restore()
+
+	print("== Карта мира (§8.13)")
+	check(game_state.visited(&"village_street") and game_state.visited(&"cursed_village") and game_state.visited(rooms.current_room_id),
+		"пройденные комнаты отмечены для карты")
+	# Каждая комната игры есть на карте, и осколки в таблице карты совпадают со сценами.
+	var map_ok := true
+	for file in DirAccess.get_files_at("res://world/rooms"):
+		if file.ends_with(".tscn") and not WorldMap.ROOMS.has(StringName(file.get_basename())):
+			map_ok = false
+			print("       нет на карте: ", file)
+	for room_id: StringName in WorldMap.ROOMS:
+		var scene := (load(RoomManager.ROOM_PATH % room_id) as PackedScene).instantiate()
+		var shards := nodes_where(scene, func(n: Node) -> bool: return n is MirrorShard)
+		var listed := WorldMap.SHARDS.has(room_id)
+		if shards.size() != (1 if listed else 0) or (listed and scene.get_node_or_null(WorldMap.SHARDS[room_id]["path"]) == null):
+			map_ok = false
+			print("       осколок на карте не совпадает со сценой: ", room_id)
+		scene.free()
+	check(map_ok, "все комнаты на карте, осколки карты — те же, что в комнатах")
+	var map_menu := rooms.level_menu
+	var world_map := map_menu.world_map
+	var visited_was: Dictionary = game_state.visited_rooms.duplicate()
+	game_state.visited_rooms = {rooms.current_room_id: true, &"chapel_yard": true}
+	# Карта, как и пауза, не открывается в переходе: ждём, пока герой свободен (после вылета из отражения).
+	for i in 300:
+		if not rooms._busy and not player.frozen and not player.is_dead():
+			break
+		await frames(1)
+	var map_event := InputEventAction.new()
+	map_event.action = &"map"
+	map_event.pressed = true
+	Input.parse_input_event(map_event)
+	await frames(3)
+	check(map_menu.is_open and map_menu._page == LevelMenu.Page.MAP and map_menu._pages[LevelMenu.Page.MAP].visible,
+		"клавиша карты открывает карту сразу (busy=%s frozen=%s)" % [rooms._busy, player.frozen])
+	var shown := world_map.shown_rooms()
+	check(shown.size() == 2 and shown.has(rooms.current_room_id) and not shown.has(&"swamp"),
+		"видны только комнаты, где герой был (%s)" % [shown])
+	check(world_map.shard_spots().has(&"chapel_yard") and not world_map.shard_spots().has(&"cemetery"),
+		"осколки — только в открытых комнатах")
+	# Тянем содержимое мышью: карта едет, окно стоит.
+	var frame_was := world_map.get_global_rect()
+	var pan_was := world_map.pan()
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.pressed = true
+	down.position = Vector2(200, 150)
+	world_map._on_input(down)
+	var drag := InputEventMouseMotion.new()
+	drag.relative = Vector2(60, -25)
+	drag.position = Vector2(260, 125)
+	world_map._on_input(drag)
+	var up := down.duplicate() as InputEventMouseButton
+	up.pressed = false
+	world_map._on_input(up)
+	check(world_map.pan() - pan_was == Vector2(60, -25) and world_map.get_global_rect() == frame_was,
+		"содержимое карты тянется мышью, окно неподвижно")
+	map_menu.back()
+	await frames(2)
+	check(not map_menu.is_open, "открытая сразу карта закрывается одной «Назад»")
+	game_state.visited_rooms = visited_was
+	# Тестовая карта (F4): открыто всё, перенос к любому осколку.
+	var dev_event := InputEventAction.new()
+	dev_event.action = &"debug_map"
+	dev_event.pressed = true
+	Input.parse_input_event(dev_event)
+	await frames(3)
+	check(map_menu.is_open and world_map.dev and world_map.shown_rooms().size() == WorldMap.ROOMS.size()
+		and world_map.shard_spots().size() == WorldMap.SHARDS.size(), "F4 — тестовая карта: открыты все комнаты и осколки")
+	var dev_checkpoint := [game_state.checkpoint_room, game_state.checkpoint_reality, game_state.checkpoint_path]
+	world_map.choose_shard(&"cemetery")
+	for i in 300:
+		await frames(1)
+		if rooms.current_room_id == &"cemetery" and not rooms._busy:
+			break
+	var dev_shard := room_node("Objects/MirrorShard") as Node3D
+	check(not map_menu.is_open and rooms.current_room_id == &"cemetery"
+		and absf(player.global_position.x - dev_shard.global_position.x) < 3.0, "щелчок по осколку — перенос к нему")
+	game_state.set_checkpoint(dev_checkpoint[0], dev_checkpoint[1], dev_checkpoint[2])
 
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path

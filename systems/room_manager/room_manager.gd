@@ -88,6 +88,7 @@ func _ready() -> void:
 	Settings.apply()
 	level_menu.hub_requested.connect(travel_to_hub)
 	level_menu.return_requested.connect(travel_back)
+	level_menu.map_travel_requested.connect(travel_to_shard)
 	player.died.connect(_on_player_died)
 	_sun_energy = sun.light_energy
 	_setup_picture()
@@ -209,6 +210,7 @@ func _load_room(target_reality: StringName, room_id: StringName = current_room_i
 	add_child(room)
 	current_room = room
 	current_room_id = room_id
+	GameState.visit(room_id)
 	# Разбитое стекло и предметы (Breakable) — одна память по пути узла.
 	for path: NodePath in GameState.broken_glass_in(key):
 		var broken := room.get_node_or_null(path)
@@ -389,6 +391,13 @@ func travel_back() -> void:
 	await _travel_to_shard(to["room"], to["reality"], to["path"])
 
 
+## Тестовый перенос с карты (F4, §8.13): к любому осколку, как отдых у него.
+func travel_to_shard(room_id: StringName, shard: NodePath) -> void:
+	if _busy or not ResourceLoader.exists(ROOM_PATH % room_id):
+		return
+	await _travel_to_shard(room_id, NORMAL, shard)
+
+
 func _travel_to_shard(room_id: StringName, in_reality: StringName, shard: NodePath) -> void:
 	_busy = true
 	player.frozen = true
@@ -408,13 +417,19 @@ func _travel_to_shard(room_id: StringName, in_reality: StringName, shard: NodePa
 
 ## Меню паузы (§8.12): мир не останавливается, как в Dark Souls; открыть нельзя в переходе,
 ## у осколка и мёртвым.
+## Карта (M, Back на геймпаде) открывается сразу на своей странице; F4 — тестовая карта: открыто всё, перенос к осколкам.
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("pause") or level_menu.is_open or _busy:
+	var map := event.is_action_pressed("map")
+	var dev_map := event.is_action_pressed("debug_map")
+	if not (event.is_action_pressed("pause") or map or dev_map) or level_menu.is_open or _busy:
 		return
 	if player.frozen or player.is_dead() or current_room == null:
 		return
 	get_viewport().set_input_as_handled()
-	level_menu.open_pause(player)
+	if map or dev_map:
+		level_menu.open_map(player, dev_map)
+	else:
+		level_menu.open_pause(player)
 
 
 ## «Выйти в главное меню»: мир сохранён, игра начинается заново с экрана «Продолжить / Новая игра».
@@ -571,7 +586,10 @@ func _spawn_hero_echo() -> void:
 func _checkpoint_position() -> Vector3:
 	var node := current_room.get_node_or_null(GameState.checkpoint_path) as Node3D
 	if node == null:
-		node = current_room.get_node(^"Spawns/PlayerStart") as Node3D
+		node = current_room.get_node_or_null(^"Spawns/PlayerStart") as Node3D
+	if node == null:
+		# Осколок есть не в любом состоянии комнаты (на площади — только после пожара): первая точка входа.
+		node = current_room.get_node(^"Spawns").get_child(0) as Node3D
 	if node.has_method("get_spawn_position"):
 		return node.get_spawn_position()
 	return node.global_position

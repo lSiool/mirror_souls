@@ -24,7 +24,7 @@ const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_slots", "spells", "spell_slots", "active_spell", "run_leftovers", "hub_return"]
+	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_slots", "spells", "spell_slots", "active_spell", "run_leftovers", "hub_return", "visited_rooms"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -84,6 +84,8 @@ var hub_return := {}
 ## Награды уровней-забегов, которые герой не успел забрать (§8.11): id → сколько.
 ## Их продаёт торговец по обычной цене предмета.
 var run_leftovers := {}
+## Комнаты, где герой уже был: карта мира открывается по ним (§8.13). id → true.
+var visited_rooms := {}
 ## Опыт мастерства по типам оружия и шаги закалки по предметам.
 var mastery := {}
 var weapon_glass := {}
@@ -438,6 +440,14 @@ func buy_leftover(id: StringName) -> bool:
 	add_echoes(-cost)
 	add_item(id, count)
 	return true
+
+
+func visit(room: StringName) -> void:
+	visited_rooms[room] = true
+
+
+func visited(room: StringName) -> bool:
+	return visited_rooms.has(room)
 
 
 func set_flag(id: StringName, value := true) -> void:

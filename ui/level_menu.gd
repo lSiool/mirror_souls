@@ -18,14 +18,16 @@ signal hub_requested
 signal return_requested
 ## «Выйти в главное меню» из меню паузы.
 signal title_requested
+## Тестовая карта (F4): перенестись к осколку (§8.13).
+signal map_travel_requested(room: StringName, path: NodePath)
 
 const CLEAR_GLASS: StringName = &"clear_glass"
 const FACET_SLOT: StringName = &"facet_slot"
 const TYPE_NAMES := {&"sword": "Меч", &"bow": "Лук", &"spear": "Копьё", &"axe": "Топор", &"hammer": "Молот"}
 
-enum Page { ROOT, LEVEL, FACETS, WEAPON, ITEMS, SETTINGS, EQUIP }
+enum Page { ROOT, LEVEL, FACETS, WEAPON, ITEMS, SETTINGS, EQUIP, MAP }
 const PAGE_TITLES := {Page.LEVEL: "Поднять уровень", Page.FACETS: "Грани", Page.WEAPON: "Оружие", Page.ITEMS: "Предметы",
-	Page.SETTINGS: "Настройки", Page.EQUIP: "Снаряжение"}
+	Page.SETTINGS: "Настройки", Page.EQUIP: "Снаряжение", Page.MAP: "Карта"}
 ## Те же страницы в меню паузы называются по-своему: там уровень не поднять, оружие не закалить.
 const PAUSE_TITLES := {Page.LEVEL: "Статус", Page.WEAPON: "Снаряжение"}
 const PARAMS := {
@@ -47,7 +49,7 @@ const PLACE_NAMES := {&"village_hut": "Хижина", &"village_street": "Ули
 	&"cemetery_gate": "Кладбищенские ворота", &"cemetery": "Кладбище", &"forest_wall": "Стена леса",
 	&"fallen_giant": "Поваленный гигант", &"root_maze": "Корневой лабиринт", &"swamp": "Болото",
 	&"cursed_village": "Мёртвая деревня", &"room_001": "Комната-прототип", &"castle_gallery": "Галерея замка",
-	&"run_village": "Горящая деревня", &"run_exit": "За воротами деревни"}
+	&"run_village": "Горящая деревня", &"run_exit": "За воротами деревни", &"reflection_run": "Нестабильное отражение"}
 const SCALING_SHOWN: Array[PlayerStats.Param] = [PlayerStats.Param.STRENGTH, PlayerStats.Param.DEXTERITY,
 	PlayerStats.Param.INTELLIGENCE, PlayerStats.Param.LUCK]
 const SCALING_SHORT := {PlayerStats.Param.STRENGTH: "Сил", PlayerStats.Param.DEXTERITY: "Лов",
@@ -102,6 +104,10 @@ var _shard_note: Label
 ## Пауза — компактная панель слева вверху (§8.12, 2026-11-09); страницы — на весь экран.
 var pause_panel: PausePanel
 var equipment: EquipmentScreen
+## Карта мира (§8.13). Открыта сразу (клавиша карты, F4) — «Назад» закрывает меню, а не ведёт к списку.
+var world_map: WorldMapView
+var _direct := false
+var _map_dev := false
 var _margin: MarginContainer
 var _status: Label
 # Поднять уровень.
@@ -210,6 +216,10 @@ func _ready() -> void:
 	equipment = EquipmentScreen.new()
 	_page_box(pages, Page.EQUIP).add_child(equipment)
 	equipment.setup(self)
+	world_map = WorldMapView.new()
+	_page_box(pages, Page.MAP).add_child(world_map)
+	world_map.setup(self)
+	world_map.shard_chosen.connect(_on_map_shard)
 	var footer := HBoxContainer.new()
 	footer.alignment = BoxContainer.ALIGNMENT_END
 	footer.add_theme_constant_override("separation", 36)
@@ -243,7 +253,7 @@ func _page_box(parent: Control, page: Page) -> VBoxContainer:
 
 func _build_root(page: VBoxContainer) -> void:
 	page.add_theme_constant_override("separation", 4)
-	for entry in [[Page.LEVEL, "Поднять уровень"], [Page.FACETS, "Грани"], [Page.WEAPON, "Оружие"], [Page.EQUIP, "Снаряжение"], [Page.ITEMS, "Предметы"]]:
+	for entry in [[Page.LEVEL, "Поднять уровень"], [Page.FACETS, "Грани"], [Page.WEAPON, "Оружие"], [Page.EQUIP, "Снаряжение"], [Page.ITEMS, "Предметы"], [Page.MAP, "Карта"]]:
 		var button := _menu_button(page, entry[1], 34)
 		button.pressed.connect(show_page.bind(entry[0]))
 		_root_buttons.append(button)
@@ -1170,6 +1180,8 @@ func _put_in_slot(slot: int) -> void:
 
 func open(player: Player, parent: Node3D) -> void:
 	_player = player
+	_direct = false
+	_map_dev = false
 	at_shard = true
 	is_open = true
 	visible = true
@@ -1188,6 +1200,8 @@ func open(player: Player, parent: Node3D) -> void:
 ## Меню паузы (§8.12): мир не останавливается, герой стоит и уязвим (Player.in_menu).
 func open_pause(player: Player) -> void:
 	_player = player
+	_direct = false
+	_map_dev = false
 	at_shard = false
 	is_open = true
 	visible = true
@@ -1198,6 +1212,19 @@ func open_pause(player: Player) -> void:
 	(get_parent() as Hud).show_gameplay(false)
 	_refresh()
 	_focus_first()
+
+
+## Карта сразу, без списка паузы (§8.13). dev — тестовая: открыто всё, щелчок по осколку — перенос.
+func open_map(player: Player, dev := false) -> void:
+	open_pause(player)
+	_direct = true
+	_map_dev = dev
+	show_page(Page.MAP)
+
+
+func _on_map_shard(room: StringName, path: NodePath) -> void:
+	close()
+	map_travel_requested.emit(room, path)
 
 
 func close() -> void:
@@ -1239,6 +1266,8 @@ func back() -> void:
 		equipment.close_list()
 	elif _page == Page.ROOT and not at_shard and pause_panel.exit_open():
 		pause_panel.close_exit()
+	elif _page != Page.ROOT and _direct:
+		close()
 	elif _page != Page.ROOT:
 		if _animating:
 			return
@@ -1250,8 +1279,19 @@ func back() -> void:
 
 func show_page(page: Page) -> void:
 	_page = page
+	if page == Page.MAP:
+		_open_map()
 	_refresh()
 	_focus_first()
+
+
+## Карта открывается на комнате героя, герой — точкой на своём месте в ней.
+func _open_map() -> void:
+	var room := get_tree().get_first_node_in_group(&"room") as Room
+	var t := 0.5
+	if room and _player and room.width > 0.0:
+		t = clampf((_player.global_position.x - room.center_x + room.width * 0.5) / room.width, 0.0, 1.0)
+	world_map.open(room.room_id if room else &"", t, _map_dev)
 
 
 func _refresh() -> void:
@@ -1314,6 +1354,8 @@ func _focus_first() -> void:
 				pause_panel.open(_place_name(get_tree().get_first_node_in_group(&"room") as Room))
 		Page.EQUIP:
 			equipment.focus_first()
+		Page.MAP:
+			world_map.focus()
 		Page.SETTINGS:
 			_volume_up.grab_focus() if not _volume_up.disabled else _volume_down.grab_focus()
 		Page.LEVEL:

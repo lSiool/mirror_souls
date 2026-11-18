@@ -71,6 +71,22 @@ func _ready() -> void:
 	rooms.level_menu.equipment._choose(EquipmentScreen.Slot.ITEM_2)
 	await get_tree().create_timer(0.4).timeout
 	await _shot("pause_equip_list")
+	# Карта мира (§8.13): открыто пройденное — деревня, часовня, ворота кладбища; тестовая — всё.
+	rooms.level_menu.close()
+	for room: StringName in [&"village_hut", &"village_street", &"village_house", &"village_square", &"chapel_yard",
+			&"chapel", &"cemetery_gate", &"cemetery"]:
+		GameState.visit(room)
+	GameState.set_flag(&"shard_chapel_yard")
+	GameState.set_flag(&"shard_village_square")
+	await get_tree().create_timer(0.3).timeout
+	rooms.level_menu.open_map(player)
+	await get_tree().create_timer(0.4).timeout
+	await _shot("map")
+	rooms.level_menu.close()
+	rooms.level_menu.open_map(player, true)
+	rooms.level_menu.world_map.pan_by(Vector2(300, 60))
+	await get_tree().create_timer(0.4).timeout
+	await _shot("map_dev")
 	print("snapshots: ", ProjectSettings.globalize_path(OUT))
 	get_tree().quit()
 
