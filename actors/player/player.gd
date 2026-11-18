@@ -124,6 +124,11 @@ const THROW_UP_ANGLE := 20.0
 const PAD_TAP := 0.2
 ## Крюк на цепи (§5, §8.13): предмет, кольца — HookPoint. Пока идёт разработка, крюк выдаёт F5.
 const HOOK_ITEM := &"chain_hook"
+## Фонарь фонарщика (§8.13, катакомбы): предмет; флаг — фонарь достан (в левой руке вместо щита).
+const LANTERN_ITEM := &"lantern"
+const LANTERN_OUT := &"lantern_out"
+## Где руке не до фонаря — он висит на поясе.
+const LANTERN_BELT_STATES: Array[State] = [State.BOW, State.LADDER, State.LEDGE_HANG, State.LEDGE_CLIMB, State.CLIMB, State.HOOK]
 ## Докуда достаёт цепь, м (от груди до кольца).
 const HOOK_RANGE := 9.0
 ## Цепь летит к кольцу, с.
@@ -167,6 +172,8 @@ var arms: PlayerArms
 var body: PlayerBody
 ## Манекен-гуманоид с анимациями (§3.3): только показывает.
 var model: HeroModel
+## Фонарь фонарщика (§8.13): висит на костях модели — в левой руке или на поясе.
+var lantern: HandLantern
 
 var _state_time := 0.0
 var _coyote := 0.0
@@ -347,12 +354,13 @@ func _ready() -> void:
 	model = HeroModel.new()
 	visual.add_child(model)
 	arms.attach_model(model)
+	lantern = HandLantern.new()
 	PlayerArms.ghost(body_mesh, true)
 	attack_step_started.connect(func(step: AttackStep, index: int, _total: int) -> void: model.attack(step, index, not is_on_floor()))
 	stats.changed.connect(_on_stats_changed)
 	_on_stats_changed()
-	# Купленный щит сразу в руке.
-	Events.item_found.connect(func(_id: StringName) -> void: _refresh_shield())
+	# Купленный щит сразу в руке; найденный фонарь — тоже (§8.13).
+	Events.item_found.connect(_on_item_found)
 	finisher_mark = Sprite3D.new()
 	finisher_mark.texture = FINISHER_MARK
 	finisher_mark.pixel_size = 0.006
@@ -489,6 +497,10 @@ func _tick(delta: float) -> void:
 			# Как стрелы: ячейки магии листаются в бою, раскладываются у осколка.
 			GameState.swap_spell(stats.spell_slots)
 			Sfx.play(&"glass_glint", global_position, -14.0)
+		if Input.is_action_just_pressed("lantern") and not quick_held and has_lantern():
+			# Как смена левой руки в Dark Souls: щит ↔ фонарь на ходу (§8.13).
+			show_lantern(not lantern_out())
+			Sfx.play(&"glass_glint", global_position, -16.0)
 
 	_update_hook_target()
 	_regen_mana(delta)
@@ -1583,15 +1595,47 @@ func refresh_shield() -> void:
 	_refresh_shield()
 
 
-## Щит в руке: есть, оружие не двуручное и лук не натянут.
+## Щит в руке: есть, оружие не двуручное, лук не натянут и в левой руке не фонарь.
 func shield_in_hand() -> bool:
-	return has_shield() and not (weapon and weapon.two_handed) and state != State.BOW
+	return has_shield() and not (weapon and weapon.two_handed) and state != State.BOW and not lantern_out()
 
 
-## Щит в руке, выставлен в блоке или висит за спиной.
+func has_lantern() -> bool:
+	return GameState.item_count(LANTERN_ITEM) > 0
+
+
+## Фонарь достан: светит — в руке или на поясе.
+func lantern_out() -> bool:
+	return has_lantern() and GameState.has_flag(LANTERN_OUT)
+
+
+## Фонарь в левой руке: достан, рука свободна (не двуручное, не лестница, не уступ, не лук, не крюк).
+func lantern_in_hand() -> bool:
+	return lantern_out() and not (weapon and weapon.two_handed) and state not in LANTERN_BELT_STATES
+
+
+## Достать фонарь (щит — за спину) или убрать его (щит — в руку).
+func show_lantern(on: bool) -> void:
+	GameState.set_flag(LANTERN_OUT, on and has_lantern())
+	_refresh_shield()
+
+
+func _on_item_found(id: StringName) -> void:
+	# Найденный фонарь сразу в руке: дальше по катакомбам — с огнём.
+	if id == LANTERN_ITEM:
+		show_lantern(true)
+	_refresh_shield()
+
+
+## Щит в руке, выставлен в блоке или висит за спиной; фонарь — в руке, на поясе или убран.
 func _refresh_shield() -> void:
 	if arms == null:
 		return
+	if lantern and model:
+		var at := HandLantern.At.NONE
+		if lantern_out():
+			at = HandLantern.At.HAND if lantern_in_hand() else HandLantern.At.BELT
+		lantern.place(at, model.lantern_grip, model.belt_mount)
 	if not has_shield():
 		arms.place_shield(PlayerArms.ShieldAt.NONE)
 	elif not shield_in_hand():

@@ -308,3 +308,71 @@ FOCUS: the ember glow in the skull's eye socket as the brightest point of the im
 OUTPUT: consistent with attached reference images.
 {AVOID}
 ```
+
+---
+
+## 6. Катакомбы кладбища (`env_crypts_*`, §8.13)
+
+**Мир:** Земля, под кладбищем у деревни. **Настроение:** темнота, которую когда-то держали в узде. Фонарщик каждую ночь зажигал свечи в нишах, могильщики спускали гробы по шахте, колокол молчал сорок лет. Теперь свечи погасли, могилы стоят открытыми, а колокол снова звонит сам.
+Свет — только тот, что в кадре: свечи в нишах, фонарь в руке героя, холодная луна сквозь решётки и шахты. Всё остальное тонет в черноте, без серой дымки.
+Сначала утвердите 6.1. Он задаёт палитру тьмы и тёплого огня; остальные кадры делаются с ним как с референсом. Из утверждённых кадров потом генерируются ассеты: свеча в нише, фонарь фонарщика, груда костей, колокол.
+
+### 6.0. Дальний план биома — `env_crypts_farplane`
+Слой за всеми комнатами катакомб: глубина подземелья вместо неба. Без героя и тропы.
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: an endless underground necropolis receding into darkness, wide 16:9 panoramic background plate for parallax, no foreground, no characters.
+Rows of vaulted stone corridors and burial niches fade into black, distant arches of an ossuary walled with skulls, a far bell tower rising through the rock toward a crack of night sky,
+a few tiny candle flames scattered deep in the dark like the last stars. No fog, no grey haze: depth is shown only by fading light.
+FOCUS: the thin crack of moonlight high above the bell tower as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 6.1. Катакомбы, коридор со свечами — `env_crypts_catacombs`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a low vaulted catacomb corridor under a cemetery in near total darkness, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+The walls are lined with rows of burial niches holding skulls and bones; small candle shelves in some niches, a few lit, most dark;
+a broken hole in the floor opening into a lower crypt with coffins, a raised dais with stone sarcophagi, and at the far end a dead lamplighter slumped against the wall with his pole.
+Warm candle light in small pools, everything between them black.
+Clear walkable floor line in lower third, nothing in front of the hero but darkness.
+FOCUS: the lamplighter's oil lantern lying by his hand as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 6.2. Оссуарий — `env_crypts_ossuary`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a tall ossuary chamber with three tiers, walls built entirely of stacked skulls and long bones, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+A chandelier made of bones hangs unlit in the middle, pillars of skulls hold up the upper galleries, bone ladders connect the tiers,
+heaps of bones lie on the floors as if something could rise from them; at the bottom an iron grate with black still water behind it;
+a mirror shard crystal on a pedestal on the upper tier near the entrance.
+FOCUS: the faint glow of the mirror shard as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 6.3. Квартал могильщика — `env_crypts_quarter`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a cavern beneath the cemetery where the gravediggers lived and worked, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+Crooked wooden shacks against the rock wall, carts loaded with coffins, shovels stuck in heaps of earth, open graves dug into the cave floor, some with coffins inside,
+a deep mass grave full of bones with a ladder, a wooden walkway with a winch above a shaft where coffins were lowered from the surface.
+FOCUS: a cold beam of moonlight falling down the coffin shaft as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 6.4. Колокольня мёртвых — `env_crypts_belltower`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: the inside of an old bell tower sunk deep into the earth, wide 16:9 side-view composition for a 2.5D platformer, the frame reaching from dark lower tiers up to the belfry.
+Stone landings alternate left and right, connected by ladders; thin slits in the walls let in more moonlight the higher you climb;
+at the top an open belfry under the night sky, a heavy rusted bell whose clapper is wrapped in rags and bound with a chain, its long rope hanging down through the whole tower;
+a small door in the belfry wall, barred from the outside.
+FOCUS: the night sky seen through the belfry arches as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```

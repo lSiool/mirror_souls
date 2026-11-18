@@ -1,0 +1,1781 @@
+[gd_scene load_steps=33 format=3]
+
+[ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
+
+[ext_resource type="Script" path="res://world/common/room_door.gd" id="door"]
+
+[ext_resource type="Script" path="res://world/common/item_pickup.gd" id="pickup"]
+
+[ext_resource type="Script" path="res://world/common/ladder.gd" id="ladder"]
+
+[ext_resource type="PackedScene" path="res://world/checkpoints/mirror_shard.tscn" id="shard"]
+
+[ext_resource type="PackedScene" path="res://world/chest/chest.tscn" id="chest"]
+
+[ext_resource type="PackedScene" path="res://world/glass/glass_surface.tscn" id="glass"]
+
+[ext_resource type="PackedScene" path="res://world/hazards/spikes.tscn" id="spikes"]
+
+[ext_resource type="Script" path="res://world/common/note.gd" id="note"]
+
+[ext_resource type="Script" path="res://world/common/bound_captive.gd" id="captive"]
+
+[ext_resource type="Script" path="res://world/common/mud_zone.gd" id="mud"]
+
+[ext_resource type="Script" path="res://world/common/boss_arena.gd" id="arena"]
+
+[ext_resource type="Script" path="res://world/rooms/robber_event.gd" id="robbers"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/rat.tscn" id="rat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bat.tscn" id="bat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/fog_wraith.tscn" id="wraith"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/drowned_knight.tscn" id="knight"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_heavy.tscn" id="bandit_heavy"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_knife.tscn" id="bandit_knife"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/blacksmith.tscn" id="smith"]
+
+[ext_resource type="Script" path="res://world/common/hook_point.gd" id="hookpoint"]
+
+[ext_resource type="Script" path="res://world/common/wall_candle.gd" id="candle"]
+
+[ext_resource type="Script" path="res://world/common/say_line.gd" id="sayline"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_bone"]
+albedo_color = Color(0.62, 0.58, 0.5, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_char"]
+albedo_color = Color(0.035, 0.03, 0.03, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_earth_dark"]
+albedo_color = Color(0.05, 0.045, 0.05, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_iron"]
+albedo_color = Color(0.09, 0.09, 0.1, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone_dark"]
+albedo_color = Color(0.15, 0.15, 0.17, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_water"]
+albedo_color = Color(0.02, 0.025, 0.025, 1)
+roughness = 0.15
+metallic = 0.2
+
+[sub_resource type="Environment" id="Env_room"]
+background_mode = 1
+background_color = Color(0.0, 0.0, 0.0, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.32, 0.34, 0.42, 1)
+ambient_light_energy = 0.07
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.06
+fog_enabled = true
+fog_light_color = Color(0.01, 0.01, 0.014, 1)
+fog_density = 0.03
+
+[sub_resource type="BoxShape3D" id="Wall_1"]
+size = Vector3(1, 60, 4.4)
+
+[sub_resource type="BoxShape3D" id="Wall_2"]
+size = Vector3(1, 60, 4.4)
+
+[node name="Ossuary" type="Node3D"]
+script = ExtResource("room")
+room_id = &"ossuary"
+center_x = 0.0
+width = 40
+mood = SubResource("Env_room")
+sun_color = Color(0.5, 0.55, 0.7, 1)
+sun_energy = 0.0
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="Decor" type="Node3D" parent="."]
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="WallLeft" type="StaticBody3D" parent="Geometry"]
+position = Vector3(-20.5, 10.0, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallLeft"]
+shape = SubResource("Wall_1")
+
+[node name="WallRight" type="StaticBody3D" parent="Geometry"]
+position = Vector3(20.5, 10.0, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallRight"]
+shape = SubResource("Wall_2")
+
+[node name="TierA" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-13.0, -0.75, 0)
+use_collision = true
+size = Vector3(22, 1.5, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="TierB" type="CSGBox3D" parent="Geometry"]
+position = Vector3(7.0, -7.75, 0)
+use_collision = true
+size = Vector3(34, 1.5, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="Bottom" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0.0, -16.0, 0)
+use_collision = true
+size = Vector3(48, 4, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="LadderA" type="Area3D" parent="Objects"]
+position = Vector3(-1.4, -7.0, 0)
+script = ExtResource("ladder")
+height = 7.0
+exit_dir = -1.0
+
+[node name="LadderARailA" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.7, -3.5, -0.4)
+size = Vector3(0.08, 7.0, 0.08)
+material = SubResource("Mat_bone")
+
+[node name="LadderARailB" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.1, -3.5, -0.4)
+size = Vector3(0.08, 7.0, 0.08)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -6.7, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -6.25, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -5.8, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -5.35, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -4.9, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -4.45, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -4.0, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung7" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -3.55, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung8" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -3.1, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung9" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -2.65, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -2.2, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung11" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -1.75, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung12" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -1.3, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung13" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -0.85, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderARung14" type="CSGBox3D" parent="Decor"]
+position = Vector3(-1.4, -0.4, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderB" type="Area3D" parent="Objects"]
+position = Vector3(-10.6, -14.0, 0)
+script = ExtResource("ladder")
+height = 7.0
+exit_dir = 1.0
+
+[node name="LadderBRailA" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.9, -10.5, -0.4)
+size = Vector3(0.08, 7.0, 0.08)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRailB" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.3, -10.5, -0.4)
+size = Vector3(0.08, 7.0, 0.08)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -13.7, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -13.25, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung2" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -12.8, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung3" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -12.35, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung4" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -11.9, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung5" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -11.45, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung6" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -11.0, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung7" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -10.55, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung8" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -10.1, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung9" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -9.65, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung10" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -9.2, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung11" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -8.75, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung12" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -8.3, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung13" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -7.85, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="LadderBRung14" type="CSGBox3D" parent="Decor"]
+position = Vector3(-10.6, -7.4, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_bone")
+
+[node name="Vault" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0.0, 10.0, 0)
+use_collision = true
+size = Vector3(48.0, 4.0, 4.4)
+material = SubResource("Mat_stone_dark")
+
+[node name="Pillar0" type="CSGBox3D" parent="Decor"]
+position = Vector3(-16.0, -7.75, -1.4)
+size = Vector3(0.8, 12.5, 0.8)
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -13.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -13.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -12.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -11.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -11.3, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -10.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -10.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -9.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -8.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -8.3, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull10" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -7.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull11" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -7.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull12" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -6.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull13" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -5.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull14" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -5.3, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull15" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -4.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull16" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -4.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull17" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -3.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull18" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -2.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar0Skull19" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-16.0, -2.3, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar1" type="CSGBox3D" parent="Decor"]
+position = Vector3(-6.0, -4.25, -1.4)
+size = Vector3(0.8, 5.5, 0.8)
+material = SubResource("Mat_bone")
+
+[node name="Pillar1Skull0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-6.0, -6.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar1Skull1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-6.0, -6.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar1Skull2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-6.0, -5.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar1Skull3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-6.0, -4.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar1Skull4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-6.0, -4.3, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar1Skull5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-6.0, -3.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar1Skull6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-6.0, -3.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar1Skull7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-6.0, -2.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar1Skull8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-6.0, -1.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar2" type="CSGBox3D" parent="Decor"]
+position = Vector3(4.0, -11.25, -1.4)
+size = Vector3(0.8, 5.5, 0.8)
+material = SubResource("Mat_bone")
+
+[node name="Pillar2Skull0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(4.0, -13.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar2Skull1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(4.0, -13.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar2Skull2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(4.0, -12.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar2Skull3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(4.0, -11.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar2Skull4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(4.0, -11.3, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar2Skull5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(4.0, -10.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar2Skull6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(4.0, -10.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar2Skull7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(4.0, -9.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar2Skull8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(4.0, -8.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar3" type="CSGBox3D" parent="Decor"]
+position = Vector3(14.0, -11.25, -1.4)
+size = Vector3(0.8, 5.5, 0.8)
+material = SubResource("Mat_bone")
+
+[node name="Pillar3Skull0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(14.0, -13.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar3Skull1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(14.0, -13.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar3Skull2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(14.0, -12.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar3Skull3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(14.0, -11.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar3Skull4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(14.0, -11.3, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar3Skull5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(14.0, -10.7, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar3Skull6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(14.0, -10.1, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar3Skull7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(14.0, -9.5, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Pillar3Skull8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(14.0, -8.9, -0.95)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="Wall" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, -3.0, -2.4)
+size = Vector3(48, 22, 0.4)
+material = SubResource("Mat_earth_dark")
+
+[node name="Skull0_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-19.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull0_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-15.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull0_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-11.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull0_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-7.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull0_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-3.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull0_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(1.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull0_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(5.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull0_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(9.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull0_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(13.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull0_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(17.0, -13.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs0" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, -13.9, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull1_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-17.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull1_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-13.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull1_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-9.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull1_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-5.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull1_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-1.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull1_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(3.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull1_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(7.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull1_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(11.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull1_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(15.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull1_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(19.0, -11.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs1" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, -11.9, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull2_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-19.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull2_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-15.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull2_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-11.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull2_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-7.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull2_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-3.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull2_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(1.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull2_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(5.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull2_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(9.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull2_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(13.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull2_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(17.0, -9.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs2" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, -9.9, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull3_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-17.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull3_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-13.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull3_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-9.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull3_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-5.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull3_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-1.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull3_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(3.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull3_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(7.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull3_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(11.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull3_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(15.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull3_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(19.0, -7.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs3" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, -7.9, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull4_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-19.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull4_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-15.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull4_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-11.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull4_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-7.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull4_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-3.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull4_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(1.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull4_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(5.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull4_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(9.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull4_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(13.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull4_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(17.0, -5.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs4" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, -5.9, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull5_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-17.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull5_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-13.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull5_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-9.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull5_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-5.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull5_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-1.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull5_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(3.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull5_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(7.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull5_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(11.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull5_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(15.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull5_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(19.0, -3.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs5" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, -3.9, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull6_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-19.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull6_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-15.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull6_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-11.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull6_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-7.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull6_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-3.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull6_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(1.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull6_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(5.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull6_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(9.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull6_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(13.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull6_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(17.0, -1.4, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs6" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, -1.9, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull7_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-17.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull7_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-13.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull7_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-9.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull7_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-5.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull7_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-1.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull7_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(3.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull7_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(7.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull7_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(11.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull7_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(15.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull7_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(19.0, 0.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs7" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, 0.1, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull8_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-19.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull8_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-15.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull8_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-11.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull8_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-7.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull8_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-3.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull8_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(1.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull8_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(5.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull8_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(9.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull8_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(13.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull8_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(17.0, 2.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs8" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, 2.1, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull9_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-17.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull9_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-13.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull9_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-9.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull9_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-5.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull9_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-1.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull9_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(3.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull9_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(7.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull9_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(11.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull9_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(15.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull9_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(19.0, 4.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs9" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, 4.1, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="Skull10_0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-19.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull10_1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-15.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull10_2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-11.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull10_3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-7.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull10_4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(-3.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull10_5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(1.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull10_6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(5.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull10_7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(9.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull10_8" type="CSGSphere3D" parent="Decor"]
+position = Vector3(13.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Skull10_9" type="CSGSphere3D" parent="Decor"]
+position = Vector3(17.0, 6.6, -2.1)
+radius = 0.2
+material = SubResource("Mat_bone")
+
+[node name="Femurs10" type="CSGBox3D" parent="Decor"]
+position = Vector3(0.0, 6.1, -2.15)
+size = Vector3(40.0, 0.12, 0.12)
+material = SubResource("Mat_bone")
+
+[node name="ChandelierChain" type="CSGBox3D" parent="Decor"]
+position = Vector3(2.0, 6.4, -0.6)
+size = Vector3(0.05, 3.2, 0.05)
+material = SubResource("Mat_iron")
+
+[node name="ChandelierRing" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(2.0, 4.8, -0.6)
+radius = 1.3
+height = 0.12
+sides = 12
+material = SubResource("Mat_bone")
+
+[node name="ChandelierSkull0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(3.3, 4.6, -0.6)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="ChandelierSkull1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(2.919, 4.6, 0.319)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="ChandelierSkull2" type="CSGSphere3D" parent="Decor"]
+position = Vector3(2.0, 4.6, 0.7)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="ChandelierSkull3" type="CSGSphere3D" parent="Decor"]
+position = Vector3(1.081, 4.6, 0.319)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="ChandelierSkull4" type="CSGSphere3D" parent="Decor"]
+position = Vector3(0.7, 4.6, -0.6)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="ChandelierSkull5" type="CSGSphere3D" parent="Decor"]
+position = Vector3(1.081, 4.6, -1.519)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="ChandelierSkull6" type="CSGSphere3D" parent="Decor"]
+position = Vector3(2.0, 4.6, -1.9)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="ChandelierSkull7" type="CSGSphere3D" parent="Decor"]
+position = Vector3(2.919, 4.6, -1.519)
+radius = 0.14
+material = SubResource("Mat_bone")
+
+[node name="AmbushSpots" type="Node3D" parent="Decor"]
+
+[node name="Heap0" type="Node3D" parent="Decor"]
+position = Vector3(3.0, -7.0, -0.8)
+
+[node name="Mound" type="CSGCylinder3D" parent="Decor/Heap0"]
+position = Vector3(0, 0.44, 0)
+radius = 1.3
+height = 0.8800000000000001
+sides = 9
+cone = true
+material = SubResource("Mat_bone")
+
+[node name="Skull0" type="CSGSphere3D" parent="Decor/Heap0"]
+position = Vector3(0.832, 0.275, 0.3)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long0" type="CSGBox3D" parent="Decor/Heap0"]
+position = Vector3(0.666, 0.22, 0.0)
+rotation = Vector3(0, 0.0, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull1" type="CSGSphere3D" parent="Decor/Heap0"]
+position = Vector3(-0.613, 0.395, 0.536)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long1" type="CSGBox3D" parent="Decor/Heap0"]
+position = Vector3(-0.491, 0.22, 0.236)
+rotation = Vector3(0, 2.4, 0.0)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull2" type="CSGSphere3D" parent="Decor/Heap0"]
+position = Vector3(0.073, 0.515, -0.049)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long2" type="CSGBox3D" parent="Decor/Heap0"]
+position = Vector3(0.058, 0.22, -0.349)
+rotation = Vector3(0, 4.8, 0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull3" type="CSGSphere3D" parent="Decor/Heap0"]
+position = Vector3(0.506, 0.275, 0.578)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long3" type="CSGBox3D" parent="Decor/Heap0"]
+position = Vector3(0.405, 0.22, 0.278)
+rotation = Vector3(0, 7.2, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull4" type="CSGSphere3D" parent="Decor/Heap0"]
+position = Vector3(-0.819, 0.395, 0.239)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long4" type="CSGBox3D" parent="Decor/Heap0"]
+position = Vector3(-0.655, 0.22, -0.061)
+rotation = Vector3(0, 9.6, 0.0)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull5" type="CSGSphere3D" parent="Decor/Heap0"]
+position = Vector3(0.702, 0.515, 0.112)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long5" type="CSGBox3D" parent="Decor/Heap0"]
+position = Vector3(0.562, 0.22, -0.188)
+rotation = Vector3(0, 12.0, 0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull6" type="CSGSphere3D" parent="Decor/Heap0"]
+position = Vector3(-0.216, 0.275, 0.638)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long6" type="CSGBox3D" parent="Decor/Heap0"]
+position = Vector3(-0.173, 0.22, 0.338)
+rotation = Vector3(0, 14.4, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Ambush0" type="Marker3D" parent="Decor/AmbushSpots"]
+position = Vector3(3.0, -6.9, 0)
+
+[node name="Heap1" type="Node3D" parent="Decor"]
+position = Vector3(12.0, -7.0, -0.8)
+
+[node name="Mound" type="CSGCylinder3D" parent="Decor/Heap1"]
+position = Vector3(0, 0.44, 0)
+radius = 1.3
+height = 0.8800000000000001
+sides = 9
+cone = true
+material = SubResource("Mat_bone")
+
+[node name="Skull0" type="CSGSphere3D" parent="Decor/Heap1"]
+position = Vector3(0.832, 0.275, 0.3)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long0" type="CSGBox3D" parent="Decor/Heap1"]
+position = Vector3(0.666, 0.22, 0.0)
+rotation = Vector3(0, 0.0, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull1" type="CSGSphere3D" parent="Decor/Heap1"]
+position = Vector3(-0.613, 0.395, 0.536)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long1" type="CSGBox3D" parent="Decor/Heap1"]
+position = Vector3(-0.491, 0.22, 0.236)
+rotation = Vector3(0, 2.4, 0.0)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull2" type="CSGSphere3D" parent="Decor/Heap1"]
+position = Vector3(0.073, 0.515, -0.049)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long2" type="CSGBox3D" parent="Decor/Heap1"]
+position = Vector3(0.058, 0.22, -0.349)
+rotation = Vector3(0, 4.8, 0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull3" type="CSGSphere3D" parent="Decor/Heap1"]
+position = Vector3(0.506, 0.275, 0.578)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long3" type="CSGBox3D" parent="Decor/Heap1"]
+position = Vector3(0.405, 0.22, 0.278)
+rotation = Vector3(0, 7.2, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull4" type="CSGSphere3D" parent="Decor/Heap1"]
+position = Vector3(-0.819, 0.395, 0.239)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long4" type="CSGBox3D" parent="Decor/Heap1"]
+position = Vector3(-0.655, 0.22, -0.061)
+rotation = Vector3(0, 9.6, 0.0)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull5" type="CSGSphere3D" parent="Decor/Heap1"]
+position = Vector3(0.702, 0.515, 0.112)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long5" type="CSGBox3D" parent="Decor/Heap1"]
+position = Vector3(0.562, 0.22, -0.188)
+rotation = Vector3(0, 12.0, 0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull6" type="CSGSphere3D" parent="Decor/Heap1"]
+position = Vector3(-0.216, 0.275, 0.638)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long6" type="CSGBox3D" parent="Decor/Heap1"]
+position = Vector3(-0.173, 0.22, 0.338)
+rotation = Vector3(0, 14.4, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Ambush1" type="Marker3D" parent="Decor/AmbushSpots"]
+position = Vector3(12.0, -6.9, 0)
+
+[node name="Heap2" type="Node3D" parent="Decor"]
+position = Vector3(-4.0, -14.0, -0.8)
+
+[node name="Mound" type="CSGCylinder3D" parent="Decor/Heap2"]
+position = Vector3(0, 0.44, 0)
+radius = 1.3
+height = 0.8800000000000001
+sides = 9
+cone = true
+material = SubResource("Mat_bone")
+
+[node name="Skull0" type="CSGSphere3D" parent="Decor/Heap2"]
+position = Vector3(0.832, 0.275, 0.3)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long0" type="CSGBox3D" parent="Decor/Heap2"]
+position = Vector3(0.666, 0.22, 0.0)
+rotation = Vector3(0, 0.0, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull1" type="CSGSphere3D" parent="Decor/Heap2"]
+position = Vector3(-0.613, 0.395, 0.536)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long1" type="CSGBox3D" parent="Decor/Heap2"]
+position = Vector3(-0.491, 0.22, 0.236)
+rotation = Vector3(0, 2.4, 0.0)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull2" type="CSGSphere3D" parent="Decor/Heap2"]
+position = Vector3(0.073, 0.515, -0.049)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long2" type="CSGBox3D" parent="Decor/Heap2"]
+position = Vector3(0.058, 0.22, -0.349)
+rotation = Vector3(0, 4.8, 0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull3" type="CSGSphere3D" parent="Decor/Heap2"]
+position = Vector3(0.506, 0.275, 0.578)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long3" type="CSGBox3D" parent="Decor/Heap2"]
+position = Vector3(0.405, 0.22, 0.278)
+rotation = Vector3(0, 7.2, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull4" type="CSGSphere3D" parent="Decor/Heap2"]
+position = Vector3(-0.819, 0.395, 0.239)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long4" type="CSGBox3D" parent="Decor/Heap2"]
+position = Vector3(-0.655, 0.22, -0.061)
+rotation = Vector3(0, 9.6, 0.0)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull5" type="CSGSphere3D" parent="Decor/Heap2"]
+position = Vector3(0.702, 0.515, 0.112)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long5" type="CSGBox3D" parent="Decor/Heap2"]
+position = Vector3(0.562, 0.22, -0.188)
+rotation = Vector3(0, 12.0, 0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull6" type="CSGSphere3D" parent="Decor/Heap2"]
+position = Vector3(-0.216, 0.275, 0.638)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long6" type="CSGBox3D" parent="Decor/Heap2"]
+position = Vector3(-0.173, 0.22, 0.338)
+rotation = Vector3(0, 14.4, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Ambush2" type="Marker3D" parent="Decor/AmbushSpots"]
+position = Vector3(-4.0, -13.9, 0)
+
+[node name="Heap3" type="Node3D" parent="Decor"]
+position = Vector3(9.0, -14.0, -0.8)
+
+[node name="Mound" type="CSGCylinder3D" parent="Decor/Heap3"]
+position = Vector3(0, 0.44, 0)
+radius = 1.3
+height = 0.8800000000000001
+sides = 9
+cone = true
+material = SubResource("Mat_bone")
+
+[node name="Skull0" type="CSGSphere3D" parent="Decor/Heap3"]
+position = Vector3(0.832, 0.275, 0.3)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long0" type="CSGBox3D" parent="Decor/Heap3"]
+position = Vector3(0.666, 0.22, 0.0)
+rotation = Vector3(0, 0.0, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull1" type="CSGSphere3D" parent="Decor/Heap3"]
+position = Vector3(-0.613, 0.395, 0.536)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long1" type="CSGBox3D" parent="Decor/Heap3"]
+position = Vector3(-0.491, 0.22, 0.236)
+rotation = Vector3(0, 2.4, 0.0)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull2" type="CSGSphere3D" parent="Decor/Heap3"]
+position = Vector3(0.073, 0.515, -0.049)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long2" type="CSGBox3D" parent="Decor/Heap3"]
+position = Vector3(0.058, 0.22, -0.349)
+rotation = Vector3(0, 4.8, 0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull3" type="CSGSphere3D" parent="Decor/Heap3"]
+position = Vector3(0.506, 0.275, 0.578)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long3" type="CSGBox3D" parent="Decor/Heap3"]
+position = Vector3(0.405, 0.22, 0.278)
+rotation = Vector3(0, 7.2, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull4" type="CSGSphere3D" parent="Decor/Heap3"]
+position = Vector3(-0.819, 0.395, 0.239)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long4" type="CSGBox3D" parent="Decor/Heap3"]
+position = Vector3(-0.655, 0.22, -0.061)
+rotation = Vector3(0, 9.6, 0.0)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull5" type="CSGSphere3D" parent="Decor/Heap3"]
+position = Vector3(0.702, 0.515, 0.112)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long5" type="CSGBox3D" parent="Decor/Heap3"]
+position = Vector3(0.562, 0.22, -0.188)
+rotation = Vector3(0, 12.0, 0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Skull6" type="CSGSphere3D" parent="Decor/Heap3"]
+position = Vector3(-0.216, 0.275, 0.638)
+radius = 0.13
+material = SubResource("Mat_bone")
+
+[node name="Long6" type="CSGBox3D" parent="Decor/Heap3"]
+position = Vector3(-0.173, 0.22, 0.338)
+rotation = Vector3(0, 14.4, -0.4)
+size = Vector3(0.7, 0.07, 0.07)
+material = SubResource("Mat_bone")
+
+[node name="Ambush3" type="Marker3D" parent="Decor/AmbushSpots"]
+position = Vector3(9.0, -13.9, 0)
+
+[node name="GrateBar0" type="CSGBox3D" parent="Decor"]
+position = Vector3(17.6, -11.5, -1.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="GrateBar1" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.0, -11.5, -1.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="GrateBar2" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.4, -11.5, -1.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="GrateBar3" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.8, -11.5, -1.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="GrateBar4" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.2, -11.5, -1.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="GrateBar5" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.6, -11.5, -1.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="GrateBar6" type="CSGBox3D" parent="Decor"]
+position = Vector3(20.0, -11.5, -1.4)
+size = Vector3(0.08, 5.0, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="GrateTop" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.8, -9.0, -1.4)
+size = Vector3(3.0, 0.15, 0.15)
+material = SubResource("Mat_iron")
+
+[node name="GrateWater" type="CSGBox3D" parent="Decor"]
+position = Vector3(19.0, -13.3, -2.0)
+size = Vector3(4.0, 1.4, 0.1)
+material = SubResource("Mat_water")
+
+[node name="GrateGlow" type="OmniLight3D" parent="Decor"]
+position = Vector3(19.0, -12.0, -1.8)
+light_color = Color(0.4, 0.55, 0.6, 1)
+light_energy = 0.5
+omni_range = 4.0
+
+[node name="GrateLine" type="Area3D" parent="Objects"]
+position = Vector3(18.5, -14.0, 0)
+script = ExtResource("sayline")
+text = "«За решёткой стоит чёрная вода. Где-то в глубине она то поднимается, то опускается»."
+size = Vector3(4, 3, 4)
+
+[node name="MirrorShard" parent="Objects" instance=ExtResource("shard")]
+position = Vector3(-12.0, 0.0, 0)
+
+[node name="CandleEntryNiche" type="CSGBox3D" parent="Decor"]
+position = Vector3(-15.5, 1.6, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="CandleEntry" type="Area3D" parent="Objects"]
+position = Vector3(-15.5, 0.0, 0)
+script = ExtResource("candle")
+flag = &"candle_ossuary_CandleEntry"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="CandleLadderANiche" type="CSGBox3D" parent="Decor"]
+position = Vector3(-4.5, 1.6, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="CandleLadderA" type="Area3D" parent="Objects"]
+position = Vector3(-4.5, 0.0, 0)
+script = ExtResource("candle")
+flag = &"candle_ossuary_CandleLadderA"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="CandleTierBNiche" type="CSGBox3D" parent="Decor"]
+position = Vector3(7.5, -5.4, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="CandleTierB" type="Area3D" parent="Objects"]
+position = Vector3(7.5, -7.0, 0)
+script = ExtResource("candle")
+flag = &"candle_ossuary_CandleTierB"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="CandleTierBEastNiche" type="CSGBox3D" parent="Decor"]
+position = Vector3(18.0, -5.4, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="CandleTierBEast" type="Area3D" parent="Objects"]
+position = Vector3(18.0, -7.0, 0)
+script = ExtResource("candle")
+flag = &"candle_ossuary_CandleTierBEast"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="CandleBottomWestNiche" type="CSGBox3D" parent="Decor"]
+position = Vector3(-15.0, -12.4, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="CandleBottomWest" type="Area3D" parent="Objects"]
+position = Vector3(-15.0, -14.0, 0)
+script = ExtResource("candle")
+flag = &"candle_ossuary_CandleBottomWest"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="CandleBottomNiche" type="CSGBox3D" parent="Decor"]
+position = Vector3(3.0, -12.4, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="CandleBottom" type="Area3D" parent="Objects"]
+position = Vector3(3.0, -14.0, 0)
+script = ExtResource("candle")
+flag = &"candle_ossuary_CandleBottom"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="CandleGrateNiche" type="CSGBox3D" parent="Decor"]
+position = Vector3(14.0, -12.4, -2.18)
+size = Vector3(0.9, 0.9, 0.06)
+material = SubResource("Mat_char")
+
+[node name="CandleGrate" type="Area3D" parent="Objects"]
+position = Vector3(14.0, -14.0, 0)
+script = ExtResource("candle")
+flag = &"candle_ossuary_CandleGrate"
+light_energy = 1.6
+light_range = 7.0
+count = 3
+
+[node name="FromCatacombs" type="Marker3D" parent="Spawns"]
+position = Vector3(-17.5, 0.1, 0)
+
+[node name="FromQuarter" type="Marker3D" parent="Spawns"]
+position = Vector3(-17.5, -13.9, 0)
+
+[node name="DoorToCatacombs" type="Area3D" parent="Objects"]
+position = Vector3(-18.5, 0, 0)
+script = ExtResource("door")
+target_room = &"catacombs"
+target_spawn = NodePath("Spawns/FromOssuary")
+open_prompt = "Назад, в катакомбы"
+
+[node name="DoorToQuarter" type="Area3D" parent="Objects"]
+position = Vector3(-18.5, -14, 0)
+script = ExtResource("door")
+target_room = &"gravedigger_quarter"
+target_spawn = NodePath("Spawns/FromOssuary")
+open_prompt = "В квартал могильщика"

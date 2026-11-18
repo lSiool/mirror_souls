@@ -9,7 +9,7 @@
 Godot не в PATH, путь — `/c/Program Files/Godot/Godot.exe`.
 
 - Импорт после новых ресурсов или `.uid`: `"/c/Program Files/Godot/Godot.exe" --headless --path . --import`
-- Смоук-тест (несколько минут): `timeout 900 "/c/Program Files/Godot/Godot.exe" --headless --path . res://tests/smoke_test.tscn > <scratchpad>/smoke.log 2>&1`, в конце лога `RESULT: PASS (0 failures)`. Искать `FAIL|SCRIPT ERROR|RESULT`.
+- Смоук-тест (около 16 минут, запускать в фоне): `timeout 1500 "/c/Program Files/Godot/Godot.exe" --headless --path . res://tests/smoke_test.tscn > <scratchpad>/smoke.log 2>&1`, в конце лога `RESULT: PASS (0 failures)`. Искать `FAIL|SCRIPT ERROR|RESULT`.
   - **Всегда с `timeout`**: после `SCRIPT ERROR` тест не выходит, а висит. Не убивать все `Godot.exe` — у автора может быть открыт редактор.
   - Тест длинный и проходит все комнаты подряд: проверка, которая сдвинула или развернула врага, должна вернуть его на место (иначе дальше герой может оказаться над пропастью).
 - Быстрая проверка разбора всех скриптов (секунды; смоук-тест после ошибки разбора висит до `timeout`): `timeout 120 "/c/Program Files/Godot/Godot.exe" --headless --path . res://tools/check_scripts.tscn`, в конце `SCRIPTS: OK (N)`.
@@ -34,6 +34,7 @@ Godot не в PATH, путь — `/c/Program Files/Godot/Godot.exe`.
 | `tools/levels/build_hook.py` | полигон крюка на цепи: `hook_range` |
 | `tools/levels/build_fields.py` | Поля (§8.13): `farmyard`, `rye_field`, `execution_hill`, `mill`, `vegetable_patch`, `threshing_barn` |
 | `tools/levels/build_mountains.py` (помощники — из `build_fields.py`) | Подвесной перевал и Пепельные Пики: `pass_bridge`, `ash_peaks` |
+| `tools/levels/build_graveyard.py` | Катакомбы кладбища (§8.13): `catacombs`, `ossuary`, `gravedigger_quarter`, `bell_tower`; тьма — свечи `WallCandle` зажигает фонарь `HandLantern` (кнопка `lantern`, C); снимки — `tools/levels/crypts_snapshot.tscn` |
 
 - Фон и передний план уличных комнат — общий набор `tools/levels/backdrop.py` (`Kit`: небо, горизонт, дальний и средний планы, дымка, подсвеченный путь `path_light`, ближняя земля — не под мостами, редкие затенённые предметы переднего плана; наполнение — функции биомов `village`, `hub`, `cemetery`, `forest`, `swamp`, `dead_village`, `fields`, `pass_view`, `peaks`). Свои ext_resource комнаты — `Scene.use()` (общий словарь `EXT` не трогать: иначе меняются все комнаты). Края комнат — невидимые стены `Scene.wall()`, земля и фон идут дальше края.
 - Правка комнаты = правка генератора + перегенерация (+ `tools/world_map/build_map.tscn` — форма комнаты на карте). Генераторы воспроизводимы: повторный запуск без изменений не меняет файлы.
