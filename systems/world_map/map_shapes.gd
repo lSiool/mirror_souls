@@ -9,9 +9,17 @@ const PATH := "res://systems/world_map/map_shapes.tres"
 ## Запас над самым высоким полом и под самым низким, м.
 const HEADROOM := 5.0
 const FOOTROOM := 1.5
+## Высота «воздуха» над полом и уступом, м: так высоко комната видна на карте над каждой поверхностью.
+const BAND := 3.4
+## Ребро круче этого (по отношению высоты к длине) — уже стена, а не пол.
+const STEEP := 1.2
+## Пол выше самой высокой лестницы, двери или осколка больше чем на это — крыша или потолок, герою туда не попасть.
+const REACH := 3.5
 
 ## id комнаты → {left, right, bottom, top (м), solids, glass (Array[PackedVector2Array]),
-## ladders (Array[Vector3]: x, низ, верх), doors (Array: [Vector2, id комнаты]), shards ({путь: Vector2})}.
+## space — «воздух» комнаты, по которому ходит герой: на карте комната — это его очертание (Array[PackedVector2Array]),
+## pillars — твёрдое внутри воздуха (колонны, уступы посреди хода), ladders (Array[Vector3]: x, низ, верх),
+## doors (Array: [Vector2, id комнаты]), shards ({путь: Vector2})}.
 @export var rooms := {}
 
 static var _loaded: MapShapes
@@ -61,9 +69,121 @@ static func extract(room: Room) -> Dictionary:
 		floors.append(top)
 	var bottom: float = (floors.min() - FOOTROOM) if floors.size() > 0 else -2.0
 	var top_y: float = (floors.max() + HEADROOM) if floors.size() > 0 else 6.0
+	var clipped_solids := _clip_all(solids, left, right, bottom, top_y)
+	var clipped_glass := _clip_all(glass, left, right, bottom, top_y)
+	var air := _space(clipped_solids, clipped_glass, ladders, doors, left, right, bottom, top_y)
 	return {"left": left, "right": right, "bottom": _r(bottom), "top": _r(top_y),
-		"solids": _clip_all(solids, left, right, bottom, top_y), "glass": _clip_all(glass, left, right, bottom, top_y),
+		"solids": clipped_solids, "glass": clipped_glass, "space": _rounded(air[0]), "pillars": _rounded(air[1]),
 		"ladders": ladders, "doors": doors, "shards": shards}
+
+
+## Воздух комнаты: полоса BAND над каждым полом и уступом (верхние пологие рёбра твёрдого и стекла),
+## шахты лестниц, проёмы дверей — всё вместе, без твёрдого. Возвращает [воздух, твёрдое внутри воздуха].
+static func _space(solids: Array[PackedVector2Array], glass: Array[PackedVector2Array], ladders: Array[Vector3],
+		doors: Array, left: float, right: float, bottom: float, top: float) -> Array:
+	var bands: Array[PackedVector2Array] = []
+	# Докуда герой может добраться: лестницы, двери, первый пол; выше — крыши и потолки, их воздух не нужен.
+	var reach := -INF
+	for ladder in ladders:
+		reach = maxf(reach, ladder.z)
+	for door: Array in doors:
+		reach = maxf(reach, (door[0] as Vector2).y)
+	if reach == -INF:
+		reach = 0.0
+	reach += REACH
+	for poly in solids + glass:
+		var center := Vector2.ZERO
+		for p in poly:
+			center += p
+		center /= poly.size()
+		for i in poly.size():
+			var a := poly[i]
+			var b := poly[(i + 1) % poly.size()]
+			if a.x > b.x:
+				var swap := a
+				a = b
+				b = swap
+			var d := b - a
+			if d.length() < 0.2 or absf(d.y) > absf(d.x) * STEEP or (a.y + b.y) * 0.5 < center.y or minf(a.y, b.y) > reach:
+				continue
+			bands.append(PackedVector2Array([a, b, b + Vector2(0, BAND), a + Vector2(0, BAND)]))
+	for ladder in ladders:
+		bands.append(_box(ladder.x - 0.7, ladder.y, ladder.x + 0.7, ladder.z + 1.2))
+	for door: Array in doors:
+		var at: Vector2 = door[0]
+		bands.append(_box(at.x - 1.2, at.y, at.x + 1.2, at.y + 3.0))
+	var air := _union(bands, 0.06)
+	# Твёрдое вырезается из воздуха; то, что оказалось целиком внутри (колонна посреди хода), — отдельно.
+	var pillars: Array[PackedVector2Array] = []
+	for solid in solids:
+		var next: Array[PackedVector2Array] = []
+		for piece in air:
+			var parts := Geometry2D.clip_polygons(piece, solid)
+			for part in parts:
+				if _is_hole(part, parts):
+					pillars.append(solid)
+				else:
+					next.append(part)
+		air = next
+	return [_clip_all(air, left, right, bottom, top), pillars]
+
+
+static func _box(x0: float, y0: float, x1: float, y1: float) -> PackedVector2Array:
+	return PackedVector2Array([Vector2(x0, y0), Vector2(x1, y0), Vector2(x1, y1), Vector2(x0, y1)])
+
+
+## Объединение многоугольников; grow — нахлёст, чтобы касающиеся куски слились, а не остались швом.
+static func _union(polys: Array[PackedVector2Array], grow: float) -> Array[PackedVector2Array]:
+	var result: Array[PackedVector2Array] = []
+	for poly in polys:
+		var grown := Geometry2D.offset_polygon(poly, grow, Geometry2D.JOIN_MITER)
+		if grown.is_empty():
+			continue
+		var current: PackedVector2Array = grown[0]
+		var i := 0
+		while i < result.size():
+			if Geometry2D.intersect_polygons(current, result[i]).is_empty():
+				i += 1
+				continue
+			# Внешний контур — самый большой кусок слияния (дыры отбрасываем — у воздуха их почти не бывает).
+			var best := -1.0
+			for part in Geometry2D.merge_polygons(current, result[i]):
+				var area := absf(_area(part))
+				if area > best:
+					best = area
+					current = part
+			result.remove_at(i)
+			i = 0
+		result.append(current)
+	return result
+
+
+## Кусок — дыра, если он лежит внутри другого куска того же разреза (направление обхода у Clipper ненадёжно).
+static func _is_hole(part: PackedVector2Array, parts: Array[PackedVector2Array]) -> bool:
+	for other in parts:
+		if other != part and absf(_area(other)) > absf(_area(part)) and Geometry2D.is_point_in_polygon(part[0], other):
+			return true
+	return false
+
+
+static func _area(poly: PackedVector2Array) -> float:
+	var sum := 0.0
+	for i in poly.size():
+		var a := poly[i]
+		var b := poly[(i + 1) % poly.size()]
+		sum += a.x * b.y - b.x * a.y
+	return sum * 0.5
+
+
+static func _rounded(polys: Array[PackedVector2Array]) -> Array[PackedVector2Array]:
+	var result: Array[PackedVector2Array] = []
+	for poly in polys:
+		var rounded := PackedVector2Array()
+		for p in poly:
+			rounded.append(Vector2(_r(p.x), _r(p.y)))
+		if rounded.size() >= 3:
+			result.append(rounded)
+	return result
 
 
 static func _descendants(node: Node) -> Array[Node]:

@@ -1,11 +1,13 @@
 class_name WorldMapView
 extends VBoxContainer
 ## Карта мира (§8.13): окно неподвижно, содержимое тянется мышью (или стиком/стрелками), колесо — масштаб.
-## Вид — по карте Mandragora: комнаты залиты приглушённым цветом биома и обведены толстыми бронзовыми стенами,
-## проходы — разрывы в стенах и короткие коридоры, имя области — крупно поверх неё; имя комнаты — под курсором.
+## Комната — очертание её «воздуха», по которому ходит герой (MapShapes: полосы над полом и уступами, шахты
+## лестниц), а не прямоугольник. Стены — только по общему внешнему контуру открытых комнат: соседние комнаты
+## сливаются в один ход, на месте двери — проём, без стрелок. Дальний переход (зеркало, дверь в другую часть мира) —
+## готические врата с подписью, куда ведут; проход в неоткрытую комнату — проём, уходящий в темноту.
+## Вид готический: стены кладкой с бронзовой кромкой, рама с остроконечными уголками, имена областей в орнаменте.
 ## Видны только комнаты, где герой уже был (`GameState.visited_rooms`): мир открывается по мере пути.
-## Биом подписан, когда открыта хоть одна его комната; дверь в неоткрытую комнату — обрывок линии.
-## Осколки — ромбы: зажжённый светится, незажжённый — контур.
+## Осколки — кристалл на подставке: зажжённый светится, незажжённый — тёмный.
 ## Тестовый режим (`dev`, клавиша F4): открыто всё, даже области в плане; щелчок по осколку — перенос к нему.
 
 signal shard_chosen(room: StringName, path: NodePath)
@@ -20,12 +22,13 @@ const PAN_SPEED := 700.0
 const DRAG_SLOP := 6.0
 
 const PAPER := Color(0.03, 0.03, 0.035, 0.97)
-## Стены комнат и коридоров — тусклая бронза.
+## Стены: тёмная кладка снаружи, тусклая бронза по кромке.
 const WALL := Color(0.69, 0.56, 0.38)
+const MASONRY := Color(0.13, 0.11, 0.09)
 const AREA_NAME := Color(0.93, 0.91, 0.86)
-## Линия пола и уступов, стекло на карте.
-const FLOOR := Color(0.9, 0.86, 0.76)
 const GLASS := Color(0.6, 0.85, 1.0)
+## Дальний переход ближе этого (в единицах карты) — уже не врата, а соседний ход.
+const NEAR_DOOR := 1.6
 const SHARD_LIT := Color(0.62, 0.92, 1.0)
 const SHARD_DARK := Color(0.55, 0.6, 0.66)
 const HERO := Color(1.0, 0.72, 0.38)
@@ -44,6 +47,10 @@ var _canvas: Control
 var _legend: Label
 var _font: Font
 var _serif: Font
+## Внешний контур открытых комнат в единицах карты — пересчитывается, когда меняется набор комнат.
+var _walls: Array[PackedVector2Array] = []
+## Подписи врат, уже поставленные в этом кадре: следующая не ложится поверх.
+var _labels: Array[Rect2] = []
 
 
 func setup(menu: LevelMenu) -> void:
@@ -78,11 +85,27 @@ func open(room: StringName, hero: Vector2, dev_mode: bool) -> void:
 	hero_at = hero
 	_zoom = 1.0
 	_pan = Vector2.ZERO
-	if WorldMap.ROOMS.has(room):
-		_pan = -WorldMap.room_rect(room).get_center() * CELL
+	center_on(room)
 	_legend.text = ("Тест: открыто всё, щелчок по осколку — перенос    " if dev else "") \
-		+ "◆ осколок   ◇ не зажжён   ▼ ты здесь    тяни — двигать, колесо — масштаб"
+		+ "◆ осколок   ◇ не зажжён   ▼ ты здесь   ⌂ переход    тяни — двигать, колесо — масштаб"
+	_rebuild_walls()
 	_canvas.queue_redraw()
+
+
+## Общий контур воздуха открытых комнат: касающиеся комнаты сливаются, и стена между ними пропадает.
+func _rebuild_walls() -> void:
+	var polys: Array[PackedVector2Array] = []
+	for room in shown_rooms():
+		for poly: PackedVector2Array in WorldMap.shape(room).get("space", []):
+			polys.append(_map_poly(room, poly))
+	_walls = MapShapes._union(polys, 0.025)
+
+
+## Комната — посередине окна.
+func center_on(room: StringName) -> void:
+	if WorldMap.ROOMS.has(room):
+		_pan = -WorldMap.room_rect(room).get_center() * CELL * _zoom
+		_canvas.queue_redraw()
 
 
 func focus() -> void:
@@ -223,169 +246,226 @@ func _draw_map() -> void:
 		for biome: StringName in WorldMap.BIOMES:
 			if WorldMap.is_planned(biome):
 				_draw_planned(biome)
-	# Сначала коридоры и воздух комнат, потом твёрдое, стены и линии пола: у соседних комнат стык общий.
-	_draw_links(shown)
-	for room in shown:
-		_canvas.draw_rect(_rect_px(WorldMap.room_rect(room)), _fill(room))
+	# Кладка — широкая тёмная обводка под воздухом: стены получаются толстыми, как на старой карте.
+	var wall := _wall()
+	for poly in _walls:
+		_outline(_screen_poly(poly), MASONRY, wall * 3.0)
 	for room in shown:
 		_draw_room(room)
+	for poly in _walls:
+		_outline(_screen_poly(poly), WALL, wall)
+	_draw_passages(shown)
 	_draw_shards()
 	_draw_area_names(shown)
 	if WorldMap.ROOMS.has(current_room):
 		_draw_hero(_to_screen(WorldMap.to_map(current_room, hero_at)))
 	if _hover_room != &"":
 		var r := _rect_px(WorldMap.room_rect(_hover_room))
-		_canvas.draw_rect(r, Color(1, 1, 1, 0.06))
-		_text(Vector2(r.position.x, r.end.y + 18.0), LevelMenu.place_name(_hover_room), 15, AREA_NAME)
+		_text(Vector2(r.position.x, r.end.y + 20.0), LevelMenu.place_name(_hover_room), 16, AREA_NAME, true)
+	_draw_frame(size)
 
 
-## Толщина стены: с масштабом, но не тоньше 2 пикс.
+## Толщина бронзовой кромки: с масштабом, но не тоньше 2 пикс.
 func _wall() -> float:
-	return clampf(3.0 * _zoom, 2.0, 5.0)
+	return clampf(2.5 * _zoom, 2.0, 4.5)
 
 
 ## Заливка комнаты — приглушённый цвет её биома; комната героя светлее.
 func _fill(room: StringName) -> Color:
 	var color: Color = WorldMap.BIOMES[WorldMap.ROOMS[room]["biome"]]["color"]
-	var dark := Color(color.darkened(0.68), 1.0)
-	dark.s *= 0.75
+	var dark := Color(color.darkened(0.66), 1.0)
+	dark.s *= 0.7
 	return dark.lightened(0.12) if room == current_room else dark
 
 
 func _draw_planned(biome: StringName) -> void:
 	var r := _rect_px(WorldMap.BIOMES[biome]["planned"])
 	var color: Color = WorldMap.BIOMES[biome]["color"]
-	_canvas.draw_rect(r, Color(color.darkened(0.75), 0.5))
-	_dashed_rect(r, Color(WALL, 0.45))
-	_text(r.position + Vector2(10, 30), WorldMap.biome_name(biome), 24, Color(AREA_NAME, 0.45), true)
-	_text(r.position + Vector2(10, 50), "в плане", 14, Color(AREA_NAME, 0.35))
+	_canvas.draw_rect(r, Color(color.darkened(0.78), 0.45))
+	_dashed_rect(r, Color(WALL, 0.4))
+	_title(r.position + Vector2(r.size.x * 0.5, 34), WorldMap.biome_name(biome), 22, Color(AREA_NAME, 0.45))
+	_text(r.position + Vector2(r.size.x * 0.5 - 24, 54), "в плане", 13, Color(AREA_NAME, 0.35))
 
 
-## Имя области — крупно, светлым по тёмному, над её комнатами.
+## Комната: воздух цветом биома, колонны и уступы посреди хода — тёмной кладкой, стекло, лестницы.
+func _draw_room(room: StringName) -> void:
+	var s := WorldMap.shape(room)
+	var fill := _fill(room)
+	for poly: PackedVector2Array in s.get("space", []):
+		var pts := _screen_poly(_map_poly(room, poly))
+		if pts.size() >= 3:
+			_canvas.draw_colored_polygon(pts, fill)
+	for poly: PackedVector2Array in s.get("pillars", []):
+		var pts := _screen_poly(_map_poly(room, poly))
+		if pts.size() >= 3:
+			_canvas.draw_colored_polygon(pts, MASONRY)
+			_outline(pts, WALL, 1.5)
+	for poly: PackedVector2Array in s.get("glass", []):
+		var pts := _screen_poly(_map_poly(room, poly))
+		if pts.size() >= 3:
+			_canvas.draw_colored_polygon(pts, Color(GLASS, 0.3))
+			_outline(pts, Color(GLASS, 0.8), 1.0)
+	for ladder: Vector3 in s.get("ladders", []):
+		_draw_ladder(room, ladder)
+
+
+func _map_poly(room: StringName, poly: PackedVector2Array) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for p in poly:
+		pts.append(WorldMap.to_map(room, p))
+	return pts
+
+
+func _screen_poly(poly: PackedVector2Array) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for p in poly:
+		pts.append(_to_screen(p))
+	return pts
+
+
+func _outline(pts: PackedVector2Array, color: Color, width: float) -> void:
+	if pts.size() < 2:
+		return
+	var closed := pts.duplicate()
+	closed.append(pts[0])
+	_canvas.draw_polyline(closed, color, width, true)
+
+
+func _draw_ladder(room: StringName, ladder: Vector3) -> void:
+	var low := _to_screen(WorldMap.to_map(room, Vector2(ladder.x, ladder.y)))
+	var high := _to_screen(WorldMap.to_map(room, Vector2(ladder.x, ladder.z)))
+	var w := clampf(3.5 * _zoom, 2.5, 6.0)
+	var color := Color(WALL, 0.85)
+	_canvas.draw_line(low + Vector2(-w, 0), high + Vector2(-w, 0), color, 1.0)
+	_canvas.draw_line(low + Vector2(w, 0), high + Vector2(w, 0), color, 1.0)
+	var steps := int(absf(low.y - high.y) / maxf(5.0 * _zoom, 4.0))
+	for i in steps:
+		var y := lerpf(low.y, high.y, (i + 0.5) / steps)
+		_canvas.draw_line(Vector2(low.x - w, y), Vector2(low.x + w, y), color, 1.0)
+
+
+## Переходы: соседняя открытая комната уже слилась с этой в один ход — рисовать нечего. Дальняя — врата с
+## подписью, куда ведут. Неоткрытая соседняя — проём в стене, уходящий в темноту; неоткрытая дальняя — врата без имени.
+func _draw_passages(shown: Array[StringName]) -> void:
+	_labels.clear()
+	for room in shown:
+		for door: Array in WorldMap.shape(room).get("doors", []):
+			var target: StringName = door[1]
+			if not WorldMap.ROOMS.has(target):
+				continue
+			var here := WorldMap.to_map(room, door[0])
+			var partner := _partner(target, room)
+			var near := partner.distance_to(here) < NEAR_DOOR
+			if shown.has(target):
+				if not near:
+					_draw_gate(_to_screen(here), LevelMenu.place_name(target), true)
+			elif near:
+				_draw_opening(room, door[0], partner)
+			else:
+				_draw_gate(_to_screen(here), "", false)
+
+
+## Дверь комнаты target, ведущая в from, на карте (центр комнаты, если такой двери нет).
+func _partner(target: StringName, from: StringName) -> Vector2:
+	for door: Array in WorldMap.shape(target).get("doors", []):
+		if door[1] == from:
+			return WorldMap.to_map(target, door[0])
+	return WorldMap.room_rect(target).get_center()
+
+
+## Проём в неоткрытое: стена расступается у края комнаты, ход уходит в темноту.
+func _draw_opening(room: StringName, door: Vector2, toward: Vector2) -> void:
+	var rect := WorldMap.room_rect(room)
+	var floor_y := WorldMap.to_map(room, door).y
+	var right := toward.x > rect.get_center().x
+	var edge := rect.end.x if right else rect.position.x
+	var height := MapShapes.BAND / WorldMap.METERS
+	var a := _to_screen(Vector2(edge, floor_y))
+	var b := _to_screen(Vector2(edge, floor_y - height))
+	var out := Vector2(1.0 if right else -1.0, 0.0) * 0.9 * CELL * _zoom
+	var fill := _fill(room)
+	var fade := Color(fill, 0.0)
+	_canvas.draw_polygon(PackedVector2Array([a, b, b + out, a + out]), PackedColorArray([fill, fill, fade, fade]))
+	var dim := Color(WALL, 0.0)
+	_canvas.draw_polyline_colors(PackedVector2Array([a, a + out]), PackedColorArray([WALL, dim]), _wall())
+	_canvas.draw_polyline_colors(PackedVector2Array([b, b + out]), PackedColorArray([WALL, dim]), _wall())
+	# Сама стена в проёме — стёрта цветом хода.
+	_canvas.draw_line(a.lerp(b, 0.04), b.lerp(a, 0.04), fill, _wall() * 3.0 + 1.0)
+
+
+## Готические врата — стрельчатая арка на полу; подпись — куда ведут.
+func _draw_gate(at: Vector2, label: String, known: bool) -> void:
+	var k := clampf(_zoom, 0.8, 1.6)
+	var w := 7.0 * k
+	var h := 20.0 * k
+	var arch := PackedVector2Array([at + Vector2(-w, 0), at + Vector2(-w, -h * 0.5)])
+	# Две дуги, сходящиеся в острие, — как в стрельчатом окне.
+	for i in range(1, 6):
+		var a := PI - PI / 3.0 * i / 5.0
+		arch.append(at + Vector2(w, -h * 0.5) + Vector2(cos(a), -sin(a)) * w * 2.0)
+	for i in range(1, 6):
+		var a := PI / 3.0 - PI / 3.0 * i / 5.0
+		arch.append(at + Vector2(-w, -h * 0.5) + Vector2(cos(a), -sin(a)) * w * 2.0)
+	arch.append(at + Vector2(w, 0))
+	var inner := Color(0.32, 0.42, 0.58) if known else Color(0.1, 0.1, 0.12)
+	_canvas.draw_colored_polygon(arch, MASONRY)
+	var glow := PackedVector2Array()
+	for p in arch:
+		glow.append(at + (p - at) * 0.62 + Vector2(0, -1.0 * k))
+	_canvas.draw_colored_polygon(glow, inner)
+	_outline(arch, WALL, 1.6)
+	_canvas.draw_line(at + Vector2(-w - 3.0 * k, 0), at + Vector2(w + 3.0 * k, 0), WALL, 2.0)
+	if label != "":
+		var size := 14
+		var width := _serif.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		var spot := Rect2(at + Vector2(-width * 0.5, -h - 7.0 - size), Vector2(width, size + 4))
+		# Соседние врата: подпись поднимается, пока не перестанет ложиться на прежние.
+		var lifted := true
+		while lifted:
+			lifted = false
+			for taken in _labels:
+				if taken.intersects(spot):
+					spot.position.y = taken.position.y - spot.size.y - 2.0
+					lifted = true
+		_labels.append(spot)
+		var base := Vector2(spot.position.x, spot.end.y - 4.0)
+		if base.y < at.y - h - 8.0:
+			_canvas.draw_line(at + Vector2(0, -h - 2.0), Vector2(at.x, base.y + 2.0), Color(WALL, 0.5), 1.0)
+		_text(base + Vector2(1, 1), label, size, Color(0, 0, 0, 0.8), true)
+		_text(base, label, size, Color(AREA_NAME, 0.9), true)
+
+
+## Имя области — крупно, между орнаментальными чертами, над её комнатами.
 func _draw_area_names(shown: Array[StringName]) -> void:
 	var areas := {}
 	for room in shown:
 		var biome: StringName = WorldMap.ROOMS[room]["biome"]
 		var r := WorldMap.room_rect(room)
 		areas[biome] = (areas[biome] as Rect2).merge(r) if areas.has(biome) else r
-	var size := int(clampf(26.0 * _zoom, 16.0, 40.0))
+	var size := int(clampf(24.0 * _zoom, 16.0, 38.0))
 	for biome: StringName in areas:
 		var r := _rect_px(areas[biome])
-		var at := Vector2(r.position.x + 4.0, r.position.y - 10.0)
-		_text(at + Vector2(2, 2), WorldMap.biome_name(biome), size, Color(0, 0, 0, 0.8), true)
-		_text(at, WorldMap.biome_name(biome), size, AREA_NAME, true)
+		_title(Vector2(r.get_center().x, r.position.y - 14.0), WorldMap.biome_name(biome), size, AREA_NAME)
 
 
-## Комната — её силуэт: твёрдое (земля, уступы, стены) почти чёрным с бронзовой кромкой, верх твёрдого —
-## светлая линия пола; стекло — голубым, лестницы — перекладинами, двери — арками. Рамка комнаты — тонкая.
-func _draw_room(room: StringName) -> void:
-	var s := WorldMap.shape(room)
-	var wall := _wall()
-	for poly: PackedVector2Array in s.get("solids", []):
-		var pts := _poly_px(room, poly)
-		if pts.size() >= 3:
-			_canvas.draw_colored_polygon(pts, PAPER)
-			_outline(pts, Color(WALL, 0.55), 1.0)
-			_floor_lines(pts, wall)
-	for poly: PackedVector2Array in s.get("glass", []):
-		var pts := _poly_px(room, poly)
-		if pts.size() >= 3:
-			_canvas.draw_colored_polygon(pts, Color(GLASS, 0.35))
-			_outline(pts, GLASS, 1.0)
-	for ladder: Vector3 in s.get("ladders", []):
-		_draw_ladder(room, ladder)
-	for door: Array in s.get("doors", []):
-		_draw_door(_to_screen(WorldMap.to_map(room, door[0])))
-	_canvas.draw_rect(_rect_px(WorldMap.room_rect(room)), Color(WALL, 0.8), false, 1.5)
+## Надпись с орнаментом: черта, ромб, имя, ромб, черта. at — середина базовой линии.
+func _title(at: Vector2, text: String, size: int, color: Color) -> void:
+	var width := _serif.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var left := at.x - width * 0.5
+	_text(Vector2(left + 2, at.y + 2), text, size, Color(0, 0, 0, 0.85), true)
+	_text(Vector2(left, at.y), text, size, color, true)
+	var mid := at.y - size * 0.32
+	var line := Color(WALL, color.a * 0.9)
+	for side: float in [-1.0, 1.0]:
+		var near := at.x + side * (width * 0.5 + 10.0)
+		var far := near + side * size * 2.2
+		_canvas.draw_line(Vector2(near + side * 6.0, mid), Vector2(far, mid), line, 1.2)
+		_diamond(Vector2(near, mid), 4.0, line)
+		_diamond(Vector2(far + side * 4.0, mid), 2.5, line)
 
 
-func _poly_px(room: StringName, poly: PackedVector2Array) -> PackedVector2Array:
-	var pts := PackedVector2Array()
-	for p in poly:
-		pts.append(_to_screen(WorldMap.to_map(room, p)))
-	return pts
-
-
-func _outline(pts: PackedVector2Array, color: Color, width: float) -> void:
-	var closed := pts.duplicate()
-	closed.append(pts[0])
-	_canvas.draw_polyline(closed, color, width)
-
-
-## Пол и уступы: рёбра твёрдого, по которым можно стоять (почти горизонтальные и сверху), — светлой линией.
-func _floor_lines(pts: PackedVector2Array, width: float) -> void:
-	var n := pts.size()
-	var center := Vector2.ZERO
-	for p in pts:
-		center += p
-	center /= n
-	for i in n:
-		var a := pts[i]
-		var b := pts[(i + 1) % n]
-		var d := b - a
-		if d.length() < 2.0 or absf(d.y) > absf(d.x) * 0.9:
-			continue
-		# Ребро сверху: середина ребра выше центра фигуры (y экрана — вниз).
-		if (a.y + b.y) * 0.5 < center.y:
-			_canvas.draw_line(a, b, FLOOR, width)
-
-
-func _draw_ladder(room: StringName, ladder: Vector3) -> void:
-	var low := _to_screen(WorldMap.to_map(room, Vector2(ladder.x, ladder.y)))
-	var high := _to_screen(WorldMap.to_map(room, Vector2(ladder.x, ladder.z)))
-	var w := clampf(4.0 * _zoom, 3.0, 7.0)
-	_canvas.draw_line(low + Vector2(-w, 0), high + Vector2(-w, 0), Color(WALL, 0.9), 1.0)
-	_canvas.draw_line(low + Vector2(w, 0), high + Vector2(w, 0), Color(WALL, 0.9), 1.0)
-	var steps := int(absf(low.y - high.y) / maxf(5.0 * _zoom, 4.0))
-	for i in steps:
-		var y := lerpf(low.y, high.y, (i + 0.5) / steps)
-		_canvas.draw_line(Vector2(low.x - w, y), Vector2(low.x + w, y), Color(WALL, 0.9), 1.0)
-
-
-## Дверь — арка на полу.
-func _draw_door(at: Vector2) -> void:
-	var k := clampf(_zoom, 0.8, 1.5)
-	var w := 5.0 * k
-	var h := 11.0 * k
-	var arch := PackedVector2Array([at + Vector2(-w, 0), at + Vector2(-w, -h * 0.6)])
-	for i in 7:
-		var a := PI + PI * i / 6.0
-		arch.append(at + Vector2(0, -h * 0.6) + Vector2(cos(a) * w, sin(a) * w * 0.8))
-	arch.append(at + Vector2(w, 0))
-	_canvas.draw_colored_polygon(arch, Color(0.08, 0.07, 0.06))
-	_canvas.draw_polyline(arch, WALL, 1.5)
-
-
-## Проходы между комнатами — коридор от двери до двери (у соседних комнат он короткий, почти незаметный),
-## в неоткрытую комнату — обрывок коридора в её сторону.
-func _draw_links(shown: Array[StringName]) -> void:
-	var width := clampf(9.0 * _zoom, 6.0, 16.0)
-	for room in shown:
-		for door: Array in WorldMap.shape(room).get("doors", []):
-			var target: StringName = door[1]
-			if not WorldMap.ROOMS.has(target):
-				continue
-			var from := _to_screen(WorldMap.to_map(room, door[0]))
-			var to := _door_toward(target, room)
-			if not shown.has(target):
-				to = from + (to - from).normalized() * 24.0 * _zoom
-			elif String(target) < String(room):
-				continue  # пару рисует одна из двух комнат
-			if from.distance_to(to) > 1.2 * CELL * _zoom:
-				# Дальний переход (дверь в другую часть мира) — пунктир, а не коридор.
-				_canvas.draw_dashed_line(from, to, Color(WALL, 0.7), 1.5, 7.0)
-				continue
-			var fill := _fill(room)
-			_canvas.draw_line(from, to, WALL, width + _wall() * 2.0)
-			_canvas.draw_line(from, to, fill, width)
-
-
-## Дверь комнаты target, ведущая в from (центр комнаты, если такой двери нет).
-func _door_toward(target: StringName, from: StringName) -> Vector2:
-	for door: Array in WorldMap.shape(target).get("doors", []):
-		if door[1] == from:
-			return _to_screen(WorldMap.to_map(target, door[0]))
-	return _to_screen(WorldMap.room_rect(target).get_center())
+func _diamond(c: Vector2, s: float, color: Color) -> void:
+	_canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -s), c + Vector2(s, 0), c + Vector2(0, s), c + Vector2(-s, 0)]), color)
 
 
 ## Осколок — кристалл на подставке: зажжённый светится, незажжённый — тёмный контур.
@@ -403,9 +483,7 @@ func _draw_shards() -> void:
 		if lit:
 			_canvas.draw_circle(c, s * 1.7, Color(SHARD_LIT, 0.16))
 		_canvas.draw_colored_polygon(crystal, SHARD_LIT if lit else Color(0.12, 0.13, 0.15))
-		var outline := crystal.duplicate()
-		outline.append(crystal[0])
-		_canvas.draw_polyline(outline, SHARD_LIT if lit else SHARD_DARK, 1.5)
+		_outline(crystal, SHARD_LIT if lit else SHARD_DARK, 1.5)
 		if room == _hover:
 			_text(c + Vector2(14, -12), "Перенестись: %s" % LevelMenu.place_name(room), 15, LevelMenu.ACCENT)
 
@@ -417,6 +495,34 @@ func _draw_hero(at: Vector2) -> void:
 	_canvas.draw_colored_polygon(PackedVector2Array([at, head + Vector2(-5.5 * k, 3.0 * k), head + Vector2(5.5 * k, 3.0 * k)]), HERO)
 	_canvas.draw_circle(head, 7.0 * k, HERO)
 	_canvas.draw_circle(head, 3.0 * k, Color(0.1, 0.07, 0.04))
+
+
+## Рама окна: затемнение к краям, двойная бронзовая черта и остроконечные уголки-фиалы.
+func _draw_frame(size: Vector2) -> void:
+	var edge := 70.0
+	var dark := Color(0, 0, 0, 0.55)
+	var clear := Color(0, 0, 0, 0)
+	_canvas.draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), Vector2(size.x, edge), Vector2(0, edge)]),
+		PackedColorArray([dark, dark, clear, clear]))
+	_canvas.draw_polygon(PackedVector2Array([Vector2(0, size.y - edge), Vector2(size.x, size.y - edge), size, Vector2(0, size.y)]),
+		PackedColorArray([clear, clear, dark, dark]))
+	_canvas.draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(edge, 0), Vector2(edge, size.y), Vector2(0, size.y)]),
+		PackedColorArray([dark, clear, clear, dark]))
+	_canvas.draw_polygon(PackedVector2Array([Vector2(size.x - edge, 0), Vector2(size.x, 0), Vector2(size.x, size.y), Vector2(size.x - edge, size.y)]),
+		PackedColorArray([clear, dark, dark, clear]))
+	for inset: float in [7.0, 12.0]:
+		_canvas.draw_rect(Rect2(Vector2(inset, inset), size - Vector2(inset, inset) * 2.0), Color(WALL, 0.55 if inset < 10.0 else 0.3), false, 1.0)
+	for corner: Vector2 in [Vector2(0, 0), Vector2(1, 0), Vector2(0, 1), Vector2(1, 1)]:
+		var c := Vector2(lerpf(12.0, size.x - 12.0, corner.x), lerpf(12.0, size.y - 12.0, corner.y))
+		var dir := Vector2(1.0 if corner.x == 0.0 else -1.0, 1.0 if corner.y == 0.0 else -1.0)
+		# Уголок-фиал: две черты вдоль рамы, ромб в углу и острие внутрь окна.
+		_canvas.draw_line(c, c + Vector2(dir.x * 46.0, 0), WALL, 2.0)
+		_canvas.draw_line(c, c + Vector2(0, dir.y * 46.0), WALL, 2.0)
+		_diamond(c, 6.0, WALL)
+		_canvas.draw_colored_polygon(PackedVector2Array([c + dir * 6.0, c + dir * 6.0 + Vector2(dir.x * 5.0, 0), c + dir * 20.0,
+			c + dir * 6.0 + Vector2(0, dir.y * 5.0)]), Color(WALL, 0.8))
+		_diamond(c + Vector2(dir.x * 52.0, 0), 2.5, WALL)
+		_diamond(c + Vector2(0, dir.y * 52.0), 2.5, WALL)
 
 
 func _text(at: Vector2, text: String, size: int, color: Color, serif := false, width := -1.0) -> void:

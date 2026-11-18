@@ -22,7 +22,7 @@ func _ready() -> void:
 		add_child(room)
 		await get_tree().process_frame
 		shapes.rooms[id] = MapShapes.extract(room)
-		print("  %s: %d твёрдых, %d стекла, %d лестниц, %d дверей, %d осколков" % [id, shapes.rooms[id]["solids"].size(),
+		print("  %s: воздух %d, %d твёрдых, %d стекла, %d лестниц, %d дверей, %d осколков" % [id, shapes.rooms[id]["space"].size(), shapes.rooms[id]["solids"].size(),
 			shapes.rooms[id]["glass"].size(), shapes.rooms[id]["ladders"].size(), shapes.rooms[id]["doors"].size(),
 			shapes.rooms[id]["shards"].size()])
 		room.free()
