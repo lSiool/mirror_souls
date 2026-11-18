@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tools/_tmp_glb_check/ladder_shot.gd" id="1"]
+
+[node name="LadderShot" type="Node"]
+script = ExtResource("1")
