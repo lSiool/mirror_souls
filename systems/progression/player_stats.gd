@@ -24,7 +24,7 @@ const PARAM_IDS := {Param.VIGOR: &"vigor", Param.ENDURANCE: &"endurance", Param.
 	Param.MEMORY: &"memory"}
 ## Виды защиты и сопротивлений (§8.6): пока числа в меню, броня и стихии придут позже.
 const DEFENSES: Array[StringName] = [&"physical", &"glass", &"fire", &"cold"]
-const RESISTANCES: Array[StringName] = [&"bleed", &"blind", &"cold", &"heat"]
+const RESISTANCES: Array[StringName] = [&"bleed", &"blind", &"cold", &"heat", &"fire"]
 ## Лук скалируется от ловкости с этой оценкой (луки — не WeaponData).
 const BOW_GRADE := "B"
 ## Броски (ножи, топорики, склянки) тоже скалируются от ловкости, слабее лука.
@@ -370,8 +370,9 @@ func defense(kind: StringName, extra := 0) -> float:
 	return defense_base
 
 
-func resistance(_kind: StringName) -> float:
-	return resist_base
+## Сопротивление в очках меню: основа + надетая броня (доля → проценты, §8.6).
+func resistance(kind: StringName) -> float:
+	return resist_base + 100.0 * GameState.armor_resist(kind)
 
 
 ## Кувырок по доле веса: 0 — лёгкий, 1 — средний, 2 — тяжёлый.

@@ -493,6 +493,15 @@ rotation = Vector3(0, 0, 0.1)
 size = Vector3(2.6, 0.15, 0.15)
 material = SubResource("Mat_wood_dark")
 
+[node name="SmithApron" type="Area3D" parent="Objects"]
+position = Vector3(-19.6, 0.0, 0.0)
+script = ExtResource("pickup")
+item_id = &"armor_smith_apron"
+flag = &"found_smith_apron"
+pickup_prompt = "Взять кожаный фартук"
+look_size = Vector3(0.6, 0.16, 0.7)
+look_color = Color(0.22, 0.14, 0.09, 1)
+
 [node name="Brazier" type="CSGCylinder3D" parent="Decor"]
 position = Vector3(-3.0, 0.5, -1.8)
 radius = 0.5

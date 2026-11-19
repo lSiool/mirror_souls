@@ -721,22 +721,71 @@ func inferno_tour() -> void:
 	rooms.level_menu.close()
 	check(game_state.has_flag(&"shard_inferno_breach"), "на месте падения — осколок, он зажжён")
 	check(await walk_to(6.5) and absf(player.global_position.y) < 0.5, "по обломкам — на дно пещеры (y=%.1f)" % player.global_position.y)
-	# Лава убивает сразу; возрождение — у осколка на месте падения.
+	# Лава жжёт, а не убивает касанием; доспех с сопротивлением огню снимает часть урона (§8.13, §8.6).
 	player.hurtbox.invulnerable = false
-	await put(Vector3(9.5, 0.4, 0.0), 1.0)
-	var burned := false
+	var kept_armor: Dictionary = game_state.armor_slots.duplicate()
+	for slot: StringName in game_state.armor_slots:
+		game_state.armor_slots[slot] = &""
+	var bare := await lava_bite()
+	check(bare > 0.1 and bare < 0.3 and not player.is_dead(), "лава жжёт, а не убивает сразу (−%d %% здоровья за 0,5 с)" % roundi(bare * 100.0))
+	check(player.statuses.has(Statuses.BURNING), "в лаве герой горит")
+	check(player.safe_ground.x < 8.0 or player.safe_ground.x > 11.0, "отзвук героя в лаве не остаётся (x=%.1f)" % player.safe_ground.x)
+	press("move_right")
+	press("jump")
 	for i in 90:
 		await frames(1)
-		if player.is_dead():
-			burned = true
+		if player.is_on_floor() and player.global_position.x > 11.0 and player.global_position.y > -0.3:
 			break
-	check(burned, "лава убивает сразу")
+	release_all()
+	check(not player.is_dead() and player.global_position.x > 11.0 and player.global_position.y > -0.3,
+		"из протоки — выпрыгнул: обожжён, но жив (x=%.1f, здоровье %d %%)" % [player.global_position.x, roundi(100.0 * player.health.current / player.health.max_health)])
+	await put(room_node("Objects/FireCloak").global_position + Vector3(0.0, 0.1, 0.0), 1.0)
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	check(game_state.item_count(&"armor_fire_cloak") == 1 and game_state.is_armor(&"armor_fire_cloak"), "плащ с забойщика — в сумке, это броня")
+	game_state.set_armor(&"head", &"armor_fire_cloak")
+	check(game_state.armor_slots[&"head"] == &"", "плащ на голову не надеть")
+	game_state.set_armor(&"body", &"armor_fire_cloak")
+	var cloak := await lava_bite()
+	check(absf(cloak / bare - 0.75) < 0.12, "в плаще (−25 %% огня) лава жжёт слабее: %.2f от прежнего" % (cloak / bare))
+	if game_state.item_count(&"armor_smith_apron") == 0:
+		game_state.add_item(&"armor_smith_apron")
+	game_state.set_armor(&"body", &"armor_smith_apron")
+	var apron := await lava_bite()
+	check(absf(apron / bare - 0.5) < 0.12, "в фартуке (−50 %% огня) — вдвое слабее: %.2f от прежнего" % (apron / bare))
+	if game_state.item_count(&"armor_felt_hood") == 0:
+		game_state.add_item(&"armor_felt_hood")
+	game_state.set_armor(&"head", &"armor_felt_hood")
+	check(is_equal_approx(game_state.armor_resist(&"fire"), 0.75) and is_equal_approx(player.stats.resistance(&"fire"), 85.0),
+		"фартук и капюшон складываются: огонь −75 %%, в меню %d" % roundi(player.stats.resistance(&"fire")))
+	await put(Vector3(5.0, 0.1, 0.0), 1.0)
+	for slot: StringName in game_state.armor_slots:
+		game_state.armor_slots[slot] = &""
+	# Без защиты лава сжигает за несколько секунд; возрождение — у осколка на месте падения.
+	player.restore()
+	game_state.add_echoes(10)
+	await put(Vector3(9.5, -1.4, 0.0))
+	player.safe_ground = Vector3(7.0, 0.1, 0.0)
+	var burned := -1.0
+	for i in 420:
+		await frames(1)
+		if player.is_dead():
+			burned = i / 60.0
+			break
+	check(burned > 2.0 and burned < 5.0, "без защиты лава сжигает за %.1f с" % burned)
+	var echo_at: Vector3 = game_state.hero_echo.get("position", Vector3.ZERO)
+	check(not game_state.hero_echo.is_empty() and (echo_at.x < 8.0 or echo_at.x > 11.0), "отзвук героя — на твёрдой земле у протоки (x=%.1f)" % echo_at.x)
 	for i in 600:
 		await frames(1)
 		if not player.is_dead() and not rooms._busy:
 			break
 	check(not player.is_dead() and rooms.current_room_id == &"inferno_breach" and player.global_position.y > 7.0,
 		"возродился у осколка на месте падения (y=%.1f)" % player.global_position.y)
+	game_state.armor_slots = kept_armor
+	game_state.take_hero_echo()
 	player.hurtbox.invulnerable = true
 	await put(Vector3(5.0, 0.1, 0.0), 1.0)
 	await run_and_jump("move_right", 7.4, 12.0)
@@ -747,6 +796,23 @@ func inferno_tour() -> void:
 	await seconds(0.3)
 	check(await walk_to(26.0, 20.0) and not player.is_dead() and absf(player.global_position.y) < 0.5,
 		"по мосту на цепях — через огненную реку (x=%.1f)" % player.global_position.x)
+	# Сорвался в прогар моста: лава по колено, под мост не пролезть — только выпрыгнуть обратно.
+	player.restore()
+	await put(Vector3(-7.3, -1.8, 0.0))
+	await seconds(0.3)
+	var in_gap := player.global_position.y < -1.0 and not player.is_dead()
+	press("jump")
+	await seconds(0.3)
+	press("move_right")
+	for i in 90:
+		await frames(1)
+		if player.is_on_floor() and player.global_position.y > -0.3:
+			break
+	release_all()
+	await seconds(0.3)
+	check(in_gap and not player.is_dead() and player.global_position.y > -0.3 and player.health.current < player.health.max_health,
+		"из прогара в мосту — обратно на доски, обожжённым (y=%.1f)" % player.global_position.y)
+	player.restore()
 	# Темница: пленники благодарят делом; рыцарь в клетке.
 	await rooms.travel(&"captive_cells", ^"Spawns/FromRiver")
 	await seconds(0.3)
@@ -795,6 +861,19 @@ func inferno_tour() -> void:
 	game_state.set_checkpoint(kept_checkpoint[0], kept_checkpoint[1], kept_checkpoint[2])
 	player.hurtbox.invulnerable = false
 	player.restore()
+
+
+## Ставит героя на дно протоки в inferno_breach на полсекунды: какую долю здоровья сожгла лава.
+func lava_bite() -> float:
+	player.restore()
+	await put(Vector3(9.5, -1.4, 0.0))
+	# Перенос считает место переноса безопасным; будто герой ступил в лаву с берега.
+	player.safe_ground = Vector3(7.0, 0.1, 0.0)
+	await seconds(0.2)
+	player.statuses.clear()
+	var before: float = player.health.current
+	await seconds(0.5)
+	return (before - player.health.current) / player.health.max_health
 
 
 ## Бежит в сторону, прыгает у x = edge и тормозит в воздухе над x = stop.
@@ -2583,6 +2662,20 @@ func suite() -> void:
 	game_state.shield_slots = shield_slots_was
 	game_state.items.erase(GameState.SHIELD_ITEM)
 	player.refresh_shield()
+	# Броня (болванки ArmorData): ячейка тела — список доспехов на тело; надеть и снять.
+	var armor_was: Dictionary = game_state.armor_slots.duplicate()
+	var apron_was: int = game_state.item_count(&"armor_smith_apron")
+	game_state.add_item(&"armor_smith_apron")
+	check(equip._choices(EquipmentScreen.Slot.BODY).has(&"armor_smith_apron")
+		and not equip._choices(EquipmentScreen.Slot.HEAD).has(&"armor_smith_apron"), "фартук — в списке ячейки тела, не головы")
+	equip._put(EquipmentScreen.Slot.BODY, &"armor_smith_apron")
+	check(game_state.armor_slots[&"body"] == &"armor_smith_apron" and is_equal_approx(game_state.armor_resist(&"fire"), 0.5),
+		"фартук надет в «Снаряжении»: огонь −50 %")
+	equip._put(EquipmentScreen.Slot.BODY, EquipmentScreen.NONE)
+	check(game_state.armor_slots[&"body"] == &"" and game_state.armor_resist(&"fire") == 0.0, "фартук снят")
+	game_state.armor_slots = armor_was
+	if apron_was == 0:
+		game_state.items.erase(&"armor_smith_apron")
 	pause_menu.back()
 	check(pause_menu._page == LevelMenu.Page.ROOT and pause_menu.pause_panel.visible, "«Назад» — снова панель паузы")
 	game_state.items.erase(&"throwing_knife")

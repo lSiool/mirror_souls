@@ -107,6 +107,15 @@ LANTERN = ('<path d="M26 12 Q 32 6 38 12" fill="none" stroke="#8f8c88" stroke-wi
            '<rect x="22" y="16" width="20" height="4" fill="#4a4642"/><rect x="22" y="46" width="20" height="4" fill="#4a4642"/>'
            '<rect x="24" y="20" width="16" height="26" fill="#f0a64a" stroke="#4a4642" stroke-width="2.5"/>'
            '<path d="M32 26 Q 36 32 32 40 Q 28 32 32 26 Z" fill="#fff1c9"/>')
+# Доспехи-болванки с сопротивлением огню (§8.6, лава Пекла): плащ, фартук с бляхами, капюшон; огонёк — защита от огня.
+EMBER = '<path d="M50 40 Q 55 47 50 54 Q 45 47 50 40 Z" fill="#f08a3a" stroke="#ffd29a" stroke-width="0.8"/>'
+FIRE_CLOAK = ('<path d="M24 12 Q 32 16 40 12 L 46 50 Q 32 54 18 50 Z" fill="#5a4636" stroke="#8a7058" stroke-width="2"/>'
+              '<path d="M28 20 L 26 48 M36 20 L 38 48" stroke="#3e3026" stroke-width="2"/>' + EMBER)
+SMITH_APRON = ('<path d="M24 12 H 40 V 20 L 46 24 V 52 H 18 V 24 L 24 20 Z" fill="#4a3424" stroke="#7a5a40" stroke-width="2"/>'
+               '<circle cx="26" cy="32" r="2" fill="#a49f96"/><circle cx="38" cy="32" r="2" fill="#a49f96"/>'
+               '<circle cx="26" cy="44" r="2" fill="#a49f96"/><circle cx="38" cy="44" r="2" fill="#a49f96"/>' + EMBER)
+FELT_HOOD = ('<path d="M18 46 Q 16 16 32 12 Q 48 16 46 46 L 40 48 Q 40 30 32 28 Q 24 30 24 48 Z" fill="#5c5850" stroke="#8a857a" stroke-width="2"/>'
+             + EMBER)
 
 ITEMS = {
     "stick": ("#1c1712", STICK), "sword": ("#141a20", SWORD), "candlestick": ("#17181b", HAMMER),
@@ -119,6 +128,7 @@ ITEMS = {
     "burning": ("#24140c", BURNING), "corroded": ("#16200c", CORRODED), "tar": ("#141110", TARRED),
     "staff": ("#141a22", STAFF), "glint": ("#1a1a24", GLINT), "silver_stake": ("#161a20", STAKE),
     "crypt_key": ("#16181c", CRYPT_KEY), "lantern": ("#1c1712", LANTERN),
+    "armor_fire_cloak": ("#1c1712", FIRE_CLOAK), "armor_smith_apron": ("#1c1712", SMITH_APRON), "armor_felt_hood": ("#16181c", FELT_HOOD),
 }
 
 # Вкладки меню паузы и пустые ячейки снаряжения (§8.12, 2026-11-09): светлый контур на тёмном.

@@ -36,6 +36,8 @@ const EMPTY_ICONS := {
 	Slot.HANDS: &"slot_hands", Slot.LEGS: &"slot_legs",
 }
 const ARMOR: Array[Slot] = [Slot.HEAD, Slot.BODY, Slot.HANDS, Slot.LEGS]
+## Ячейка экрана → ячейка брони героя (GameState.armor_slots).
+const ARMOR_KEY := {Slot.HEAD: &"head", Slot.BODY: &"body", Slot.HANDS: &"hands", Slot.LEGS: &"legs"}
 const CELL := 84
 ## Пусто в списке выбора.
 const NONE := &"-"
@@ -164,7 +166,7 @@ func refresh(player: Player) -> void:
 		var empty := id == &"" or id == NONE
 		var locked := _locked(slot)
 		button.icon = ItemCatalog.icon(EMPTY_ICONS[slot] if empty else id)
-		button.modulate = Color(1, 1, 1, 0.55) if slot in ARMOR or locked else Color.WHITE
+		button.modulate = Color(1, 1, 1, 0.55) if (slot in ARMOR and empty) or locked else Color.WHITE
 		var count := button.get_node("Count") as Label
 		count.text = str(GameState.item_count(id)) if not empty and _counts(slot) else ""
 	_dress_figure()
@@ -206,6 +208,9 @@ func _item_in(slot: Slot) -> StringName:
 			return id if id != &"" else ItemCatalog.ARROW
 		Slot.ITEM_1, Slot.ITEM_2, Slot.ITEM_3, Slot.ITEM_4:
 			return GameState.quick_item(slot - Slot.ITEM_1)
+		Slot.HEAD, Slot.BODY, Slot.HANDS, Slot.LEGS:
+			var id: StringName = GameState.armor_slots[ARMOR_KEY[slot]]
+			return id if id != &"" and GameState.item_count(id) > 0 else &""
 	return &""
 
 
@@ -247,6 +252,12 @@ func _choices(slot: Slot) -> Array[StringName]:
 			for id: StringName in ItemCatalog.ITEMS:
 				if GameState.is_consumable(id) and GameState.item_count(id) > 0:
 					result.append(id)
+		Slot.HEAD, Slot.BODY, Slot.HANDS, Slot.LEGS:
+			result.append(NONE)
+			for id: StringName in ItemCatalog.ITEMS:
+				var armor := ArmorData.by_id(id)
+				if armor and armor.slot == ARMOR_KEY[slot] and GameState.item_count(id) > 0:
+					result.append(id)
 	return result
 
 
@@ -254,9 +265,9 @@ func _choices(slot: Slot) -> Array[StringName]:
 
 func _describe(slot: Slot) -> void:
 	var id := _item_in(slot)
-	if slot in ARMOR:
+	if slot in ARMOR and id == &"":
 		_name.text = SLOT_NAMES[slot]
-		_text.text = "Брони пока нет. Найденные доспехи будут надеваться здесь."
+		_text.text = "Пусто. Найденные доспехи надеваются здесь." if _choices(slot).size() > 1 else "Брони пока нет. Найденные доспехи будут надеваться здесь."
 		return
 	if id == &"":
 		_name.text = SLOT_NAMES[slot]
@@ -272,7 +283,7 @@ func _describe(slot: Slot) -> void:
 
 
 func _choose(slot: Slot) -> void:
-	if slot in ARMOR or _locked(slot):
+	if _locked(slot):
 		return
 	var choices := _choices(slot)
 	if choices.size() < 2 and not (choices.size() == 1 and choices[0] != _item_in(slot)):
@@ -326,6 +337,8 @@ func _put(slot: Slot, id: StringName) -> void:
 			GameState.set_arrow_slot(slot - Slot.ARROW_1, &"" if item == ItemCatalog.ARROW else item)
 		Slot.ITEM_1, Slot.ITEM_2, Slot.ITEM_3, Slot.ITEM_4:
 			GameState.set_quick_slot(slot - Slot.ITEM_1, item)
+		Slot.HEAD, Slot.BODY, Slot.HANDS, Slot.LEGS:
+			GameState.set_armor(ARMOR_KEY[slot], item)
 	Sfx.play(&"glass_glint", _player.global_position, -12.0)
 	close_list()
 	refresh(_player)

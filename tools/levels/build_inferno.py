@@ -52,6 +52,13 @@ def lava(s, name, x, y, w, z=0.0, depth=4.4, glow=1.6):
                                       f"size = {v3((w, 1.0, depth))}", f"glow_energy = {glow}"])
 
 
+def armor_pickup(s, name, x, y, item, flag, prompt, color, size=(0.7, 0.12, 0.5)):
+    """Доспех-болванка с сопротивлением огню (ArmorData, data/armor): лежит на месте, берётся один раз."""
+    s.node(name, 'type="Area3D"', O, [f"position = {v3((x, y, 0.0))}", 'script = ExtResource("pickup")', f'item_id = &"{item}"',
+                                      f'flag = &"{flag}"', f'pickup_prompt = "{prompt}"', f"look_size = {v3(size)}",
+                                      f"look_color = Color({color[0]}, {color[1]}, {color[2]}, 1)"])
+
+
 def lava_fall(s, name, x, y_top, y_bottom, z=-6.0, w=1.6):
     """Лавопад со стены пещеры: светящаяся полоса и тёплый свет у подножия."""
     s.box(D, name, (x, (y_top + y_bottom) / 2, z), (w, y_top - y_bottom, 0.3), "lava_glow")
@@ -164,6 +171,8 @@ def inferno_breach():
     s.sphere(D, "MinerSkull", (2.0, 0.15, -1.2), 0.15, "bone")
     s.box(D, "MinerBones", (2.6, 0.08, -1.1), (0.9, 0.08, 0.3), "bone", rot=(0, 0.4, 0))
     s.box(D, "MinerPick", (1.2, 0.3, -1.4), (0.06, 1.0, 0.06), "wood", rot=(0, 0, 1.1))
+    # На забойщике — плащ, вымоченный в глине: он шёл к лаве подготовленным, и всё же не дошёл.
+    armor_pickup(s, "FireCloak", 3.2, 0.0, "armor_fire_cloak", "found_fire_cloak", "Снять плащ с забойщика", (0.3, 0.24, 0.18))
     lava_fall(s, "Fall", 18.0, 17.5, 0.0)
     heat_veils(s, "Heat", (9.5, 18.0), 0.0)
     k = bd.Kit(s)
@@ -179,13 +188,15 @@ def inferno_breach():
 # ---------------------------------------------------------------- 2. Огненная река
 def lava_river():
     """Широкая река лавы поперёк пещеры; через неё — мост из досок на цепях, местами доски прогорели
-    (короткие провалы — герой цепляется за край). Над лавой клетка с тем, кто не дождался."""
+    (короткие провалы — герой цепляется за край). Лава неглубокая, по колено: сорвался в прогар — горишь, пока
+    не выпрыгнешь обратно на доски (под мостом не пройти — низко). Над лавой клетка с тем, кто не дождался."""
     s = new_room("LavaRiver", "lava_river", -30, 30)
     land(s, "WestBank", -60, -20, 0, -6, "basalt")
     land(s, "EastBank", 16, 60, 0, -6, "basalt")
     land(s, "Ceiling", -60, 60, 18, 16, "basalt")
-    lava(s, "River", -2.0, -3.0, 36.0, glow=2.0)
-    lava(s, "RiverBack", -2.0, -3.0, 100.0, z=-16.2, depth=28.0, glow=0.0)
+    land(s, "RiverBed", -20, 16, -1.9, -6, "basalt")
+    lava(s, "River", -2.0, -1.3, 36.0, glow=2.0)
+    lava(s, "RiverBack", -2.0, -1.3, 100.0, z=-16.2, depth=28.0, glow=0.0)
     for i, (x0, x1) in enumerate(((-20.0, -8.0), (-6.6, 4.0), (5.4, 16.0))):
         s.box(G, f"Bridge{i}", ((x0 + x1) / 2, -0.15, 0), (x1 - x0, 0.3, 2.4), "wood_dark", True)
     for i, x in enumerate((-17.0, -11.0, -3.5, 1.5, 8.0, 13.0)):
@@ -196,12 +207,12 @@ def lava_river():
         s.box(D, f"BurntEnd{i}", (x, -0.4, 0.6), (0.6, 0.3, 1.2), "char", rot=(0, 0, 0.6 if i else -0.6))
     bg.say(s, "BridgeLine", -22.0, 0.0, "«Мост на цепях. Доски прогорели — где-то их нет вовсе.»", size=(4, 3, 4))
     hanging_cage(s, "RiverCage", -2.0, 6.0, -1.6, 16.0)
-    lava_fall(s, "FallA", 10.0, 15.5, -3.0)
-    lava_fall(s, "FallB", -24.0, 15.5, -3.0, z=-8.0, w=1.0)
+    lava_fall(s, "FallA", 10.0, 15.5, -1.3)
+    lava_fall(s, "FallB", -24.0, 15.5, -1.3, z=-8.0, w=1.0)
     basalt_columns(s, "ColumnsW", -30.0, -21.0, 0.0)
     basalt_columns(s, "ColumnsE", 17.0, 30.0, 0.0)
     stalactites(s, "Stalactite", -30.0, 30.0, 16.0)
-    heat_veils(s, "Heat", (-12.0, -2.0, 8.0), -3.0, w=6.0, h=8.0)
+    heat_veils(s, "Heat", (-12.0, -2.0, 8.0), -1.3, w=6.0, h=7.0)
     k = bd.Kit(s)
     depths(k, -30, 30)
     s.marker("FromBreach", (-27.0, 0.1, 0))
@@ -258,6 +269,9 @@ def captive_cells():
     hanging_cage(s, "CageB", 6.0, 8.5, -2.2, 14.0, skeleton=False)
     s.box(D, "RackFrame", (-21.0, 1.4, -2.0), (2.4, 2.8, 0.3), "wood_dark")
     s.box(D, "RackBar", (-21.0, 2.6, -1.8), (2.6, 0.15, 0.15), "wood_dark", rot=(0, 0, 0.1))
+    # Фартук палача у дыбы: толстая кожа с бляхами — у жаровни в нём не обжечься.
+    armor_pickup(s, "SmithApron", -19.6, 0.0, "armor_smith_apron", "found_smith_apron", "Взять кожаный фартук", (0.22, 0.14, 0.09),
+                 size=(0.6, 0.16, 0.7))
     s.cyl(D, "Brazier", (-3.0, 0.5, -1.8), 0.5, 1.0, "iron", sides=8)
     s.box(D, "BrazierFire", (-3.0, 1.1, -1.8), (0.7, 0.3, 0.7), "fire")
     s.light(D, "BrazierLight", (-3.0, 1.8, -0.6), HEAT, 1.8, 9.0)

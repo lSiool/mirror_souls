@@ -41,7 +41,7 @@ const PARAMS := {
 	PlayerStats.Param.LUCK: ["Удача", "находки, кровотечение"],
 }
 const DEFENSE_NAMES := {&"physical": "Физическая", &"glass": "От стекла", &"fire": "От огня", &"cold": "От холода"}
-const RESIST_NAMES := {&"bleed": "Кровотечение", &"blind": "Слепота", &"cold": "Холод", &"heat": "Жар"}
+const RESIST_NAMES := {&"bleed": "Кровотечение", &"blind": "Слепота", &"cold": "Холод", &"heat": "Жар", &"fire": "Огонь"}
 const ROLL_NAMES := ["лёгкий", "средний", "тяжёлый"]
 ## Название места у осколка в заголовке меню.
 const PLACE_NAMES := {&"village_hut": "Хижина", &"village_street": "Улица", &"village_house": "Дом",

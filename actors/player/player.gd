@@ -341,6 +341,8 @@ func _ready() -> void:
 	statuses = Statuses.new(health, 1.7)
 	# Слепота героя (ловушки, склянки врагов) решена на потом (§6.2): пока не слепнет.
 	statuses.resist = func(id: StringName, time: float) -> float: return 0.0 if id == Statuses.BLIND else time
+	# Доспех с сопротивлением огню снимает часть урона горения (ArmorData, §8.6).
+	statuses.fire_guard = func() -> float: return GameState.armor_resist(&"fire")
 	add_child(statuses)
 	statuses.started.connect(add_effect)
 	statuses.ended.connect(remove_effect)

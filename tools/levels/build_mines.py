@@ -401,6 +401,11 @@ def deep_gallery():
     s.box(D, "ShrineCross", (20.0, 2.0, -1.9), (0.14, 1.6, 0.14), "wood_dark")
     s.box(D, "ShrineBar", (20.0, 2.4, -1.9), (0.9, 0.12, 0.14), "wood_dark")
     s.box(D, "OldPick", (18.6, 0.5, -1.2), (0.06, 1.1, 0.06), "wood", rot=(0, 0, -0.5))
+    # Подношение у тёплой стены: мокрый войлочный капюшон — в нём забойщики подходили к горячей породе.
+    s.node("FeltHood", 'type="Area3D"', O, [f"position = {v3((21.0, 0.0, 0.0))}", 'script = ExtResource("pickup")',
+                                            'item_id = &"armor_felt_hood"', 'flag = &"found_felt_hood"',
+                                            'pickup_prompt = "Взять войлочный капюшон"', "look_size = Vector3(0.45, 0.25, 0.4)",
+                                            "look_color = Color(0.32, 0.3, 0.26, 1)"])
     for name, x in (("CandleWest", -18.0), ("CandleShrine", 22.0)):
         bg.candle(s, name, x, 0.0)
     for i, x in enumerate((-20.0, -10.0, 2.0)):

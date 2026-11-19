@@ -44,6 +44,8 @@ var height := 1.8
 ## Сопротивление носителя: (id, секунды) → сколько секунд на самом деле; 0 — не подействовало.
 ## Так любой источник просто вешает состояние, а невосприимчивость и привыкание — у носителя.
 var resist: Callable
+## Какую долю урона огня (горение) снимает защита носителя: броня героя (ArmorData, §8.6). Пусто — не снимает.
+var fire_guard: Callable
 
 var _left := {}
 var _tick := 0.0
@@ -143,7 +145,10 @@ func _physics_process(delta: float) -> void:
 	var dps := 0.0
 	for id: StringName in DPS:
 		if has(id):
-			dps += DPS[id]
+			var rate: float = DPS[id]
+			if id == BURNING and fire_guard.is_valid():
+				rate *= 1.0 - float(fire_guard.call())
+			dps += rate
 	if dps > 0.0 and health:
 		health.take_damage(dps * TICK)
 		var carrier := get_parent() as Node3D

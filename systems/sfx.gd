@@ -54,6 +54,7 @@ const EVENTS := {
 	&"beast_notice": "enemy",
 	&"beast_roar": "enemy",
 	&"villager_call": "enemy",
+	&"lava_sizzle": "world",
 }
 
 ## Слои, которые звучат не каждый раз: [вероятность, пауза после звучания (с), сколько раз подряд

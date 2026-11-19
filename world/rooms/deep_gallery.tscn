@@ -400,6 +400,15 @@ rotation = Vector3(0, 0, -0.5)
 size = Vector3(0.06, 1.1, 0.06)
 material = SubResource("Mat_wood")
 
+[node name="FeltHood" type="Area3D" parent="Objects"]
+position = Vector3(21.0, 0.0, 0.0)
+script = ExtResource("pickup")
+item_id = &"armor_felt_hood"
+flag = &"found_felt_hood"
+pickup_prompt = "Взять войлочный капюшон"
+look_size = Vector3(0.45, 0.25, 0.4)
+look_color = Color(0.32, 0.3, 0.26, 1)
+
 [node name="CandleWestNiche" type="CSGBox3D" parent="Decor"]
 position = Vector3(-18.0, 1.6, -2.18)
 size = Vector3(0.9, 0.9, 0.06)

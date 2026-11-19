@@ -24,7 +24,7 @@ const SHIELD_ITEM: StringName = &"shield_hoplon"
 
 const SAVED_FIELDS: Array[String] = ["echoes", "flags", "weapon_id", "checkpoint_room", "checkpoint_reality",
 	"checkpoint_path", "killed", "broken_glass", "broken_forever", "hero_echo", "mastery", "weapon_glass", "items", "bow_id",
-	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_slots", "spells", "spell_slots", "active_spell", "run_leftovers", "hub_return", "visited_rooms"]
+	"second_weapon_id", "quick_slots", "arrow_slots", "active_arrow", "active_quick", "shield_slots", "spells", "spell_slots", "active_spell", "run_leftovers", "hub_return", "visited_rooms", "armor_slots"]
 
 ## Отзвуки прошлого (рабочее название; в интерфейсе — «Отзвуки») — валюта и опыт:
 ## выпадают из врагов, лежат в сундуках; тратятся у зеркала на «прожитые годы».
@@ -48,6 +48,8 @@ var active_quick := 0
 ## Купленный щит сразу в I (по умолчанию там гоплон: пока его нет у героя, гнездо пусто).
 const SHIELD_SLOTS := 2
 var shield_slots := [SHIELD_ITEM, &""]
+## Надетая броня по ячейкам (ArmorData.SLOTS): id доспеха или пусто.
+var armor_slots := {&"head": &"", &"body": &"", &"hands": &"", &"legs": &""}
 
 ## Стрелы (§6.2), как в Dark Souls: два гнезда лука, I и II; в каждом id особых стрел
 ## (data/arrows) или пусто — обычные, бесконечные. Что в гнёздах — выбирается у осколка,
@@ -350,6 +352,31 @@ func set_quick_slot(slot: int, id: StringName) -> void:
 			quick_slots[was] = &""
 	quick_slots[slot] = id
 	Events.quick_items_changed.emit()
+
+
+## Доспех (data/armor): надевается в свою ячейку брони.
+func is_armor(id: StringName) -> bool:
+	return ArmorData.by_id(id) != null
+
+
+## Надеть доспех в его ячейку или снять (id пусто — снять из ячейки slot).
+func set_armor(slot: StringName, id: StringName) -> void:
+	if not armor_slots.has(slot):
+		return
+	var data := ArmorData.by_id(id)
+	if id != &"" and (data == null or data.slot != slot or item_count(id) <= 0):
+		return
+	armor_slots[slot] = id
+
+
+## Какую долю урона этого вида снимает надетая броня (огонь лавы — &"fire").
+func armor_resist(kind: StringName) -> float:
+	var total := 0.0
+	for slot: StringName in armor_slots:
+		var data := ArmorData.by_id(armor_slots[slot])
+		if data and item_count(armor_slots[slot]) > 0:
+			total += float(data.resist.get(kind, 0.0))
+	return minf(total, ArmorData.MAX_RESIST)
 
 
 ## Щит в гнездо 0…1; из другого гнезда он уходит. Пустой id — снять.
