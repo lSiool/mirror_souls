@@ -50,6 +50,7 @@ const ROOMS := {
 	&"run_exit": {"biome": &"runs", "x": -16.4, "y": -11.0},
 	&"reflection_run": {"biome": &"runs", "x": -32.0, "y": -15.0, "squash": 0.5},
 	&"hook_range": {"biome": &"tests", "x": -32.0, "y": -19.0},
+	&"trap_range": {"biome": &"tests", "x": -21.0, "y": -19.0},
 	# Поля (§8.13): высоты общие для области, ноль комнат — земля двора; огороды и гумно ниже.
 	&"farmyard": {"biome": &"fields", "x": -31.0, "y": -0.15},
 	&"rye_field": {"biome": &"fields", "x": -42.0, "y": -0.15},

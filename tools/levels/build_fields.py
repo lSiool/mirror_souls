@@ -423,6 +423,25 @@ def mill():
     s.ladder_look("Shelf", 3.4, 0, 6.0)
     s.ladder("ValleyLadder", -6.6, -6.5, 6.5, 1.0)
     s.ladder_look("Valley", -6.6, -6.5, 6.5)
+    # Лицо холма — не ровная плита: подпорная стена из бута с контрфорсами, ряды кладки, травяной край
+    # сверху, свисающие корни, валуны у подножия; под холмом — арка прохода к огородам.
+    s.box(D, "HillFace", (18.0, 2.25, 2.24), (28.0, 7.5, 0.06), "earth_dark")
+    for i, x in enumerate((6.5, 12.0, 17.5, 23.0, 28.5)):
+        h = 6.2 - (i % 2) * 0.9
+        s.box(D, f"Buttress{i}", (x, 6.0 - h / 2, 2.4), (1.1, h, 0.4), "stone_dark", rot=(0, 0, round((i % 3 - 1) * 0.02, 3)))
+        s.box(D, f"ButtressCap{i}", (x, 6.05, 2.45), (1.3, 0.25, 0.5), "stone")
+    for i, y in enumerate((0.6, 2.2, 3.9)):
+        for j in range(4):
+            x0 = 4.6 + j * 7.0 + (i % 2) * 2.4
+            s.box(D, f"Course{i}_{j}", (x0 + 2.2, y, 2.3), (4.2, 0.12, 0.08), "stone", rot=(0, 0, round(((i + j) % 3 - 1) * 0.015, 3)))
+    s.box(D, "GrassLip", (18.0, 6.02, 2.25), (28.0, 0.14, 0.35), "moss")
+    for i, x in enumerate((8.4, 14.6, 20.2, 26.8, 31.0)):
+        s.box(D, f"Root{i}", (x, 4.9 - (i % 2) * 0.4, 2.33), (0.07, 2.2 - (i % 3) * 0.5, 0.07), "root", rot=(0, 0, round((i % 3 - 1) * 0.12, 3)))
+    for i, (x, r) in enumerate(((5.2, 0.7), (9.8, 0.5), (25.5, 0.8))):
+        s.sphere(D, f"Boulder{i}", (x, -1.5 + r * 0.6, 2.0), r, "stone_dark")
+    s.box(D, "PassageArch", (6.0, -1.0, 2.3), (4.2, 0.9, 0.5), "stone")
+    for i, x in enumerate((4.3, 7.7)):
+        s.box(D, f"PassageJamb{i}", (x, -3.75, 2.2), (0.6, 5.5, 0.5), "stone_dark")
     # Ветряк: каменный низ, деревянная башня, шатёр, крылья вращаются за плоскостью героя; балкон спереди.
     mx = 18.0
     s.box(D, "MillBase", (mx, 7.5, -5.5), (5.5, 3.0, 5.0), "stone")
@@ -437,7 +456,9 @@ def mill():
         a = i * math.pi / 2 + 0.3
         c, sn = math.cos(a), math.sin(a)
         s.box(f"{D}/Sails", f"Arm{i}", (c * 4.4, sn * 4.4, 0), (8.6, 0.22, 0.16), "wood_dark", rot=(0, 0, round(a, 4)))
-        s.box(f"{D}/Sails", f"Lattice{i}", (c * 5.0 - sn * 0.55, sn * 5.0 + c * 0.55, -0.05), (6.4, 1.0, 0.04), "cloth", rot=(0, 0, round(a, 4)))
+        s.box(f"{D}/Sails", f"Lattice{i}", (c * 5.2 - sn * 0.65, sn * 5.2 + c * 0.65, -0.05), (6.8, 1.25, 0.04), "sack", rot=(0, 0, round(a, 4)))
+        s.box(f"{D}/Sails", f"Spar{i}", (c * 5.2 - sn * 1.28, sn * 5.2 + c * 1.28, 0.0), (6.8, 0.1, 0.1), "wood", rot=(0, 0, round(a, 4)))
+    s.light(D, "SailsMoon", (mx - 3.0, 18.0, 3.0), (0.62, 0.68, 0.86), 1.1, 12.0)
     s.box(G, "Balcony", (mx, 13.85, 0), (12.0, 0.3, 2.4), "wood", True)
     s.box(D, "BalconyRail", (mx, 14.9, -1.15), (12.0, 0.08, 0.08), "wood_dark")
     for i, x in enumerate((mx - 5.8, mx + 5.8)):
@@ -462,19 +483,62 @@ def mill():
     # Внизу: водяная мельница, колесо, ручей, плотина и запруда.
     house(s, "MillHouse", -17.0, -4.6, 9, 5.0, 3.0, ground=-6.5, windows=((-2.0, 2.6), (2.2, 2.6)))
     s.light(D, "MillHouseGlow", (-17.0, -3.8, -1.8), (1.0, 0.6, 0.28), 1.3, 8.0)
-    s.node("Wheel", 'type="Node3D"', D, [f"position = {v3((-10.6, -5.0, -2.4))}", 'script = ExtResource("spinner")', "speed = -0.5"])
-    s.cyl(f"{D}/Wheel", "Axle", (0, 0, 0), 0.3, 0.8, "iron", rot=(math.pi / 2, 0, 0), sides=8)
-    for i in range(10):
-        a = i * math.tau / 10
-        s.box(f"{D}/Wheel", f"Spoke{i}", (math.cos(a) * 1.4, math.sin(a) * 1.4, 0), (2.8, 0.12, 0.12), "wood_dark", rot=(0, 0, round(a, 4)))
-        s.box(f"{D}/Wheel", f"Paddle{i}", (math.cos(a) * 2.9, math.sin(a) * 2.9, 0), (0.12, 0.9, 0.7), "wood", rot=(0, 0, round(a, 4)))
-    s.box(D, "Tailrace", (-10.0, -6.45, -2.6), (8.0, 0.06, 1.6), "water")
-    s.box(D, "Flume", (-11.5, -1.6, -2.4), (5.0, 0.4, 0.8), "wood_dark", rot=(0, 0, -0.08))
+    # Мельничная клеть под навесом, открыта к дороге: жернова, ковш над ними, мешки муки, лампа.
+    s.box(D, "MillRoomBack", (-24.6, -4.3, -3.0), (5.2, 4.4, 0.25), "wood_dark")
+    s.roof(D, "MillRoomRoof", (-24.6, -1.4, -2.2), (6.0, 1.4, 2.4), "shingle")
+    for i, x in enumerate((-27.0, -22.2)):
+        s.box(D, f"MillRoomPost{i}", (x, -4.3, -1.1), (0.25, 4.4, 0.25), "wood_dark")
+    s.cyl(D, "MillstoneLow", (-24.8, -6.3, -2.2), 0.95, 0.35, "stone", sides=16)
+    s.cyl(D, "MillstoneTop", (-24.8, -5.95, -2.2), 0.9, 0.3, "stone_dark", sides=16)
+    s.box(D, "Hopper", (-24.8, -4.9, -2.2), (0.9, 0.8, 0.9), "wood", rot=(0, 0.3, 0))
+    for i, (x, z) in enumerate(((-26.4, -2.3), (-26.0, -1.6), (-23.0, -2.4))):
+        s.box(D, f"FlourSack{i}", (x, -6.15, z), (0.6, 0.7, 0.45), "sack", rot=(0, 0.2 * i, 0))
+    s.box(D, "MillRoomLamp", (-23.3, -3.4, -1.6), (0.22, 0.34, 0.22), "lantern")
+    s.light(D, "MillRoomLight", (-24.4, -4.4, -0.6), (1.0, 0.62, 0.3), 1.6, 6.5)
+    wr = 3.6
+    s.node("Wheel", 'type="Node3D"', D, [f"position = {v3((-10.2, -4.3, -2.4))}", 'script = ExtResource("spinner")', "speed = -0.45"])
+    s.cyl(f"{D}/Wheel", "Axle", (0, 0, 0), 0.35, 1.4, "iron", rot=(math.pi / 2, 0, 0), sides=8)
+    for i in range(12):
+        a = i * math.tau / 12
+        s.box(f"{D}/Wheel", f"Spoke{i}", (math.cos(a) * wr / 2, math.sin(a) * wr / 2, 0), (wr, 0.14, 0.14), "wood_dark", rot=(0, 0, round(a, 4)))
+        s.box(f"{D}/Wheel", f"Paddle{i}", (math.cos(a) * (wr + 0.35), math.sin(a) * (wr + 0.35), 0), (0.14, 1.0, 1.1), "wood",
+              rot=(0, 0, round(a, 4)))
+    for side, z in (("Front", 0.5), ("Back", -0.5)):
+        for i in range(20):
+            a = i * math.tau / 20
+            s.box(f"{D}/Wheel", f"Rim{side}{i}", (math.cos(a) * wr, math.sin(a) * wr, z), (math.tau * wr / 20 + 0.08, 0.22, 0.12), "wood_dark",
+                  rot=(0, 0, round(a + math.pi / 2, 4)))
+    for i, x in enumerate((-12.4, -8.0)):
+        s.box(D, f"WheelTrestle{i}", (x, -5.4, -1.5), (0.3, 2.4, 0.3), "wood_dark", rot=(0, 0, 0.25 if i else -0.25))
+    s.box(D, "Tailrace", (-10.0, -6.45, -2.6), (9.0, 0.06, 2.0), "water")
+    for i, z in enumerate((-3.7, -1.5)):
+        s.box(D, f"TailraceEdge{i}", (-10.0, -6.35, z), (9.0, 0.3, 0.25), "stone_dark")
+    s.box(D, "Flume", (-13.2, -0.3, -2.4), (6.0, 0.4, 1.0), "wood_dark", rot=(0, 0, -0.04))
+    s.box(D, "FlumeWater", (-13.2, -0.08, -2.4), (6.0, 0.04, 0.8), "water", rot=(0, 0, -0.04))
+    for i, x in enumerate((-15.5, -11.0)):
+        s.box(D, f"FlumePost{i}", (x, -3.5, -2.4), (0.25, 6.0, 0.25), "wood_dark")
+    s.veil(D, "WheelSpill", (-10.0, -1.6, -2.2), (1.2, 3.2), "spill")
     s.box(D, "Dam", (-18.0, -2.5, -9.0), (28.0, 8.0, 3.0), "stone")
+    for i, y in enumerate((-5.0, -3.4, -1.8, -0.2)):
+        s.box(D, f"DamCourse{i}", (-18.0, y, -7.48), (28.0, 0.12, 0.06), "stone_dark")
     s.box(D, "DamWalk", (-18.0, 1.6, -9.0), (28.6, 0.25, 3.4), "wood_dark")
+    for i in range(8):
+        s.box(D, f"DamRailPost{i}", (-31.0 + i * 3.7, 2.2, -7.6), (0.12, 1.0, 0.12), "wood_dark")
+    s.box(D, "DamRail", (-18.0, 2.65, -7.6), (28.0, 0.08, 0.08), "wood_dark")
+    # Шлюз: щит в пазах, над ним рама с воротом на верёвке.
     s.box(D, "Sluice", (-24.0, -3.0, -7.45), (2.2, 3.0, 0.2), "wood")
-    s.box(D, "Pond", (-18.0, 0.9, -26.0), (90.0, 0.2, 30.0), "water")
-    s.veil(D, "Spillway", (-12.0, -3.0, -7.3), (2.6, 7.0), "spill")
+    for i, x in enumerate((-25.3, -22.7)):
+        s.box(D, f"SluiceGuide{i}", (x, -1.0, -7.35), (0.3, 6.0, 0.3), "wood_dark")
+    s.box(D, "SluiceBeam", (-24.0, 2.1, -7.35), (3.2, 0.3, 0.3), "wood_dark")
+    s.cyl(D, "SluiceWinch", (-24.0, 2.55, -7.35), 0.22, 1.6, "wood", rot=(0, 0, math.pi / 2), sides=8)
+    s.box(D, "SluiceRope", (-24.0, 0.3, -7.3), (0.05, 3.6, 0.05), "rope")
+    s.box(D, "Pond", (-18.0, 1.3, -26.0), (90.0, 0.2, 30.0), "water")
+    s.box(D, "PondMoon", (-30.0, 1.42, -22.0), (3.0, 0.02, 14.0), "moonpane")
+    for i in range(9):
+        s.box(D, f"PondReed{i}", (-30.5 + i * 3.1 + (i % 2) * 0.7, 2.0, -10.8 - (i % 3) * 0.4), (0.06, 1.5 - (i % 3) * 0.3, 0.06), "reed",
+              rot=(0, 0, round((i % 3 - 1) * 0.15, 3)))
+    s.veil(D, "Spillway", (-12.0, -2.6, -7.3), (2.6, 7.8), "spill")
+    s.veil(D, "SpillFoam", (-12.0, -6.0, -6.6), (5.0, 1.4), "fog_veil")
     s.box(D, "PassageBack", (18.0, -4.0, -2.4), (28.0, 5.0, 0.3), "stone_dark")
     s.box(D, "PassageStream", (18.0, -6.45, -1.6), (28.0, 0.05, 0.8), "water")
     s.box(D, "PassageLamp", (21.0, -2.6, -1.6), (0.25, 0.4, 0.25), "lantern")
@@ -575,7 +639,8 @@ def vegetable_patch():
 # ---------------------------------------------------------------- 6. Гумно
 def threshing_barn():
     """Гумно изнутри: глиняный ток, снопы, цепы на стене, закрома; сеновал по лестнице, с него — по балкам
-    к полке под крышей с сундуком. Свет — полосами сквозь щели крыши. Книга гумна — про чужака."""
+    к полке под крышей с сундуком. Свет — полосами сквозь щели крыши. Книга гумна — про чужака.
+    У сундука хозяин поставил самострел от воров (§8.14): одна доска полки светлее — наступил, и из стены бьёт болт."""
     s = new_room("ThreshingBarn", "threshing_barn", -18, 18, BARN, (0.6, 0.55, 0.5), 0.0)
     land(s, "Floor", -19, 19, 0, -2, "clay")
     s.box(D, "WallLeftLook", (-18.5, 4.5, 0), (1.0, 11.0, 4.4), "wood_dark")
@@ -594,6 +659,9 @@ def threshing_barn():
     for i, (x, y) in enumerate(((-16.0, 4.75), (-14.6, 4.75), (-15.3, 5.35), (-11.5, 4.75), (-8.0, 4.75))):
         s.box(D, f"LoftBale{i}", (x, y, -1.0), (1.3, 0.6, 0.8), "straw", rot=(0, 0.1 * (i % 3 - 1), 0))
     s.chest("ShelfChest", (15.5, 5.2, -0.6), 120, "barn_chest", ("tempered_glass",))
+    # Самострел от воров: доска-плита на полке, болт из восточной стены — вдоль полки, на уровне груди.
+    s.arrow_launcher("Crossbow", (17.95, 5.2, 0.0), -1, heights=(0.95,), damage=28.0, face_color=(0.16, 0.12, 0.09))
+    s.trap_plate("LoosePlank", (11.2, 5.2, 0.0), ["Crossbow"], width=1.0, depth=2.0, color=(0.36, 0.27, 0.17))
     # Ток: снопы, цепы, закрома, веялка.
     for i, (x, z) in enumerate(((-15.0, -1.4), (-13.8, -1.6), (-9.0, -1.5), (6.5, -1.6), (8.0, -1.3))):
         stook(s, f"Sheaf{i}", x, z, h=1.5)

@@ -30,6 +30,8 @@ extends Interactable
 @export var leftover_line := "Держи. Больше не теряй."
 ## Есть только когда стоит этот флаг (Травница — после спасения). Пусто — всегда.
 @export var appear_flag: StringName
+## Рассказывает слухи (Rumors, §8.14): каждый разговор — намёк на ловушку или засаду в одном из последних открытых мест.
+@export var tells_rumors := false
 @export var look_color := Color(0.3, 0.26, 0.22)
 ## На сколько фигура стоит глубже плоскости героя.
 @export var look_depth := 1.2
@@ -108,6 +110,11 @@ func interact(by: Player) -> void:
 		if not _offered:
 			_offered = true
 			_say("%s (%d отзвуков, у тебя %d)" % [sell_offer, sell_price, GameState.echoes])
+			return
+	if tells_rumors:
+		var rumor := Rumors.next_untold()
+		if rumor != &"":
+			_say(Rumors.tell(rumor))
 			return
 	var after := after_flag != &"" and GameState.has_flag(after_flag)
 	var pool := lines_after if after else lines

@@ -61,6 +61,8 @@ ARROW = ('<path d="M16 48 L 46 18" stroke="#9c7a52" stroke-width="3" stroke-line
          '<path d="M46 18 L 40 19 L 45 24 Z" fill="#d9dde2" stroke="#d9dde2" stroke-width="2"/>'
          '<path d="M16 48 l -3 -6 M16 48 l 6 3 M20 44 l -3 -6 M20 44 l 6 3" stroke="#c9b99c" stroke-width="1.6"/>')
 FIRE_ARROW = ARROW + '<path d="M47 8 q 8 6 1 15 q -4 -2 -6 -6 q 0 -5 5 -9" fill="#ff9a30"/><path d="M46 13 q 3 3 1 7 q -2 -2 -2 -4" fill="#ffe08a"/>'
+POISON_ARROW = ARROW + '<circle cx="48" cy="14" r="5" fill="#6a2a86"/><circle cx="48" cy="14" r="2" fill="#b98ad0"/>'
+TAR_ARROW = ARROW + '<path d="M44 10 q 6 4 4 10 q -3 2 -6 -1 q -2 -5 2 -9" fill="#1a1512" stroke="#4a3a2c" stroke-width="1"/>'
 POISONED = ('<path d="M32 12 C 40 24 46 31 46 38 A 14 14 0 0 1 18 38 C 18 31 24 24 32 12 Z" fill="#6a2a86"/>'
             '<circle cx="32" cy="37" r="5" fill="#d8d0c0"/><rect x="29.5" y="40" width="5" height="4" fill="#d8d0c0"/>'
             '<circle cx="30" cy="36.5" r="1.2" fill="#2a1030"/><circle cx="34" cy="36.5" r="1.2" fill="#2a1030"/>')
@@ -124,7 +126,7 @@ ITEMS = {
     "flask_potency": ("#12201c", POTENCY), "tempered_glass": ("#141a22", GLASS), "clear_glass": ("#141a22", CLEAR),
     "facet_slot": ("#141a22", SLOT), "recipe_heavy_hammer": ("#1c1712", RECIPE), "chain_hook": ("#16181c", HOOK), "boss_smith_echo": ("#141a22", ECHO),
     "note": ("#1c1712", NOTE), "mud": ("#2a1f14", MUD), "regen": ("#12201c", REGEN), "unknown": ("#141112", UNKNOWN),
-    "arrow": ("#1c1712", ARROW), "fire_arrow": ("#24160e", FIRE_ARROW), "poison": ("#1e1224", POISONED),
+    "arrow": ("#1c1712", ARROW), "fire_arrow": ("#24160e", FIRE_ARROW), "poison_arrow": ("#1e1224", POISON_ARROW), "tar_arrow": ("#141110", TAR_ARROW), "poison": ("#1e1224", POISONED),
     "burning": ("#24140c", BURNING), "corroded": ("#16200c", CORRODED), "tar": ("#141110", TARRED),
     "staff": ("#141a22", STAFF), "glint": ("#1a1a24", GLINT), "silver_stake": ("#161a20", STAKE),
     "crypt_key": ("#16181c", CRYPT_KEY), "lantern": ("#1c1712", LANTERN),

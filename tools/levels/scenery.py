@@ -262,6 +262,45 @@ class Scene:
         """Кольцо для крюка на цепи (HookPoint): 0 — притянуть, 1 — раскачать, 2 — на кромке стены."""
         self.node(name, 'type="Node3D"', "Objects", [f"position = {v3(pos)}", 'script = ExtResource("hookpoint")', f"kind = {kind}"])
 
+    # --- ловушки (§8.14): спуск (TrapTrigger) + действия; ext_resource — только у комнат с ловушками
+    def _traps(self):
+        self.use("trap", "Script", "res://world/traps/trap_trigger.gd")
+        self.use("launcher", "Script", "res://world/traps/arrow_launcher.gd")
+        self.use("blade", "Script", "res://world/traps/swing_blade.gd")
+
+    def trap_plate(self, name, pos, effects, width=1.2, depth=2.0, color=None, rearm=3.0):
+        """Нажимная плита: наступил (или попал в неё ударом, стрелой, броском) — сработали effects (имена узлов в Objects)."""
+        self._traps()
+        props = [f"position = {v3(pos)}", 'script = ExtResource("trap")', "kind = 0", f"width = {width}", f"depth = {depth}",
+                 f"rearm_time = {rearm}", "effects = Array[NodePath]([" + ", ".join(f'NodePath("../{e}")' for e in effects) + "])"]
+        if color:
+            props.append(f"plate_color = Color({color[0]}, {color[1]}, {color[2]}, 1)")
+        self.node(name, 'type="Area3D"', "Objects", props)
+
+    def tripwire(self, name, pos, effects, depth=2.6, height=0.32):
+        """Растяжка поперёк хода: нить чуть блестит по углу камеры; задел — сработали effects, нить порвана до отдыха."""
+        self._traps()
+        self.node(name, 'type="Area3D"', "Objects", [f"position = {v3(pos)}", 'script = ExtResource("trap")', "kind = 1",
+                  f"depth = {depth}", f"wire_height = {height}",
+                  "effects = Array[NodePath]([" + ", ".join(f'NodePath("../{e}")' for e in effects) + "])"])
+
+    def arrow_launcher(self, name, pos, direction, kind="", heights=(0.5, 1.1, 1.65), volleys=1, damage=16.0, face=True,
+                       face_color=None):
+        """Стреломёт: щели у грани стены, стрелы летят по x в сторону direction (±1); kind — id ArrowData."""
+        self._traps()
+        props = [f"position = {v3(pos)}", 'script = ExtResource("launcher")', f'arrow_kind = &"{kind}"', f"direction = {float(direction)}",
+                 "heights = PackedFloat32Array(" + ", ".join(str(h) for h in heights) + ")", f"volleys = {volleys}",
+                 f"damage = {damage}", f"with_face = {'true' if face else 'false'}"]
+        if face_color:
+            props.append(f"face_color = Color({face_color[0]}, {face_color[1]}, {face_color[2]}, 1)")
+        self.node(name, 'type="Node3D"', "Objects", props)
+
+    def swing_blade(self, name, pivot, length, rest_angle=1.47, tempo=2.6, damping=0.8, damage=45.0):
+        """Маятник с лезвием топора: узел — подвес (обычно в толще потолка), лезвие ждёт задранным, край торчит."""
+        self._traps()
+        self.node(name, 'type="Node3D"', "Objects", [f"position = {v3(pivot)}", 'script = ExtResource("blade")', f"length = {length}",
+                  f"rest_angle = {rest_angle}", f"tempo = {tempo}", f"damping = {damping}", f"damage = {damage}"])
+
     def shard(self, name, x, y, parent="Objects"):
         self.instance(name, parent, "shard", [f"position = Vector3({x}, {y}, 0)"])
 

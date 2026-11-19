@@ -16,12 +16,22 @@ const MAX_RICOCHETS := 2
 const GRAVITY := 9.0
 const NOISE_RADIUS := 9.0
 const STUCK_TIME := 1.0
+## Стрела ловушки (ArrowLauncher, §8.14): кроме мира, врагов и мишеней задевает героя (слой 2).
+const TRAP_MASK := MASK | 2
+const TRAP_GRAVITY := 1.5
+## Отлетав своё, стрела ловушки теряет силу и падает: так залп не бьёт через весь зал.
+const SPENT_GRAVITY := 30.0
 
 var velocity := Vector3.ZERO
 var ricochets := 0
 var stuck := false
 ## Особая стрела; пусто — обычная.
 var kind: ArrowData
+## Из ловушки: бьёт и героя (TRAP_MASK).
+var hostile := false
+var gravity := GRAVITY
+## Сколько ещё пролетит в силе, м (у стрел ловушек); дальше — падает и не ранит.
+var reach_left := INF
 
 var _age := 0.0
 var _hitbox: Hitbox
@@ -29,10 +39,15 @@ var _exclude: Array[RID] = []
 
 
 static func spawn(
-		parent: Node, at: Vector3, vel: Vector3, damage: float, poise_damage: float, of_kind: ArrowData = null
+		parent: Node, at: Vector3, vel: Vector3, damage: float, poise_damage: float, of_kind: ArrowData = null,
+		from_trap := false, reach := INF
 ) -> Arrow:
 	var arrow := Arrow.new()
 	arrow._set_kind(of_kind)
+	if from_trap:
+		arrow.hostile = true
+		arrow.gravity = TRAP_GRAVITY
+		arrow.reach_left = reach
 	parent.add_child(arrow)
 	arrow.global_position = at
 	arrow.velocity = vel
@@ -79,10 +94,18 @@ func _physics_process(delta: float) -> void:
 	if _age >= LIFETIME:
 		queue_free()
 		return
-	velocity.y -= GRAVITY * delta
+	velocity.y -= gravity * delta
+	if hostile:
+		reach_left -= velocity.length() * delta
+		if reach_left <= 0.0:
+			# Отлетала своё: падает, никого не ранит.
+			hostile = false
+			gravity = SPENT_GRAVITY
+			_hitbox.damage = 0.0
+			_hitbox.poise_damage = 0.0
 	var from := global_position
 	var to := from + velocity * delta
-	var query := PhysicsRayQueryParameters3D.create(from, to, MASK, _exclude)
+	var query := PhysicsRayQueryParameters3D.create(from, to, TRAP_MASK if hostile else MASK, _exclude)
 	query.collide_with_areas = true
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
@@ -99,15 +122,27 @@ func _on_hit(hit: Dictionary) -> void:
 	var hurtbox := collider as Hurtbox
 	if collider is Dummy:
 		hurtbox = (collider as Dummy).hurtbox
+	if collider is Player:
+		hurtbox = (collider as Player).hurtbox
 	if hurtbox:
 		var enemy := hurtbox.owner as Dummy
-		if enemy and enemy.state == Dummy.State.DEAD:
+		var hero := hurtbox.owner as Player
+		if (enemy and enemy.state == Dummy.State.DEAD) or (hero and hero.is_dead()):
 			_exclude.append(hit.rid)
 			return
-		hurtbox.receive_hit(_hitbox)
+		if _hitbox.damage <= 0.0:
+			# Упавшая стрела ловушки никого не ранит.
+			_exclude.append(hit.rid)
+			return
+		if not hurtbox.receive_hit(_hitbox) and hero:
+			# Перекат и неуязвимость: стрела ловушки пролетает сквозь героя.
+			_exclude.append(hit.rid)
+			return
 		HitSpark.spawn(get_parent(), at, kind.tip_color if kind else Color(1.0, 0.85, 0.6), 8)
 		if kind and kind.status != &"" and enemy and enemy.state != Dummy.State.DEAD:
 			enemy.statuses.apply(kind.status, kind.status_time)
+		if kind and kind.status != &"" and hero and not hero.is_dead():
+			hero.statuses.apply(kind.status, kind.status_time)
 		queue_free()
 		return
 	if collider is ArrowTarget:

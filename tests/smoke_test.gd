@@ -596,6 +596,7 @@ func mines_tour() -> void:
 	check(player.mud_zones > 0, "вода в зумпфе вязкая, как болотная грязь")
 	check(await walk_to(24.0, 20.0) and absf(player.global_position.y) < 0.5,
 		"через зумпф и завал — к забою (x=%.1f)" % player.global_position.x)
+	check(not (room_node("Objects/Tripwire") as TrapTrigger).armed, "за завалом растяжка: задел — топор сорвался (в прогулке герой неуязвим)")
 	# Глубокая выработка: доски над провалом держат.
 	await rooms.travel(&"deep_gallery", ^"Spawns/FromDrift")
 	await seconds(0.3)
@@ -860,6 +861,75 @@ func inferno_tour() -> void:
 	check(game_state.visited(&"inferno_breach") and game_state.visited(&"obsidian_steps"), "комнаты Пекла отмечены на карте")
 	game_state.set_checkpoint(kept_checkpoint[0], kept_checkpoint[1], kept_checkpoint[2])
 	player.hurtbox.invulnerable = false
+	player.restore()
+
+
+## Полигон ловушек (§8.14): плиты и стреломёты со всеми видами стрел, растяжка с маятником-топором.
+func traps_tour() -> void:
+	print("== Ловушки (§8.14)")
+	await rooms.travel(&"trap_range", ^"Spawns/PlayerStart")
+	await seconds(0.3)
+	player.hurtbox.invulnerable = false
+	player.restore()
+	var plate := room_node("Objects/Plate0") as TrapTrigger
+	var hp := player.health.current
+	await put(plate.global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.8)
+	check(not plate.armed and player.health.current < hp, "наступил на плиту — залп из щелей в стене (−%d)" % roundi(hp - player.health.current))
+	await put(plate.global_position + Vector3(-6.0, 0.1, 0.0))
+	await seconds(3.0)
+	check(plate.armed, "плита взвелась снова")
+	# Издали: стрела в плиту — залп бьёт впустую, до героя за плитой не долетает.
+	player.restore()
+	hp = player.health.current
+	Arrow.spawn(rooms.current_room, plate.global_position + Vector3(-2.5, 0.15, 0.0), Vector3(20.0, 0.0, 0.0), 5.0, 5.0)
+	await seconds(1.0)
+	check(not plate.armed and is_equal_approx(player.health.current, hp), "плиту спустил стрелой издали — залп не долетел до героя")
+	# Особые стрелы: огненные поджигают, отравленные травят, смоляные вязнут.
+	for i: int in [1, 2, 3]:
+		# После прошлого залпа у героя неуязвимость от ранения — стрелы прошли бы сквозь; ждём её конца.
+		await seconds(1.5)
+		player.restore()
+		await put(room_node("Objects/Plate%d" % i).global_position + Vector3(0.0, 0.1, 0.0))
+		await seconds(0.6)
+		var status: StringName = [Statuses.BURNING, Statuses.POISON, Statuses.TAR][i - 1]
+		check(player.statuses.has(status), "отсек %d: стрелы вешают «%s»" % [i + 1, status])
+	player.restore()
+	# Растяжка: перепрыгнул — топор не сорвался.
+	var wire := room_node("Objects/Tripwire") as TrapTrigger
+	var blade := room_node("Objects/Blade") as SwingBlade
+	# Нижняя точка задранного лезвия (полуширина с щёчками 0,76, кромка 0,37 ниже середины) — чуть ниже потолка 5,5.
+	var low := blade.global_position.y - blade.length * cos(blade.angle) - (0.76 * sin(blade.angle) + 0.37 * cos(blade.angle))
+	var shown := (5.5 - low) / 1.52
+	check(shown > 0.05 and shown < 0.3, "топор ждёт под потолком: видно %d %% лезвия" % roundi(shown * 100.0))
+	await put(wire.global_position + Vector3(-3.0, 0.1, 0.0))
+	await run_and_jump("move_right", wire.global_position.x - 0.9, wire.global_position.x + 0.8)
+	check(wire.armed and not blade.swinging, "растяжку перепрыгнул — топор не сорвался")
+	# Перерезал стрелой издали — топор прошёл впустую.
+	await put(wire.global_position + Vector3(-5.0, 0.1, 0.0))
+	hp = player.health.current
+	Arrow.spawn(rooms.current_room, wire.global_position + Vector3(-2.0, 0.32, 0.0), Vector3(20.0, 0.0, 0.0), 5.0, 5.0)
+	await seconds(2.0)
+	check(not wire.armed and blade.swinging and is_equal_approx(player.health.current, hp), "растяжку перерезал стрелой — топор прошёл впустую")
+	await seconds(6.0)
+	check(not blade.swinging and is_equal_approx(blade.angle, blade.rest_angle), "цепь втянула топор обратно под потолок")
+	# Свежая растяжка (комната заново): пошёл, не глядя, — топор сбивает с ног.
+	await rooms.travel(&"trap_range", ^"Spawns/PlayerStart")
+	await seconds(0.3)
+	wire = room_node("Objects/Tripwire") as TrapTrigger
+	player.restore()
+	hp = player.health.current
+	await put(wire.global_position + Vector3(-2.0, 0.1, 0.0))
+	press("move_right")
+	var struck := false
+	for i in 150:
+		await frames(1)
+		if player.health.current < hp:
+			struck = true
+			break
+	release_all()
+	check(struck and not player.is_dead(), "пошёл через растяжку не глядя — топор ударил (−%d)" % roundi(hp - player.health.current))
+	await seconds(1.0)
 	player.restore()
 
 
@@ -3629,6 +3699,31 @@ func suite() -> void:
 	var herbalist_here := room_node("Objects/Herbalist")
 	check((herbalist_here == null or herbalist_here.is_queued_for_deletion()) and room_node("Objects/Glassblower") != null,
 		"Травница пропала (её похитили), стекольщик на месте")
+	# Слухи стекольщика (§8.14): каждый разговор — намёк на одно из последних открытых мест, от свежих к старым.
+	var rumor_visited_was: Dictionary = game_state.visited_rooms.duplicate()
+	game_state.visited_rooms = {&"village_square": true, &"chapel_yard": true, &"cemetery": true, &"pump_wheel": true}
+	for rumor_room: StringName in Rumors.LINES:
+		game_state.flags.erase(Rumors.flag(rumor_room))
+	game_state.flags.erase(Rumors.INTRO_FLAG)
+	await put(room_node("Objects/Glassblower").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	var told: Array[String] = []
+	for i in 4:
+		messages.clear()
+		await tap("interact")
+		await frames(3)
+		told.append(messages.back() if not messages.is_empty() else "")
+	check(told[0].begins_with("Стекольщик:") and told[0].contains(Rumors.INTRO) and told[0].contains("Большого Колеса"),
+		"стекольщик глядел в зеркало правды: сперва — о самом свежем месте, колесе копей")
+	check(told[1].contains("Склеп") and not told[1].contains(Rumors.INTRO) and told[2].contains("площадь у колодца"),
+		"дальше — о местах постарше, без вступления")
+	check(not Rumors.LINES.values().any(func(line: String) -> bool: return told[3].contains(line)) and told[3].begins_with("Стекольщик:"),
+		"рассказывать больше нечего — обычные реплики")
+	check(game_state.has_flag(&"rumor_pump_wheel") and game_state.has_flag(&"rumor_village_square"), "рассказанное помечено и не повторится")
+	game_state.visited_rooms = rumor_visited_was
+	for rumor_room: StringName in Rumors.LINES:
+		game_state.flags.erase(Rumors.flag(rumor_room))
+	game_state.flags.erase(Rumors.INTRO_FLAG)
 	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
 	await seconds(0.2)
 	await tap("interact")
@@ -4683,6 +4778,7 @@ func suite() -> void:
 	await crypts_tour()
 	await mines_tour()
 	await inferno_tour()
+	await traps_tour()
 
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path

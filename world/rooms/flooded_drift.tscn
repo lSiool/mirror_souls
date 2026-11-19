@@ -1,4 +1,4 @@
-[gd_scene load_steps=46 format=3]
+[gd_scene load_steps=49 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -53,6 +53,12 @@
 [ext_resource type="Script" path="res://world/common/platform_wheel.gd" id="wheel"]
 
 [ext_resource type="Script" path="res://world/common/flag_lever.gd" id="lever"]
+
+[ext_resource type="Script" path="res://world/traps/trap_trigger.gd" id="trap"]
+
+[ext_resource type="Script" path="res://world/traps/arrow_launcher.gd" id="launcher"]
+
+[ext_resource type="Script" path="res://world/traps/swing_blade.gd" id="blade"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_char"]
 albedo_color = Color(0.035, 0.03, 0.03, 1)
@@ -633,13 +639,35 @@ light_energy = 2.0
 omni_range = 9.5
 
 [node name="LampEastHook" type="CSGBox3D" parent="Decor"]
-position = Vector3(21.0, 4.1, -0.8)
+position = Vector3(25.5, 4.1, -0.8)
 size = Vector3(0.04, 0.6, 0.04)
 material = SubResource("Mat_iron")
 
 [node name="LampEastLamp" type="CSGBox3D" parent="Decor"]
-position = Vector3(21.0, 3.6, -0.8)
+position = Vector3(25.5, 3.6, -0.8)
 size = Vector3(0.26, 0.38, 0.26)
+material = SubResource("Mat_char")
+
+[node name="Tripwire" type="Area3D" parent="Objects"]
+position = Vector3(17.0, 0.0, 0.0)
+script = ExtResource("trap")
+kind = 1
+depth = 2.6
+wire_height = 0.32
+effects = Array[NodePath]([NodePath("../AxeBlade")])
+
+[node name="AxeBlade" type="Node3D" parent="Objects"]
+position = Vector3(20.0, 6.6, 0.0)
+script = ExtResource("blade")
+length = 5.6
+rest_angle = 1.47
+tempo = 2.6
+damping = 0.8
+damage = 45.0
+
+[node name="AxeSlot" type="CSGBox3D" parent="Decor"]
+position = Vector3(23.0, 5.49, 0.0)
+size = Vector3(6.4, 0.02, 0.3)
 material = SubResource("Mat_char")
 
 [node name="LampMidHook" type="CSGBox3D" parent="Decor"]

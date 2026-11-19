@@ -1076,6 +1076,16 @@ rotation = Vector3(0.12, 0, 0)
 size = Vector3(0.8, 2.2, 0.06)
 material = SubResource("Mat_moonpane")
 
+[node name="TruthMirrorFrame" type="CSGBox3D" parent="Decor"]
+position = Vector3(7.0, 2.7, -3.14)
+size = Vector3(0.95, 1.35, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="TruthMirror" type="CSGBox3D" parent="Decor"]
+position = Vector3(7.0, 2.7, -3.09)
+size = Vector3(0.75, 1.15, 0.03)
+material = SubResource("Mat_moonpane")
+
 [node name="Chimney" type="CSGBox3D" parent="Decor"]
 position = Vector3(6.0, 7.5, -3.6)
 size = Vector3(1.3, 5.0, 1.3)
@@ -1301,10 +1311,11 @@ gift_line = "Ты меня вытащил. Дай-ка твою флягу: с �
 position = Vector3(7.5, 0, 0)
 script = ExtResource("npc")
 npc_name = "Стекольщик"
-lines = PackedStringArray("Стекло пережило огонь лучше, чем люди. Будем стеклить заново.", "Витраж-то цел. Замок на нём смотрит так, будто доволен.", "То зеркало в часовне старше всех нас. Молчит, пока не вернутся его осколки.", "Травница пропала в ту ночь. Её прилавок так и стоит пустой.")
+lines = PackedStringArray("Стекло пережило огонь лучше, чем люди. Будем стеклить заново.", "Витраж-то цел. Замок на нём смотрит так, будто доволен.", "То зеркало в часовне старше всех нас. Молчит, пока не вернутся его осколки.", "Травница пропала в ту ночь. Её прилавок так и стоит пустой.", "Моё зеркальце нынче молчит. Сходи куда подальше — ему будет что показать.")
 look_color = Color(0.26, 0.24, 0.3, 1)
+tells_rumors = true
 after_flag = &"herbalist_rescued"
-lines_after = PackedStringArray("Травница вернулась! Говорит, её держали разбойники на поваленном дубе.", "Витраж-то цел. Замок на нём смотрит так, будто доволен.", "То зеркало в часовне старше всех нас. Молчит, пока не вернутся его осколки.")
+lines_after = PackedStringArray("Травница вернулась! Говорит, её держали разбойники на поваленном дубе.", "Витраж-то цел. Замок на нём смотрит так, будто доволен.", "То зеркало в часовне старше всех нас. Молчит, пока не вернутся его осколки.", "Моё зеркальце нынче молчит. Сходи куда подальше — ему будет что показать.")
 
 [node name="BarrelGate" type="StaticBody3D" parent="Objects"]
 position = Vector3(-20.5, 0.0, 0)

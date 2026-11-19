@@ -1,4 +1,4 @@
-[gd_scene load_steps=44 format=3]
+[gd_scene load_steps=47 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -53,6 +53,12 @@
 [ext_resource type="Script" path="res://world/common/flag_shown.gd" id="flagshown"]
 
 [ext_resource type="Script" path="res://world/common/spinner.gd" id="spinner"]
+
+[ext_resource type="Script" path="res://world/traps/trap_trigger.gd" id="trap"]
+
+[ext_resource type="Script" path="res://world/traps/arrow_launcher.gd" id="launcher"]
+
+[ext_resource type="Script" path="res://world/traps/swing_blade.gd" id="blade"]
 
 [sub_resource type="Shader" id="Shader_mist"]
 code = "shader_type spatial;
@@ -349,6 +355,27 @@ position = Vector3(15.5, 5.2, -0.6)
 reward = 120
 flag_id = &"barn_chest"
 items = Array[StringName]([&"tempered_glass"])
+
+[node name="Crossbow" type="Node3D" parent="Objects"]
+position = Vector3(17.95, 5.2, 0.0)
+script = ExtResource("launcher")
+arrow_kind = &""
+direction = -1.0
+heights = PackedFloat32Array(0.95)
+volleys = 1
+damage = 28.0
+with_face = true
+face_color = Color(0.16, 0.12, 0.09, 1)
+
+[node name="LoosePlank" type="Area3D" parent="Objects"]
+position = Vector3(11.2, 5.2, 0.0)
+script = ExtResource("trap")
+kind = 0
+width = 1.0
+depth = 2.0
+rearm_time = 3.0
+effects = Array[NodePath]([NodePath("../Crossbow")])
+plate_color = Color(0.36, 0.27, 0.17, 1)
 
 [node name="Sheaf00" type="CSGCylinder3D" parent="Decor"]
 position = Vector3(-14.8342, 0.7, -1.5)

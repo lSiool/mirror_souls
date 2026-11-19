@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ArrowData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://combat/weapons/arrow_data.gd" id="1_arrow"]
+
+[resource]
+script = ExtResource("1_arrow")
+id = &"poison_arrow"
+damage_mult = 0.8
+status = &"poison"
+status_time = 6.0
+tip_color = Color(0.55, 0.85, 0.3, 1)
