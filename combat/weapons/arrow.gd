@@ -181,6 +181,8 @@ func _set_kind(of_kind: ArrowData) -> void:
 		return
 	_hitbox.weapon_type = &"bow"
 	if kind.flame:
+		# Открытый огонь: поджигает рудничный газ (Firedamp, §8.14).
+		add_to_group(&"open_flame")
 		var flame := Flame.make(Vector2(0.22, 0.34))
 		flame.position = Vector3(0.0, -0.06, 0.0)
 		add_child(flame)

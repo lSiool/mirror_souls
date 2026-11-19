@@ -19,6 +19,8 @@ var _oil: MeshInstance3D
 
 
 func _settle(at: Vector3) -> bool:
+	# Открытый огонь: поджигает рудничный газ (Firedamp, §8.14).
+	add_to_group(&"open_flame")
 	floor_y = floor_at(at.x, at.y + 0.4)
 	if is_nan(floor_y):
 		return false

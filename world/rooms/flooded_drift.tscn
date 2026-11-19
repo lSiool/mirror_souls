@@ -1,4 +1,4 @@
-[gd_scene load_steps=49 format=3]
+[gd_scene load_steps=50 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -59,6 +59,8 @@
 [ext_resource type="Script" path="res://world/traps/arrow_launcher.gd" id="launcher"]
 
 [ext_resource type="Script" path="res://world/traps/swing_blade.gd" id="blade"]
+
+[ext_resource type="Script" path="res://world/traps/firedamp.gd" id="firedamp"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_char"]
 albedo_color = Color(0.035, 0.03, 0.03, 1)
@@ -145,8 +147,8 @@ shader_parameter/tint = Color(0.06, 0.05, 0.04, 1.0)
 size = Vector2(16, 3.6)
 orientation = 1
 
-[sub_resource type="QuadMesh" id="BD_plane_10x3_6"]
-size = Vector2(10, 3.6)
+[sub_resource type="QuadMesh" id="BD_plane_8_5x3_6"]
+size = Vector2(8.5, 3.6)
 orientation = 1
 
 [sub_resource type="QuadMesh" id="BD_plane_14x3_6"]
@@ -202,16 +204,16 @@ size = Vector3(3.0, 3.5, 4.4)
 material = SubResource("Mat_mud")
 
 [node name="SumpOut" type="CSGBox3D" parent="Geometry"]
-position = Vector3(-4.5429, -1.9571, 0)
-rotation = Vector3(0, 0, 0.7854)
+position = Vector3(-3.97, -2.098, 0)
+rotation = Vector3(0, 0, 0.5586)
 use_collision = true
-size = Vector3(3.6355, 2.0, 4.4)
+size = Vector3(4.817, 2.0, 4.4)
 material = SubResource("Mat_stone_dark")
 
 [node name="FloorMid" type="CSGBox3D" parent="Geometry"]
-position = Vector3(1.0, -3.0, 0)
+position = Vector3(1.75, -3.0, 0)
 use_collision = true
-size = Vector3(10, 6, 4.4)
+size = Vector3(8.5, 6, 4.4)
 material = SubResource("Mat_stone_dark")
 
 [node name="RubbleUp" type="CSGBox3D" parent="Geometry"]
@@ -678,13 +680,19 @@ material = SubResource("Mat_iron")
 [node name="LampMidLamp" type="CSGBox3D" parent="Decor"]
 position = Vector3(3.0, 3.6, -0.8)
 size = Vector3(0.26, 0.38, 0.26)
-material = SubResource("Mat_lantern")
+material = SubResource("Mat_char")
 
-[node name="LampMidLight" type="OmniLight3D" parent="Decor"]
-position = Vector3(3.0, 3.3, 0.2)
-light_color = Color(1.0, 0.6, 0.28, 1)
-light_energy = 2.0
-omni_range = 9.5
+[node name="Firedamp" type="Node3D" parent="Objects"]
+position = Vector3(2.0, 0.0, 0.0)
+script = ExtResource("firedamp")
+size = Vector3(8.0, 5.0, 4.4)
+canary_at = Vector3(-4.6, 3.0, -1.0)
+
+[node name="GasSign" type="Area3D" parent="Objects"]
+position = Vector3(-1.4, 0.0, 0)
+script = ExtResource("note")
+title = "Доска у входа"
+lines = PackedStringArray("Углём, крупно: «ГРЕМУЧИЙ. С ОГНЁМ НЕ ХОДИТЬ».", "Ниже мельче: «Птица сдохла в третью смену. Фонари погасили. Насос качает сам».")
 
 [node name="CandleSumpNiche" type="CSGBox3D" parent="Decor"]
 position = Vector3(-13.5, 1.6, -2.18)
@@ -700,12 +708,12 @@ light_range = 7.0
 count = 3
 
 [node name="CandleMidNiche" type="CSGBox3D" parent="Decor"]
-position = Vector3(1.5, 1.6, -2.18)
+position = Vector3(-2.9, 1.6, -2.18)
 size = Vector3(0.9, 0.9, 0.06)
 material = SubResource("Mat_char")
 
 [node name="CandleMid" type="Area3D" parent="Objects"]
-position = Vector3(1.5, 0.0, 0)
+position = Vector3(-2.9, 0.0, 0)
 script = ExtResource("candle")
 flag = &"candle_flooded_drift_CandleMid"
 light_energy = 1.6
@@ -756,8 +764,8 @@ material_override = SubResource("BD_path_0p06_0p05_0p04_1")
 cast_shadow = 0
 
 [node name="PathLight1" type="MeshInstance3D" parent="Decor/Backdrop"]
-position = Vector3(1, 0.015, 0.2)
-mesh = SubResource("BD_plane_10x3_6")
+position = Vector3(1.75, 0.015, 0.2)
+mesh = SubResource("BD_plane_8_5x3_6")
 material_override = SubResource("BD_path_0p06_0p05_0p04_1")
 cast_shadow = 0
 

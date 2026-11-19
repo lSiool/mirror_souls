@@ -302,6 +302,38 @@ func fields_tour() -> void:
 	await seconds(0.3)
 	check(await walk_to(16.0) and absf(player.global_position.y) < 0.5, "огороды: через грядки к гумну (x=%.1f)" % player.global_position.x)
 	await climb_all_ladders(&"vegetable_patch")
+	# Отравленный сундук в погребе (§8.14): открыл не глядя — игла и облако яда; ударил сначала — зашипел, открыть безопасно.
+	game_state.flags.erase(&"cellar_chest")
+	await rooms.travel(&"vegetable_patch", ^"Spawns/FromMill")
+	await seconds(0.3)
+	var cellar_chest := room_node("Objects/CellarChest") as Chest
+	check(cellar_chest.poisoned and cellar_chest.trap_armed, "в погребе сундук с ядом в замке: потёки, дохлая крыса")
+	player.restore()
+	await put(cellar_chest.global_position + Vector3(-0.6, 0.1, 0.0), 1.0)
+	await seconds(0.2)
+	await tap("interact")
+	await frames(5)
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	check(cellar_chest.opened and player.statuses.has(Statuses.POISON)
+		and nodes_where(rooms.current_room, func(n: Node) -> bool: return n is PoisonCloud).size() > 0,
+		"открыл не глядя — игла кольнула, из сундука валит ядовитое облако")
+	game_state.flags.erase(&"cellar_chest")
+	await rooms.travel(&"vegetable_patch", ^"Spawns/FromMill")
+	await seconds(0.3)
+	cellar_chest = room_node("Objects/CellarChest") as Chest
+	player.restore()
+	await put(cellar_chest.global_position + Vector3(-1.1, 0.1, 0.0), 1.0)
+	await seconds(0.3)
+	await tap("attack")
+	await seconds(0.6)
+	check(not cellar_chest.trap_armed and not cellar_chest.opened and not player.statuses.has(Statuses.POISON),
+		"ударил по сундуку — зашипел: яд вышел впустую")
+	await tap("interact")
+	await frames(5)
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	check(cellar_chest.opened and not player.statuses.has(Statuses.POISON), "после этого сундук открывается безопасно")
 	await rooms.travel(&"threshing_barn", ^"Spawns/FromPatch")
 	await seconds(0.3)
 	await climb_all_ladders(&"threshing_barn")
@@ -594,7 +626,38 @@ func mines_tour() -> void:
 	await seconds(0.3)
 	check(await walk_to(4.0) and absf(player.global_position.y + 4.5) < 0.5,
 		"шахты: по рельсовому уклону — к полке (y=%.1f)" % player.global_position.y)
+	# Плита у подножия уклона спустила вагонетку (§8.14): гул сверху; перескочить отбойник — вагонетка разобьётся о него.
+	var runaway := room_node("Objects/RunawayCart") as RollingBoulder
+	check(runaway._wait >= 0.0 or runaway.rolling, "у подножия уклона — плита: наверху загудела вагонетка")
+	var cart_hp := player.health.current
+	await run_and_jump("move_right", 6.4, 9.0)
+	for i in 300:
+		await frames(1)
+		if runaway.done:
+			break
+	check(runaway.done and runaway.global_position.x < 7.6 and is_equal_approx(player.health.current, cart_hp),
+		"перескочил отбойник — вагонетка разбилась о него (x=%.1f)" % runaway.global_position.x)
+	await put(Vector3(4.0, -4.4, 0.0), 1.0)
 	check(room_node("Objects/MirrorShard") is MirrorShard, "в шахтах — осколок")
+	# Засада со спины (§8.14): мародёр в вагонетке на нижнем горизонте; вагонетка вздрагивает, прошёл — выскочил сзади.
+	var ambush := room_node("Objects/CartAmbush") as Ambush
+	var lurker := room_node("Objects/Lurker") as Dummy
+	check(ambush != null and lurker != null and not lurker.visible and lurker.state == Dummy.State.DORMANT, "в вагонетке кто-то прячется — его не видно")
+	await put(Vector3(11.5, -8.9, 0.0), 1.0)
+	press("move_right")
+	var cued := false
+	for i in 240:
+		await frames(1)
+		cued = cued or ambush._cued and not ambush.sprung_already
+		if ambush.sprung_already:
+			break
+	release_all()
+	await frames(3)
+	check(cued and ambush.sprung_already and player.global_position.x > ambush.global_position.x + 1.5,
+		"вагонетка вздрогнула заранее; прошёл мимо — мародёр выскочил за спиной")
+	check(lurker.visible and lurker.state not in [Dummy.State.DORMANT, Dummy.State.PATROL], "мародёр сразу бросается в бой")
+	await rooms.travel(&"mine_shafts", ^"Spawns/FromYard")
+	await seconds(0.3)
 	await climb_all_ladders(&"mine_shafts")
 	var hook_key := InputEventAction.new()
 	hook_key.action = &"debug_hook"
@@ -625,9 +688,42 @@ func mines_tour() -> void:
 	await seconds(0.3)
 	check(await walk_to(-8.0) and player.global_position.y < -2.0, "штрек: в зумпф по пояс (y=%.1f)" % player.global_position.y)
 	check(player.mud_zones > 0, "вода в зумпфе вязкая, как болотная грязь")
-	check(await walk_to(24.0, 20.0) and absf(player.global_position.y) < 0.5,
-		"через зумпф и завал — к забою (x=%.1f)" % player.global_position.x)
-	check(not (room_node("Objects/Tripwire") as TrapTrigger).armed, "за завалом растяжка: задел — топор сорвался (в прогулке герой неуязвим)")
+	check(await walk_to(14.5, 20.0) and absf(player.global_position.y) < 0.5,
+		"через зумпф и завал (x=%.1f)" % player.global_position.x)
+	# Рудничный газ (§8.14) между зумпфом и завалом: без огня молчит; огненная стрела издали выжигает его.
+	var gas := room_node("Objects/Firedamp") as Firedamp
+	check(gas != null and not gas.spent, "мимо мёртвой канарейки, без огня — газ не взорвался")
+	var gas_hp := player.health.current
+	Arrow.spawn(rooms.current_room, Vector3(10.0, 2.0, 0.0), Vector3(-20.0, 0.0, 0.0), 5.0, 5.0, ArrowData.by_id(&"fire_arrow"))
+	await seconds(1.0)
+	check(gas.spent and is_equal_approx(player.health.current, gas_hp), "огненная стрела в газ издали — взрыв выжег его, герой цел")
+	# За завалом растяжка: перерезать нить стрелой издали, переждать топор и идти (неуязвимость героя здесь не держит).
+	var drift_wire := room_node("Objects/Tripwire") as TrapTrigger
+	Arrow.spawn(rooms.current_room, drift_wire.global_position + Vector3(-1.5, 0.32, 0.0), Vector3(20.0, 0.0, 0.0), 5.0, 5.0)
+	await seconds(1.0)
+	check(not drift_wire.armed and (room_node("Objects/AxeBlade") as SwingBlade).swinging, "растяжку за завалом перерезал стрелой — топор прошёл впустую")
+	await seconds(7.0)
+	check(await walk_to(24.0, 20.0) and absf(player.global_position.y) < 0.5 and not player.is_dead(),
+		"под втянутым топором — к забою (x=%.1f)" % player.global_position.x)
+	# С фонарём в газ — взрыв (газ снова скопился: комната заново).
+	var had_lantern := player.has_lantern()
+	if not had_lantern:
+		game_state.add_item(Player.LANTERN_ITEM)
+	await rooms.travel(&"flooded_drift", ^"Spawns/FromGallery")
+	await seconds(0.3)
+	player.restore()
+	player.show_lantern(true)
+	gas_hp = player.health.current
+	await put(Vector3(2.0, 0.1, 0.0), 1.0)
+	await seconds(0.3)
+	gas = room_node("Objects/Firedamp") as Firedamp
+	check(gas.spent and player.health.current < gas_hp and player.statuses.has(Statuses.BURNING),
+		"вошёл в газ с фонарём — взрыв: удар и огонь (−%d)" % roundi(gas_hp - player.health.current))
+	player.show_lantern(false)
+	if not had_lantern:
+		game_state.items.erase(Player.LANTERN_ITEM)
+	await seconds(1.0)
+	player.restore()
 	# Глубокая выработка: доски над провалом держат.
 	await rooms.travel(&"deep_gallery", ^"Spawns/FromDrift")
 	await seconds(0.3)
@@ -961,6 +1057,28 @@ func traps_tour() -> void:
 	release_all()
 	check(struck and not player.is_dead(), "пошёл через растяжку не глядя — топор ударил (−%d)" % roundi(hp - player.health.current))
 	await seconds(1.0)
+	# Валун: плита внизу склона — гул и пыль, валун срывается с полки; узкая яма — укрытие; трухлявую стену он проламывает.
+	var boulder := room_node("Objects/Boulder") as RollingBoulder
+	var weak_wall := room_node("Geometry/WeakWall") as WeakWall
+	await seconds(1.5)
+	player.restore()
+	hp = player.health.current
+	await put(Vector3(86.6, 0.1, 0.0), 1.0)
+	press("move_right")
+	for i in 90:
+		await frames(1)
+		if boulder._wait >= 0.0 or boulder.rolling:
+			break
+	release_all()
+	check(boulder._wait >= 0.0 or boulder.rolling, "наступил на плиту внизу склона — наверху загудело, посыпалась пыль")
+	await put(Vector3(92.0, -1.9, 0.0), 1.0)
+	for i in 600:
+		await frames(1)
+		if boulder.done:
+			break
+	check(boulder.done and weak_wall.broken and is_equal_approx(player.health.current, hp),
+		"в узкой яме переждал — валун перекатил её и проломил трухлявую стену")
+	check(room_node("Objects/StashChest") is Chest, "за проломом — тайник с сундуком")
 	player.restore()
 
 

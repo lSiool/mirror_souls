@@ -10,10 +10,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from scenery import Scene  # noqa: E402
 import backdrop as bd  # noqa: E402
+from build_mines import ramp  # noqa: E402
 
 G, D = "Geometry", "Decor"
 DUSK = {"bg": (0.035, 0.04, 0.06), "amb": (0.34, 0.37, 0.46), "amb_e": 0.4, "fog": (0.13, 0.14, 0.18), "fog_d": 0.018}
-LEFT, RIGHT = -30.0, 68.0
+LEFT, RIGHT = -30.0, 100.0
 WALL_H = 3.0
 # Отсеки стреломётов: (стрелы, плита x, стена x0) — стрелы летят на запад, к плите.
 BAYS = (("", -13.0, -8.0), ("fire_arrow", 5.0, 10.0), ("poison_arrow", 23.0, 28.0), ("tar_arrow", 41.0, 46.0))
@@ -25,7 +26,7 @@ def trap_range():
     s = Scene("TrapRange", "trap_range", RIGHT - LEFT, DUSK)
     s.wall("WallLeft", (LEFT - 0.5, 8.0, 0), (1, 30, 4.4))
     s.wall("WallRight", (RIGHT + 0.5, 8.0, 0), (1, 30, 4.4))
-    s.box(G, "Ground", (19.0, -2.0, 0), (180.0, 4.0, 4.4), "mud", True)
+    s.box(G, "Ground", (-0.5, -2.0, 0), (141.0, 4.0, 4.4), "mud", True)
     for i, (kind, plate_x, wall_x) in enumerate(BAYS):
         s.box(G, f"Wall{i}", (wall_x + 2.0, WALL_H / 2, 0), (4.0, WALL_H, 4.4), "stone", True)
         s.arrow_launcher(f"Launcher{i}", (wall_x, 0.0, 0.0), -1, kind)
@@ -43,6 +44,22 @@ def trap_range():
     s.tripwire("Tripwire", (WIRE_X, 0.0, 0.0), ["Blade"])
     # Подвес на 1,1 м выше потолка: задранное лезвие торчит из щели на 15–20 %, внизу проходит на уровне груди.
     s.swing_blade("Blade", (PIVOT_X, CEILING + 1.1, 0.0), CEILING + 1.1 - 1.0)
+    # Валун: подъём на холм, валун ждёт на полке над тропой; вниз по склону — плита; яма поуже валуна — укрытие;
+    # в конце слабая стена — валун проломит её, за ней тайник.
+    s.box(G, "HillTop", (75.0, 2.0, 0), (2.0, 4.0, 4.4), "mud", True)
+    ramp(s, "HillUp", 68.0, 0.0, 74.0, 4.0, "mud", thick=6.0)
+    ramp(s, "HillDown", 76.0, 4.0, 86.0, 0.0, "mud", thick=6.0)
+    s.box(G, "BoulderShelf", (75.5, 6.4, 0), (2.2, 0.4, 4.4), "stone_dark", True)
+    s.boulder("Boulder", (75.5, 6.6, 0.0), direction=1)
+    s.trap_plate("BoulderPlate", (88.0, 0.0, 0.0), ["Boulder"], rearm=600.0)
+    s.box(G, "GroundEast", (86.0, -2.0, 0), (10.4, 4.0, 4.4), "mud", True)
+    s.box(G, "PitFloor", (92.0, -3.0, 0), (1.6, 2.0, 4.4), "mud", True)
+    s.box(G, "GroundFar", (110.0, -2.0, 0), (34.4, 4.0, 4.4), "mud", True)
+    s.weak_wall("WeakWall", (96.5, 0.0, 0.0), flag="")
+    s.chest("StashChest", (98.6, 0.0, -0.8), 50, "", ("tempered_glass",))
+    s.note("BoulderSign", 84.0, 0.0, "Валун", [
+        "«Наступишь на плиту внизу склона — сверху загудит и посыплется пыль, и валун сорвётся с полки.",
+        "Спрячься в узкую яму — валун её перекатит; или перепрыгни, перекатись. В конце он проломит трухлявую стену.»"])
     s.note("WireSign", WIRE_X - 3.0, 0.0, "Растяжка", [
         "«Нить поперёк хода блестит, только когда смотришь под нужным углом. Над ней в потолке — топор.",
         "Перешагни прыжком или перережь издали: стрела, нож. Услышал щелчок — стой, не беги.»"])
@@ -55,7 +72,8 @@ def trap_range():
     k.haze(LEFT, RIGHT, 3, -20, 10, DUSK["fog"], 0.35)
     k.haze(LEFT, RIGHT, 6, -38, 22, DUSK["fog"], 0.5)
     k.near_ground(LEFT, RIGHT)
-    k.path_light(LEFT, RIGHT, 0.0, (0.06, 0.07, 0.09))
+    for x0, x1 in ((LEFT, 68.0), (86.0, RIGHT)):
+        k.path_light(x0, x1, 0.0, (0.06, 0.07, 0.09))
     s.lantern_post(D, "Lamp", -25.0, -1.2)
     s.light(D, "BladeLight", (WIRE_X, 2.6, 1.2), (0.8, 0.8, 0.9), 0.8, 7.0)
     s.shard("MirrorShard", -26.0, 0.0)

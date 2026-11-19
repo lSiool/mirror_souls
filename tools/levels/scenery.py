@@ -301,6 +301,38 @@ class Scene:
         self.node(name, 'type="Node3D"', "Objects", [f"position = {v3(pivot)}", 'script = ExtResource("blade")', f"length = {length}",
                   f"rest_angle = {rest_angle}", f"tempo = {tempo}", f"damping = {damping}", f"damage = {damage}"])
 
+    def boulder(self, name, pos, direction=1, look=0, radius=1.1, max_speed=9.0, damage=60.0, delay=1.2):
+        """Катящийся валун (0) или сорвавшаяся вагонетка (1): спуск — гул и пыль, через delay катится в сторону direction."""
+        self._traps()
+        self.use("boulder", "Script", "res://world/traps/rolling_boulder.gd")
+        self.node(name, 'type="Node3D"', "Objects", [f"position = {v3(pos)}", 'script = ExtResource("boulder")', f"look = {look}",
+                  f"direction = {float(direction)}", f"radius = {radius}", f"max_speed = {max_speed}", f"damage = {damage}",
+                  f"start_delay = {delay}"])
+
+    def weak_wall(self, name, pos, size=(1.2, 3.0, 4.4), flag="", color=None):
+        """Слабая стена: валун проламывает её и открывает ход (флаг — навсегда)."""
+        self.use("weakwall", "Script", "res://world/traps/weak_wall.gd")
+        props = [f"position = {v3(pos)}", 'script = ExtResource("weakwall")', f"size = {v3(size)}"]
+        if flag:
+            props.append(f'flag = &"{flag}"')
+        if color:
+            props.append(f"look_color = Color({color[0]}, {color[1]}, {color[2]}, 1)")
+        self.node(name, 'type="StaticBody3D"', "Geometry", props)
+
+    def firedamp(self, name, pos, size=(8.0, 4.0, 4.4), canary=(-4.6, 2.2, -0.9)):
+        """Рудничный газ: невидимый карман; открытый огонь внутри (фонарь, огненная стрела) — взрыв."""
+        self.use("firedamp", "Script", "res://world/traps/firedamp.gd")
+        self.node(name, 'type="Node3D"', "Objects", [f"position = {v3(pos)}", 'script = ExtResource("firedamp")', f"size = {v3(size)}",
+                  f"canary_at = {v3(canary)}"])
+
+    def ambush(self, name, pos, enemy, scene, cover=0, enemy_props=()):
+        """Засада со спины (§8.14): враг scene ждёт в укрытии (0 — стоячий гроб, 1 — вагонетка, 2 — груда костей)
+        и выходит, когда герой прошёл мимо; перед этим укрытие вздрагивает."""
+        self.use("ambush", "Script", "res://world/traps/ambush.gd")
+        self.enemy(enemy, scene, pos, ["dormant = true"] + list(enemy_props))
+        self.node(name, 'type="Node3D"', "Objects", [f"position = {v3(pos)}", 'script = ExtResource("ambush")',
+                  f'enemy = NodePath("../{enemy}")', f"cover = {cover}"])
+
     def crow_flock(self, name, pos, count=8, width=6.0, sentry=(1.5, 1.4, -1.5), z_near=-1.8, z_far=-3.6):
         """Вороны-сторожа (§8.14): стая клюёт в глубине кадра, сторож на столбе; громкое рядом — взлёт и шум для врагов."""
         self.use("crows", "Script", "res://world/traps/crow_flock.gd")
@@ -310,10 +342,12 @@ class Scene:
     def shard(self, name, x, y, parent="Objects"):
         self.instance(name, parent, "shard", [f"position = Vector3({x}, {y}, 0)"])
 
-    def chest(self, name, pos, reward, flag, items=()):
+    def chest(self, name, pos, reward, flag, items=(), poisoned=False):
         props = [f"position = {v3(pos)}", f"reward = {reward}", f'flag_id = &"{flag}"']
         if items:
             props.append("items = Array[StringName]([" + ", ".join(f'&"{i}"' for i in items) + "])")
+        if poisoned:
+            props.append("poisoned = true")
         self.instance(name, "Objects", "chest", props)
 
     def note(self, name, x, y, title, lines):

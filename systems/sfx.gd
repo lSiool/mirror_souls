@@ -59,6 +59,11 @@ const EVENTS := {
 	&"trap_release": "world",
 	&"crow_caw": "world",
 	&"crow_flap": "world",
+	&"chest_hiss": "world",
+	&"ambush_scratch": "world",
+	&"boulder_rumble": "world",
+	&"boulder_crash": "world",
+	&"gas_blast": "world",
 }
 
 ## Слои, которые звучат не каждый раз: [вероятность, пауза после звучания (с), сколько раз подряд

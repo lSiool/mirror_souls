@@ -574,6 +574,7 @@ position = Vector3(27.5, -4.5, -0.8)
 reward = 90
 flag_id = &"cellar_chest"
 items = Array[StringName]([&"holy_flask", &"throwing_axe", &"throwing_axe"])
+poisoned = true
 
 [node name="BarnWall" type="CSGBox3D" parent="Decor"]
 position = Vector3(13.0, 3.5, -5.0)
