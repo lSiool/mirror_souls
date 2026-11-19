@@ -301,6 +301,12 @@ class Scene:
         self.node(name, 'type="Node3D"', "Objects", [f"position = {v3(pivot)}", 'script = ExtResource("blade")', f"length = {length}",
                   f"rest_angle = {rest_angle}", f"tempo = {tempo}", f"damping = {damping}", f"damage = {damage}"])
 
+    def crow_flock(self, name, pos, count=8, width=6.0, sentry=(1.5, 1.4, -1.5), z_near=-1.8, z_far=-3.6):
+        """Вороны-сторожа (§8.14): стая клюёт в глубине кадра, сторож на столбе; громкое рядом — взлёт и шум для врагов."""
+        self.use("crows", "Script", "res://world/traps/crow_flock.gd")
+        self.node(name, 'type="Node3D"', "Objects", [f"position = {v3(pos)}", 'script = ExtResource("crows")', f"count = {count}",
+                  f"width = {width}", f"sentry_at = {v3(sentry)}", f"z_near = {z_near}", f"z_far = {z_far}"])
+
     def shard(self, name, x, y, parent="Objects"):
         self.instance(name, parent, "shard", [f"position = Vector3({x}, {y}, 0)"])
 

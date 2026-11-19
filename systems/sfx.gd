@@ -57,6 +57,8 @@ const EVENTS := {
 	&"lava_sizzle": "world",
 	&"trap_click": "world",
 	&"trap_release": "world",
+	&"crow_caw": "world",
+	&"crow_flap": "world",
 }
 
 ## Слои, которые звучат не каждый раз: [вероятность, пауза после звучания (с), сколько раз подряд

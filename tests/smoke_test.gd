@@ -209,6 +209,37 @@ func fields_tour() -> void:
 	await rooms.travel(&"rye_field", ^"Spawns/FromFarm")
 	await seconds(0.3)
 	check(nodes_where(rooms.current_room, func(n: Node) -> bool: return n is RyeField).size() >= 3, "во ржи — полосы колосьев")
+	# Вороны-сторожа на жнивье (§8.14): шагом мимо — клюют дальше; бег рядом или стрела в стаю — взлёт и шум.
+	var flock := room_node("Objects/CrowFlock") as CrowFlock
+	check(await walk_to(15.0) and flock != null and not flock.flown, "шагом мимо ворон — стая клюёт дальше")
+	var noises: Array[Vector3] = []
+	var on_noise := func(at: Vector3, radius: float) -> void:
+		if radius >= 20.0:
+			noises.append(at)
+	Events.noise_made.connect(on_noise)
+	var rat := (load("res://actors/enemies/rat.tscn") as PackedScene).instantiate() as Dummy
+	rooms.current_room.add_child(rat)
+	rat.global_position = Vector3(flock.global_position.x - 8.0, 0.1, 0.0)
+	await put(Vector3(flock.global_position.x + 8.5, 0.1, 0.0), -1.0)
+	await seconds(0.5)
+	press("move_left")
+	press("roll")
+	await seconds(0.6)
+	release_all()
+	await seconds(0.3)
+	check(flock.flown and not noises.is_empty(), "перекат и бег рядом — сторож каркнул, стая взлетела; взлёт слышно далеко")
+	check(rat.state == Dummy.State.INVESTIGATE, "враг неподалёку идёт туда, где взлетели вороны")
+	rat.queue_free()
+	await rooms.travel(&"rye_field", ^"Spawns/FromFarm")
+	await seconds(0.3)
+	flock = room_node("Objects/CrowFlock") as CrowFlock
+	check(not flock.flown, "после возвращения в комнату стая снова на месте")
+	Arrow.spawn(rooms.current_room, flock.global_position + Vector3(0.5, 2.0, -0.5), Vector3(0.0, -12.0, 0.0), 5.0, 5.0)
+	await seconds(0.5)
+	check(flock.flown, "стрела рядом со стаей — вспугнул ворон издали")
+	Events.noise_made.disconnect(on_noise)
+	await rooms.travel(&"rye_field", ^"Spawns/FromFarm")
+	await seconds(0.3)
 	check(await walk_to(-20.0) and absf(player.global_position.y) < 0.5, "рожь: через увалы до оврага (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
 	# Дыру у мостков пешком не провалить: герой цепляется за край и вылезает на мостки. В овраг — «вниз» по лестнице.
 	check(await walk_to(-26.0, 4.0) and player.global_position.y > -0.3, "дыру у мостков герой переходит, не падая (y=%.1f)" % player.global_position.y)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=82 format=3]
+[gd_scene load_steps=83 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -53,6 +53,8 @@
 [ext_resource type="Script" path="res://world/common/flag_shown.gd" id="flagshown"]
 
 [ext_resource type="Script" path="res://world/common/spinner.gd" id="spinner"]
+
+[ext_resource type="Script" path="res://world/traps/crow_flock.gd" id="crows"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_candle"]
 albedo_color = Color(1.0, 0.7, 0.35, 1)
@@ -995,6 +997,15 @@ position = Vector3(36.2174, 8.0592, -7.0)
 rotation = Vector3(0, 0, 1.2)
 size = Vector3(1.2, 0.13, 0.13)
 material = SubResource("Mat_wood_dark")
+
+[node name="CrowFlock" type="Node3D" parent="Objects"]
+position = Vector3(23.5, 0.0, 0.0)
+script = ExtResource("crows")
+count = 8
+width = 5.0
+sentry_at = Vector3(-2.9, 1.3, -1.6)
+z_near = -1.9
+z_far = -3.4
 
 [node name="RyeHump" type="Node3D" parent="Decor"]
 position = Vector3(-13.5, 0, 0)
