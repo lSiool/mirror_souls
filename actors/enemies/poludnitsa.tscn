@@ -1,0 +1,172 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://actors/enemies/poludnitsa.gd" id="1_script"]
+[ext_resource type="Script" path="res://combat/hitboxes/hitbox.gd" id="2_hitbox"]
+[ext_resource type="Script" path="res://combat/hitboxes/hurtbox.gd" id="3_hurtbox"]
+[ext_resource type="Script" path="res://combat/damage/health.gd" id="4_health"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_linen"]
+albedo_color = Color(0.86, 0.84, 0.76, 1.0)
+
+[sub_resource type="StandardMaterial3D" id="Mat_skin"]
+albedo_color = Color(0.8, 0.76, 0.68, 1.0)
+
+[sub_resource type="StandardMaterial3D" id="Mat_straw"]
+albedo_color = Color(0.78, 0.68, 0.38, 1.0)
+
+[sub_resource type="StandardMaterial3D" id="Mat_wreath"]
+albedo_color = Color(0.5, 0.4, 0.18, 1.0)
+
+[sub_resource type="StandardMaterial3D" id="Mat_steel"]
+albedo_color = Color(0.72, 0.72, 0.76, 1.0)
+emission_enabled = true
+emission = Color(0.72, 0.72, 0.76, 1)
+emission_energy_multiplier = 0.25
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.32, 0.22, 0.13, 1.0)
+
+[sub_resource type="BoxShape3D" id="Shape_body"]
+size = Vector3(0.55, 2.3, 0.5)
+
+[sub_resource type="BoxMesh" id="Mesh_body"]
+size = Vector3(0.55, 1.45, 0.42)
+
+[sub_resource type="BoxMesh" id="Mesh_torso"]
+material = SubResource("Mat_linen")
+size = Vector3(0.42, 0.5, 0.32)
+
+[sub_resource type="BoxMesh" id="Mesh_head"]
+material = SubResource("Mat_skin")
+size = Vector3(0.24, 0.28, 0.24)
+
+[sub_resource type="BoxMesh" id="Mesh_hair"]
+material = SubResource("Mat_straw")
+size = Vector3(0.18, 1.0, 0.36)
+
+[sub_resource type="BoxMesh" id="Mesh_wreath"]
+material = SubResource("Mat_wreath")
+size = Vector3(0.3, 0.08, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_arm"]
+material = SubResource("Mat_skin")
+size = Vector3(0.6, 0.08, 0.08)
+
+[sub_resource type="BoxMesh" id="Mesh_handle"]
+material = SubResource("Mat_wood")
+size = Vector3(0.06, 0.32, 0.06)
+
+[sub_resource type="BoxMesh" id="Mesh_blade_a"]
+material = SubResource("Mat_steel")
+size = Vector3(0.32, 0.05, 0.04)
+
+[sub_resource type="BoxMesh" id="Mesh_blade_b"]
+material = SubResource("Mat_steel")
+size = Vector3(0.3, 0.05, 0.04)
+
+[sub_resource type="BoxMesh" id="Mesh_blade_c"]
+material = SubResource("Mat_steel")
+size = Vector3(0.22, 0.05, 0.04)
+
+[sub_resource type="BoxShape3D" id="Shape_attack"]
+size = Vector3(2.0, 1.4, 1.4)
+
+[sub_resource type="BoxShape3D" id="Shape_hurt"]
+size = Vector3(0.9, 2.3, 1.0)
+
+[node name="Poludnitsa" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 3
+script = ExtResource("1_script")
+dormant = true
+patrol_distance = 0.0
+chase_speed = 2.2
+detect_range = 10.0
+back_sense_range = 6.0
+hearing_range = 26.0
+attack_range = 1.9
+windup_time = 0.5
+attack_time = 0.2
+recover_time = 0.3
+stagger_time = 0.8
+attack_lunge = 3.0
+body_color = Color(0.86, 0.84, 0.76, 1)
+max_poise = 40.0
+turn_time = 0.2
+flinch_threshold = 18.0
+hurt_voice = &""
+echoes = 70
+unholy = true
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+shape = SubResource("Shape_body")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+mesh = SubResource("Mesh_body")
+
+[node name="Torso" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.82, 0)
+mesh = SubResource("Mesh_torso")
+
+[node name="Head" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.02, 2.2, 0)
+mesh = SubResource("Mesh_head")
+
+[node name="Hair" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.12, 1.85, 0)
+mesh = SubResource("Mesh_hair")
+
+[node name="Wreath" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 2.36, 0)
+mesh = SubResource("Mesh_wreath")
+
+[node name="Arm" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(0.8776, -0.4794, 0, 0.4794, 0.8776, 0, 0, 0, 1, 0.3, 1.72, 0.22)
+mesh = SubResource("Mesh_arm")
+
+[node name="Sickle" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.58, 1.52, 0.25)
+
+[node name="Handle" type="MeshInstance3D" parent="Visual/Sickle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("Mesh_handle")
+
+[node name="BladeA" type="MeshInstance3D" parent="Visual/Sickle"]
+transform = Transform3D(0.8253, 0.5646, 0, -0.5646, 0.8253, 0, 0, 0, 1, 0.12, 0.22, 0)
+mesh = SubResource("Mesh_blade_a")
+
+[node name="BladeB" type="MeshInstance3D" parent="Visual/Sickle"]
+transform = Transform3D(0.995, -0.0998, 0, 0.0998, 0.995, 0, 0, 0, 1, 0.34, 0.3, 0)
+mesh = SubResource("Mesh_blade_b")
+
+[node name="BladeC" type="MeshInstance3D" parent="Visual/Sickle"]
+transform = Transform3D(0.6967, -0.7174, 0, 0.7174, 0.6967, 0, 0, 0, 1, 0.5, 0.22, 0)
+mesh = SubResource("Mesh_blade_c")
+
+[node name="AttackHitbox" type="Area3D" parent="Visual"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("2_hitbox")
+damage = 12.0
+knockback = 3.5
+
+[node name="Shape" type="CollisionShape3D" parent="Visual/AttackHitbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 1.1, 0)
+shape = SubResource("Shape_attack")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("3_hurtbox")
+
+[node name="Shape" type="CollisionShape3D" parent="Hurtbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+shape = SubResource("Shape_hurt")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("4_health")
+max_health = 110.0

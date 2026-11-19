@@ -1,4 +1,4 @@
-"""Сцены врагов леса и босса (graybox): крыса, мародёры, утопленник, призрак тумана, Кузнец.
+"""Сцены врагов леса, Полей и босса (graybox): крыса, мародёры, утопленник, призрак тумана, Полудница, Кузнец.
 
 Запуск из корня проекта: python tools/levels/build_enemies.py
 """
@@ -185,6 +185,51 @@ dive_speed = 12.0"""
           '[node name="FogWraith" type="CharacterBody3D"]\ncollision_layer = 0\ncollision_mask = 1', "\n\n".join(subs), 30.0, props, "\n\n".join(nodes)))
 
 
+# ---------------------------------------------------------------- Полудница
+def poludnitsa():
+    """Полудница (§8.13, §8.14): дух полудня во ржи, graybox — белая рубаха до земли, солома длинных волос,
+    бледная рука с серпом. Пока прячется, poludnitsa.gd опускает её под землю и не рисует."""
+    subs = [material("Mat_linen", (0.86, 0.84, 0.76)), material("Mat_skin", (0.8, 0.76, 0.68)), material("Mat_straw", (0.78, 0.68, 0.38)),
+            material("Mat_wreath", (0.5, 0.4, 0.18)), material("Mat_steel", (0.72, 0.72, 0.76), 0.25), material("Mat_wood", (0.32, 0.22, 0.13)),
+            box_shape("Shape_body", (0.55, 2.3, 0.5)), box_mesh("Mesh_body", (0.55, 1.45, 0.42)),
+            box_mesh("Mesh_torso", (0.42, 0.5, 0.32), "Mat_linen"), box_mesh("Mesh_head", (0.24, 0.28, 0.24), "Mat_skin"),
+            box_mesh("Mesh_hair", (0.18, 1.0, 0.36), "Mat_straw"), box_mesh("Mesh_wreath", (0.3, 0.08, 0.3), "Mat_wreath"),
+            box_mesh("Mesh_arm", (0.6, 0.08, 0.08), "Mat_skin"), box_mesh("Mesh_handle", (0.06, 0.32, 0.06), "Mat_wood"),
+            box_mesh("Mesh_blade_a", (0.32, 0.05, 0.04), "Mat_steel"), box_mesh("Mesh_blade_b", (0.3, 0.05, 0.04), "Mat_steel"),
+            box_mesh("Mesh_blade_c", (0.22, 0.05, 0.04), "Mat_steel"),
+            box_shape("Shape_attack", (2.0, 1.4, 1.4)), box_shape("Shape_hurt", (0.9, 2.3, 1.0))]
+    nodes = [collision_node("Shape_body", 1.15), '[node name="Visual" type="Node3D" parent="."]',
+             mesh_node("Body", "Visual", "Mesh_body", (0, 0.85, 0)), mesh_node("Torso", "Visual", "Mesh_torso", (0, 1.82, 0)),
+             mesh_node("Head", "Visual", "Mesh_head", (0.02, 2.2, 0)), mesh_node("Hair", "Visual", "Mesh_hair", (-0.12, 1.85, 0)),
+             mesh_node("Wreath", "Visual", "Mesh_wreath", (0.0, 2.36, 0)), mesh_node("Arm", "Visual", "Mesh_arm", (0.3, 1.72, 0.22), -0.5),
+             node3d("Sickle", "Visual", (0.58, 1.52, 0.25)), mesh_node("Handle", "Visual/Sickle", "Mesh_handle", (0, 0, 0)),
+             mesh_node("BladeA", "Visual/Sickle", "Mesh_blade_a", (0.12, 0.22, 0), 0.6),
+             mesh_node("BladeB", "Visual/Sickle", "Mesh_blade_b", (0.34, 0.3, 0), -0.1),
+             mesh_node("BladeC", "Visual/Sickle", "Mesh_blade_c", (0.5, 0.22, 0), -0.8),
+             hitbox_nodes("Visual", "Shape_attack", (1.0, 1.1, 0), 12.0, 3.5), hurtbox_nodes("Shape_hurt", 1.15)]
+    props = """dormant = true
+patrol_distance = 0.0
+chase_speed = 2.2
+detect_range = 10.0
+back_sense_range = 6.0
+hearing_range = 26.0
+attack_range = 1.9
+windup_time = 0.5
+attack_time = 0.2
+recover_time = 0.3
+stagger_time = 0.8
+attack_lunge = 3.0
+body_color = Color(0.86, 0.84, 0.76, 1)
+max_poise = 40.0
+turn_time = 0.2
+flinch_threshold = 18.0
+hurt_voice = &""
+echoes = 70
+unholy = true"""
+    write("actors/enemies/poludnitsa.tscn", enemy_scene("res://actors/enemies/poludnitsa.gd",
+          '[node name="Poludnitsa" type="CharacterBody3D"]\ncollision_layer = 4\ncollision_mask = 3', "\n\n".join(subs), 110.0, props, "\n\n".join(nodes)))
+
+
 # ---------------------------------------------------------------- Безмолвный Кузнец
 # Как модель молота лежит в узле Hammer (glb_axis.py): базис по строкам, затем origin.
 HAMMER_MODEL = "-1.2938, 1.1760, -1.1835, 1.4140, 1.5678, 0.0121, 0.8856, -0.7852, -1.7483, -0.0165, 1.2187, 0.0058"
@@ -259,5 +304,6 @@ bandit("heavy")
 bandit("knife")
 drowned_knight()
 fog_wraith()
+poludnitsa()
 blacksmith()
 print("ok")

@@ -64,6 +64,8 @@ const EVENTS := {
 	&"boulder_rumble": "world",
 	&"boulder_crash": "world",
 	&"gas_blast": "world",
+	&"rye_rustle": "enemy",
+	&"poludnitsa_rise": "enemy",
 }
 
 ## Слои, которые звучат не каждый раз: [вероятность, пауза после звучания (с), сколько раз подряд

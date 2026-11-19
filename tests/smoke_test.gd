@@ -209,6 +209,7 @@ func fields_tour() -> void:
 	await rooms.travel(&"rye_field", ^"Spawns/FromFarm")
 	await seconds(0.3)
 	check(nodes_where(rooms.current_room, func(n: Node) -> bool: return n is RyeField).size() >= 3, "во ржи — полосы колосьев")
+	quiet_rye()
 	# Вороны-сторожа на жнивье (§8.14): шагом мимо — клюют дальше; бег рядом или стрела в стаю — взлёт и шум.
 	var flock := room_node("Objects/CrowFlock") as CrowFlock
 	check(await walk_to(15.0) and flock != null and not flock.flown, "шагом мимо ворон — стая клюёт дальше")
@@ -232,6 +233,7 @@ func fields_tour() -> void:
 	rat.queue_free()
 	await rooms.travel(&"rye_field", ^"Spawns/FromFarm")
 	await seconds(0.3)
+	quiet_rye()
 	flock = room_node("Objects/CrowFlock") as CrowFlock
 	check(not flock.flown, "после возвращения в комнату стая снова на месте")
 	Arrow.spawn(rooms.current_room, flock.global_position + Vector3(0.5, 2.0, -0.5), Vector3(0.0, -12.0, 0.0), 5.0, 5.0)
@@ -240,6 +242,58 @@ func fields_tour() -> void:
 	Events.noise_made.disconnect(on_noise)
 	await rooms.travel(&"rye_field", ^"Spawns/FromFarm")
 	await seconds(0.3)
+	# Полудница во ржи (§8.13): прячется — не видна и не бьётся; вороны взлетели — идёт под колосьями на шум;
+	# к герою бежит волна, встаёт за спиной, серия из трёх взмахов серпом — и снова в рожь; вне ржи — открыта.
+	var noon := room_node("Objects/Poludnitsa") as Poludnitsa
+	check(noon != null and noon.phase == Poludnitsa.Phase.HIDDEN and not noon.visual.visible and not noon.hurtbox.monitorable,
+		"во ржи прячется Полудница: её не видно и не ударить")
+	var noon_x := noon.global_position.x
+	await put(Vector3(31.0, 0.1, 0.0), -1.0)
+	await seconds(0.3)
+	(room_node("Objects/CrowFlock") as CrowFlock).alarm(player.global_position)
+	await seconds(1.5)
+	check(noon.phase == Poludnitsa.Phase.HIDDEN and noon.global_position.x > noon_x + 2.0,
+		"вороны взлетели — Полудница под колосьями идёт на шум (x %.1f → %.1f)" % [noon_x, noon.global_position.x])
+	await rooms.travel(&"rye_field", ^"Spawns/FromFarm")
+	await seconds(0.3)
+	noon = room_node("Objects/Poludnitsa") as Poludnitsa
+	player.restore()
+	await put(Vector3(8.0, 1.1, 0.0), -1.0)
+	var waved := false
+	var rose_behind := false
+	for i in 600:
+		await frames(1)
+		waved = waved or (noon.phase == Poludnitsa.Phase.HIDDEN and noon.rustle > 0.8)
+		if noon.phase != Poludnitsa.Phase.HIDDEN:
+			rose_behind = signf(noon.global_position.x - player.global_position.x) == -player.facing
+			break
+	check(waved and rose_behind, "по ржи к герою бежит волна — Полудница встаёт за спиной")
+	var swings := 0
+	var noon_state := noon.state
+	for i in 480:
+		await frames(1)
+		if noon.state == Dummy.State.ATTACK and noon_state != Dummy.State.ATTACK:
+			swings += 1
+		noon_state = noon.state
+		if noon.phase == Poludnitsa.Phase.HIDDEN:
+			break
+	check(swings == Poludnitsa.COMBO and noon.phase == Poludnitsa.Phase.HIDDEN and not player.is_dead(),
+		"серия из %d взмахов серпом — и Полудница снова уходит в рожь" % swings)
+	# Вне ржи прятаться негде: встаёт на краю и идёт к герою открыто, медленнее.
+	player.restore()
+	await put(Vector3(20.3, 0.1, 0.0), -1.0)
+	var out_speed := 0.0
+	for i in 480:
+		await frames(1)
+		if noon.phase == Poludnitsa.Phase.OUT and noon.state == Dummy.State.CHASE:
+			out_speed = maxf(out_speed, absf(noon.velocity.x))
+		if noon.state == Dummy.State.WINDUP:
+			break
+	check(noon.phase == Poludnitsa.Phase.OUT and noon.visual.visible and out_speed < Poludnitsa.STALK_SPEED,
+		"вне ржи — встаёт на краю и идёт открыто, медленнее (%.1f м/с)" % out_speed)
+	await rooms.travel(&"rye_field", ^"Spawns/FromFarm")
+	await seconds(0.3)
+	quiet_rye()
 	check(await walk_to(-20.0) and absf(player.global_position.y) < 0.5, "рожь: через увалы до оврага (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
 	# Дыру у мостков пешком не провалить: герой цепляется за край и вылезает на мостки. В овраг — «вниз» по лестнице.
 	check(await walk_to(-26.0, 4.0) and player.global_position.y > -0.3, "дыру у мостков герой переходит, не падая (y=%.1f)" % player.global_position.y)
@@ -1080,6 +1134,13 @@ func traps_tour() -> void:
 		"в узкой яме переждал — валун перекатил её и проломил трухлявую стену")
 	check(room_node("Objects/StashChest") is Chest, "за проломом — тайник с сундуком")
 	player.restore()
+
+
+## Полудница во ржи не мешает прогулке по полю: пока её не проверяют, она выключена.
+func quiet_rye() -> void:
+	var noon := room_node("Objects/Poludnitsa")
+	if noon:
+		noon.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 ## Ставит героя на дно протоки в inferno_breach на полсекунды: какую долю здоровья сожгла лава.

@@ -4,7 +4,7 @@ extends Node3D
 ## Полоса от depth_from до depth_to по глубине мира Z: сзади рожь выше, спереди — ниже (не закрывать героя целиком),
 ## в самой плоскости героя — примятая тропа. Колосья — один MultiMesh, раскладка от seed (воспроизводима).
 ## Узел стоит серединой полосы на земле; rise — на сколько земля поднимается от левого края к правому (склон).
-## Группа rye_field — для Полудницы: в ржи она прячется (позже, с врагом).
+## Группа rye_field — для Полудницы: в ржи она прячется (Poludnitsa), и где она идёт, рожь клонится против ветра (disturb).
 
 const SHADER := preload("res://world/common/rye_wind.gdshader")
 ## Глубина примятой тропы, где ходит герой: колосьев там мало.
@@ -20,6 +20,8 @@ const TRAIL := 0.45
 @export var seed := 1
 @export var color := Color(0.3, 0.24, 0.12)
 
+var _material: ShaderMaterial
+
 
 func _ready() -> void:
 	add_to_group(&"rye_field")
@@ -34,6 +36,7 @@ func _ready() -> void:
 	var material := ShaderMaterial.new()
 	material.shader = SHADER
 	stalk.material = material
+	_material = material
 	var count := int(length * (depth_to - depth_from) * density)
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
@@ -59,3 +62,17 @@ func _ready() -> void:
 	field.multimesh = multimesh
 	field.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(field)
+
+
+## Кто-то идёт под колосьями в точке at: полоса ржи клонится против ветра и дрожит; strength 0 — тихо.
+func disturb(at: Vector3, strength: float) -> void:
+	_material.set_shader_parameter(&"disturb", Vector4(at.x, at.z, strength, 1.5))
+
+
+## Внутри ли полосы ржи точка на земле (по x и по высоте земли).
+func covers(point: Vector3) -> bool:
+	var local := to_local(point)
+	if absf(local.x) > length * 0.5:
+		return false
+	var ground := rise * (local.x / length + 0.5)
+	return absf(local.y - ground) < 1.5

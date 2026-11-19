@@ -1,4 +1,4 @@
-[gd_scene load_steps=83 format=3]
+[gd_scene load_steps=84 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -53,6 +53,8 @@
 [ext_resource type="Script" path="res://world/common/flag_shown.gd" id="flagshown"]
 
 [ext_resource type="Script" path="res://world/common/spinner.gd" id="spinner"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/poludnitsa.tscn" id="poludnitsa"]
 
 [ext_resource type="Script" path="res://world/traps/crow_flock.gd" id="crows"]
 
@@ -997,6 +999,9 @@ position = Vector3(36.2174, 8.0592, -7.0)
 rotation = Vector3(0, 0, 1.2)
 size = Vector3(1.2, 0.13, 0.13)
 material = SubResource("Mat_wood_dark")
+
+[node name="Poludnitsa" parent="Objects" instance=ExtResource("poludnitsa")]
+position = Vector3(12.0, 0.6, 0)
 
 [node name="CrowFlock" type="Node3D" parent="Objects"]
 position = Vector3(23.5, 0.0, 0.0)
