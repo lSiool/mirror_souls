@@ -1,0 +1,1239 @@
+[gd_scene load_steps=61 format=3]
+
+[ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
+
+[ext_resource type="Script" path="res://world/common/room_door.gd" id="door"]
+
+[ext_resource type="Script" path="res://world/common/item_pickup.gd" id="pickup"]
+
+[ext_resource type="Script" path="res://world/common/ladder.gd" id="ladder"]
+
+[ext_resource type="PackedScene" path="res://world/checkpoints/mirror_shard.tscn" id="shard"]
+
+[ext_resource type="PackedScene" path="res://world/chest/chest.tscn" id="chest"]
+
+[ext_resource type="PackedScene" path="res://world/glass/glass_surface.tscn" id="glass"]
+
+[ext_resource type="PackedScene" path="res://world/hazards/spikes.tscn" id="spikes"]
+
+[ext_resource type="Script" path="res://world/common/note.gd" id="note"]
+
+[ext_resource type="Script" path="res://world/common/bound_captive.gd" id="captive"]
+
+[ext_resource type="Script" path="res://world/common/mud_zone.gd" id="mud"]
+
+[ext_resource type="Script" path="res://world/common/boss_arena.gd" id="arena"]
+
+[ext_resource type="Script" path="res://world/rooms/robber_event.gd" id="robbers"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/rat.tscn" id="rat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bat.tscn" id="bat"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/fog_wraith.tscn" id="wraith"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/drowned_knight.tscn" id="knight"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_heavy.tscn" id="bandit_heavy"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/bandit_knife.tscn" id="bandit_knife"]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/blacksmith.tscn" id="smith"]
+
+[ext_resource type="Script" path="res://world/common/hook_point.gd" id="hookpoint"]
+
+[ext_resource type="Script" path="res://world/hazards/lava.gd" id="lava"]
+
+[ext_resource type="Script" path="res://world/common/say_line.gd" id="sayline"]
+
+[ext_resource type="Script" path="res://world/common/flag_shown.gd" id="flagshown"]
+
+[ext_resource type="Script" path="res://world/common/flag_lever.gd" id="lever"]
+
+[ext_resource type="Script" path="res://world/common/npc.gd" id="npc"]
+
+[sub_resource type="Shader" id="Shader_mist"]
+code = "shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.42, 0.45, 0.5, 0.2);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
+	return v;
+}
+void fragment() {
+	vec2 uv = UV;
+	float drift = fbm(vec2(uv.x * 6.0 + TIME * 0.03, uv.y * 2.5 - TIME * 0.01));
+	float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x) * smoothstep(0.0, 0.45, uv.y) * smoothstep(1.0, 0.55, uv.y);
+	ALBEDO = tint.rgb;
+	ALPHA = tint.a * edge * clamp(drift * 1.6 - 0.15, 0.0, 1.0);
+}
+"
+
+[sub_resource type="StandardMaterial3D" id="Mat_basalt"]
+albedo_color = Color(0.09, 0.075, 0.07, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_char"]
+albedo_color = Color(0.035, 0.03, 0.03, 1)
+roughness = 0.95
+
+[sub_resource type="ShaderMaterial" id="Mat_dust_veil"]
+render_priority = 0
+shader = SubResource("Shader_mist")
+shader_parameter/tint = Color(0.55, 0.48, 0.36, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="Mat_ember"]
+albedo_color = Color(0.9, 0.35, 0.1, 1)
+emission_enabled = true
+emission = Color(0.9, 0.35, 0.1, 1)
+emission_energy_multiplier = 1.6
+
+[sub_resource type="StandardMaterial3D" id="Mat_iron"]
+albedo_color = Color(0.09, 0.09, 0.1, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_lava_glow"]
+albedo_color = Color(1.0, 0.4, 0.1, 1)
+emission_enabled = true
+emission = Color(1.0, 0.4, 0.1, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="StandardMaterial3D" id="Mat_obsidian"]
+albedo_color = Color(0.035, 0.03, 0.04, 1)
+roughness = 0.08
+metallic = 0.5
+
+[sub_resource type="StandardMaterial3D" id="Mat_rust"]
+albedo_color = Color(0.3, 0.16, 0.08, 1)
+roughness = 0.95
+
+[sub_resource type="Environment" id="Env_room"]
+background_mode = 1
+background_color = Color(0.02, 0.005, 0.003, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.3, 0.22, 1)
+ambient_light_energy = 0.34
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.06
+fog_enabled = true
+fog_light_color = Color(0.12, 0.03, 0.015, 1)
+fog_density = 0.024
+
+[sub_resource type="BoxShape3D" id="Wall_1"]
+size = Vector3(1, 40, 4.4)
+
+[sub_resource type="BoxShape3D" id="Wall_2"]
+size = Vector3(1, 40, 4.4)
+
+[sub_resource type="QuadMesh" id="Veil_3"]
+material = SubResource("Mat_dust_veil")
+size = Vector2(4.0, 6.0)
+
+[sub_resource type="QuadMesh" id="Veil_4"]
+material = SubResource("Mat_dust_veil")
+size = Vector2(4.0, 6.0)
+
+[sub_resource type="Shader" id="BD_sky_shader"]
+code = "shader_type spatial;
+render_mode unshaded, fog_disabled, shadows_disabled, cull_disabled;
+uniform vec4 top : source_color = vec4(0.03, 0.035, 0.05, 1.0);
+uniform vec4 horizon : source_color = vec4(0.14, 0.15, 0.19, 1.0);
+uniform float horizon_at = 0.6;
+uniform vec4 glow : source_color = vec4(0.0);
+uniform vec2 glow_at = vec2(0.2, 0.6);
+uniform float glow_size = 0.12;
+void fragment() {
+	float t = smoothstep(0.0, horizon_at, UV.y);
+	vec3 c = mix(top.rgb, horizon.rgb, t * t);
+	c *= mix(1.0, 0.6, clamp((UV.y - horizon_at) / (1.0 - horizon_at), 0.0, 1.0));
+	vec2 d = (UV - glow_at) * vec2(1.0, 2.4);
+	c += glow.rgb * glow.a * exp(-dot(d, d) / (glow_size * glow_size));
+	ALBEDO = c;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="BD_sky_Sky"]
+shader = SubResource("BD_sky_shader")
+shader_parameter/top = Color(0.02, 0.005, 0.004, 1)
+shader_parameter/horizon = Color(0.24, 0.06, 0.025, 1)
+shader_parameter/horizon_at = 0.6
+shader_parameter/glow = Color(0.8, 0.25, 0.05, 0.45)
+shader_parameter/glow_at = Vector2(0.5, 0.72)
+shader_parameter/glow_size = 0.35
+
+[sub_resource type="QuadMesh" id="BD_quad_296x100"]
+size = Vector2(296, 100)
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_sil"]
+albedo_color = Color(0.035, 0.035, 0.042, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="BD_box_sil"]
+material = SubResource("BD_mat_sil")
+
+[sub_resource type="StandardMaterial3D" id="BD_mat_ember"]
+albedo_color = Color(0.9, 0.35, 0.1, 1)
+roughness = 1.0
+emission_enabled = true
+emission = Color(0.9, 0.35, 0.1, 1)
+emission_energy_multiplier = 1.6
+
+[sub_resource type="BoxMesh" id="BD_box_ember"]
+material = SubResource("BD_mat_ember")
+
+[sub_resource type="PrismMesh" id="BD_prism_sil"]
+material = SubResource("BD_mat_sil")
+
+[sub_resource type="Shader" id="BD_mist_shader"]
+code = "shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.42, 0.45, 0.5, 0.2);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
+	return v;
+}
+void fragment() {
+	vec2 uv = UV;
+	float drift = fbm(vec2(uv.x * 6.0 + TIME * 0.03, uv.y * 2.5 - TIME * 0.01));
+	float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x) * smoothstep(0.0, 0.45, uv.y) * smoothstep(1.0, 0.55, uv.y);
+	ALBEDO = tint.rgb;
+	ALPHA = tint.a * edge * clamp(drift * 1.6 - 0.15, 0.0, 1.0);
+}
+"
+
+[sub_resource type="ShaderMaterial" id="BD_haze_0p3_0p08_0p03_0p3"]
+shader = SubResource("BD_mist_shader")
+shader_parameter/tint = Color(0.3, 0.08, 0.03, 0.3)
+
+[sub_resource type="QuadMesh" id="BD_quad_176x4"]
+size = Vector2(176, 4)
+
+[sub_resource type="ShaderMaterial" id="BD_haze_0p22_0p06_0p025_0p45"]
+shader = SubResource("BD_mist_shader")
+shader_parameter/tint = Color(0.22, 0.06, 0.025, 0.45)
+
+[sub_resource type="QuadMesh" id="BD_quad_176x12"]
+size = Vector2(176, 12)
+
+[sub_resource type="ShaderMaterial" id="BD_haze_0p18_0p05_0p02_0p55"]
+shader = SubResource("BD_mist_shader")
+shader_parameter/tint = Color(0.18, 0.05, 0.02, 0.55)
+
+[sub_resource type="QuadMesh" id="BD_quad_176x22"]
+size = Vector2(176, 22)
+
+[sub_resource type="Shader" id="BD_path_shader"]
+code = "shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled;
+uniform vec4 tint : source_color = vec4(0.1, 0.09, 0.07, 1.0);
+float hash(float p) { return fract(sin(p * 127.1) * 43758.5453); }
+float noise(float x) { float i = floor(x); float f = fract(x); return mix(hash(i), hash(i + 1.0), f * f * (3.0 - 2.0 * f)); }
+void fragment() {
+	float band = smoothstep(0.0, 0.42, UV.y) * smoothstep(1.0, 0.62, UV.y);
+	float ends = smoothstep(0.0, 0.03, UV.x) * smoothstep(1.0, 0.97, UV.x);
+	float patch = 0.65 + 0.35 * noise(UV.x * 18.0);
+	ALBEDO = tint.rgb * tint.a * band * ends * patch;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="BD_path_0p08_0p035_0p02_1"]
+shader = SubResource("BD_path_shader")
+shader_parameter/tint = Color(0.08, 0.035, 0.02, 1.0)
+
+[sub_resource type="QuadMesh" id="BD_plane_10x3_6"]
+size = Vector2(10, 3.6)
+orientation = 1
+
+[sub_resource type="QuadMesh" id="BD_plane_16x3_6"]
+size = Vector2(16, 3.6)
+orientation = 1
+
+[sub_resource type="QuadMesh" id="BD_plane_18x3_6"]
+size = Vector2(18, 3.6)
+orientation = 1
+
+[node name="ObsidianSteps" type="Node3D"]
+script = ExtResource("room")
+room_id = &"obsidian_steps"
+center_x = 0.0
+width = 56
+mood = SubResource("Env_room")
+sun_color = Color(0.9, 0.45, 0.3, 1)
+sun_energy = 0.0
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="Decor" type="Node3D" parent="."]
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="WallLeft" type="StaticBody3D" parent="Geometry"]
+position = Vector3(-28.5, 6.0, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallLeft"]
+shape = SubResource("Wall_1")
+
+[node name="WallRight" type="StaticBody3D" parent="Geometry"]
+position = Vector3(28.5, 6.0, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Geometry/WallRight"]
+shape = SubResource("Wall_2")
+
+[node name="Entry" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-38.0, -4.0, 0)
+use_collision = true
+size = Vector3(40, 8, 4.4)
+material = SubResource("Mat_basalt")
+
+[node name="SlideBed" type="CSGBox3D" parent="Geometry"]
+position = Vector3(-13.1538, -5.5692, 0)
+rotation = Vector3(0, 0, -0.3948)
+use_collision = true
+size = Vector3(13.1, 6.0, 4.4)
+material = SubResource("Mat_basalt")
+
+[node name="ObsidianSlide" parent="Objects" instance=ExtResource("glass")]
+position = Vector3(-12.0577, -2.6385, 0.0)
+rotation = Vector3(0.0, 0.0, -0.3948)
+role = 1
+size = Vector3(13.1, 0.3, 3)
+breakable = false
+obsidian = true
+
+[node name="Lower" type="CSGBox3D" parent="Geometry"]
+position = Vector3(2.0, -6.5, 0)
+use_collision = true
+size = Vector3(16, 3, 4.4)
+material = SubResource("Mat_basalt")
+
+[node name="Terrace" type="CSGBox3D" parent="Geometry"]
+position = Vector3(34.0, -2.0, 0)
+use_collision = true
+size = Vector3(48, 12, 4.4)
+material = SubResource("Mat_basalt")
+
+[node name="Ceiling" type="CSGBox3D" parent="Geometry"]
+position = Vector3(0.0, 15.0, 0)
+use_collision = true
+size = Vector3(116, 2, 4.4)
+material = SubResource("Mat_basalt")
+
+[node name="TerraceLadder" type="Area3D" parent="Objects"]
+position = Vector3(9.4, -5.0, 0)
+script = ExtResource("ladder")
+height = 9.0
+exit_dir = 1.0
+
+[node name="TerraceRailA" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.1, -0.5, -0.4)
+size = Vector3(0.08, 9.0, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRailB" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.7, -0.5, -0.4)
+size = Vector3(0.08, 9.0, 0.08)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung0" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -4.7, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung1" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -4.25, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung2" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -3.8, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung3" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -3.35, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung4" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -2.9, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung5" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -2.45, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung6" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -2.0, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung7" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -1.55, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung8" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -1.1, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung9" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -0.65, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung10" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, -0.2, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung11" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, 0.25, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung12" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, 0.7, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung13" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, 1.15, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung14" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, 1.6, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung15" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, 2.05, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung16" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, 2.5, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung17" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, 2.95, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung18" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, 3.4, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="TerraceRung19" type="CSGBox3D" parent="Decor"]
+position = Vector3(9.4, 3.85, -0.4)
+size = Vector3(0.6, 0.06, 0.06)
+material = SubResource("Mat_iron")
+
+[node name="Moat" type="Area3D" parent="Objects"]
+position = Vector3(2.0, -5.6, -8.4)
+script = ExtResource("lava")
+size = Vector3(16.0, 1.0, 8.0)
+glow_energy = 1.4
+
+[node name="CageWinch" type="Area3D" parent="Objects"]
+position = Vector3(14.0, 4.0, 0.0)
+script = ExtResource("lever")
+flag = &"inferno_shortcut"
+lever_prompt = "Повернуть ворот старой клети"
+line = "«Где-то над головой загрохотала цепь: клеть опустилась под провал. Путь к забою открыт.»"
+
+[node name="WinchChain" type="CSGBox3D" parent="Decor"]
+position = Vector3(14.0, 9.5, -1.0)
+size = Vector3(0.1, 9.0, 0.1)
+material = SubResource("Mat_iron")
+
+[node name="CageNote" type="Area3D" parent="Objects"]
+position = Vector3(11.5, 4.0, 0)
+script = ExtResource("note")
+title = "Бирка на вороте"
+lines = PackedStringArray("«Клеть забоя. Спускать только с ведома десятника».", "Ниже нацарапано: «Спустили троих. Поднимать некого».")
+
+[node name="GateLeaf0" type="CSGBox3D" parent="Decor"]
+position = Vector3(22.4, 7.5, -2.0)
+size = Vector3(3.0, 7.0, 0.4)
+material = SubResource("Mat_rust")
+
+[node name="GateLeaf1" type="CSGBox3D" parent="Decor"]
+position = Vector3(25.6, 7.5, -2.0)
+size = Vector3(3.0, 7.0, 0.4)
+material = SubResource("Mat_rust")
+
+[node name="GateArch" type="CSGBox3D" parent="Decor"]
+position = Vector3(24.0, 11.6, -2.1)
+size = Vector3(8.0, 1.2, 0.6)
+material = SubResource("Mat_basalt")
+
+[node name="GateFace" type="CSGSphere3D" parent="Decor"]
+position = Vector3(24.0, 9.6, -1.75)
+radius = 0.9
+material = SubResource("Mat_char")
+
+[node name="GateEye0" type="CSGSphere3D" parent="Decor"]
+position = Vector3(23.65, 9.8, -0.95)
+radius = 0.12
+material = SubResource("Mat_ember")
+
+[node name="GateEye1" type="CSGSphere3D" parent="Decor"]
+position = Vector3(24.35, 9.8, -0.95)
+radius = 0.12
+material = SubResource("Mat_ember")
+
+[node name="GateLine" type="Area3D" parent="Objects"]
+position = Vector3(21.0, 4.0, 0)
+script = ExtResource("sayline")
+text = "«Ворота заперты изнутри. За ними что-то ходит — тяжело, кругами.»"
+size = Vector3(4, 3, 4)
+
+[node name="ShardsBack0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-28.0, 0.3, -3.2)
+rotation = Vector3(0, 0, -0.24)
+radius = 0.3
+height = 0.8
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-25.4, 1.2, -3.8)
+rotation = Vector3(0, 0, 0.12)
+radius = 0.3
+height = 2.6
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack2" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-22.8, 0.975, -3.2)
+rotation = Vector3(0, 0, -0.12)
+radius = 0.3
+height = 2.1500000000000004
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack3" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-20.2, 0.75, -3.8)
+rotation = Vector3(0, 0, 0.24)
+radius = 0.3
+height = 1.7000000000000002
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack4" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-17.6, 0.525, -3.2)
+rotation = Vector3(0, 0, 0.0)
+radius = 0.3
+height = 1.25
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack5" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-15.0, 0.3, -3.8)
+rotation = Vector3(0, 0, -0.24)
+radius = 0.3
+height = 0.8
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack6" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-12.4, 1.2, -3.2)
+rotation = Vector3(0, 0, 0.12)
+radius = 0.3
+height = 2.6
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack7" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-9.8, 0.975, -3.8)
+rotation = Vector3(0, 0, -0.12)
+radius = 0.3
+height = 2.1500000000000004
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack8" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-7.2, 0.75, -3.2)
+rotation = Vector3(0, 0, 0.24)
+radius = 0.3
+height = 1.7000000000000002
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack9" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-4.6, 0.525, -3.8)
+rotation = Vector3(0, 0, 0.0)
+radius = 0.3
+height = 1.25
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack10" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-2.0, 0.3, -3.2)
+rotation = Vector3(0, 0, -0.24)
+radius = 0.3
+height = 0.8
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack11" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(0.6, 1.2, -3.8)
+rotation = Vector3(0, 0, 0.12)
+radius = 0.3
+height = 2.6
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack12" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(3.2, 0.975, -3.2)
+rotation = Vector3(0, 0, -0.12)
+radius = 0.3
+height = 2.1500000000000004
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack13" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(5.8, 0.75, -3.8)
+rotation = Vector3(0, 0, 0.24)
+radius = 0.3
+height = 1.7000000000000002
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack14" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(8.4, 0.525, -3.2)
+rotation = Vector3(0, 0, 0.0)
+radius = 0.3
+height = 1.25
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack15" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(11.0, 0.3, -3.8)
+rotation = Vector3(0, 0, -0.24)
+radius = 0.3
+height = 0.8
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack16" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(13.6, 1.2, -3.2)
+rotation = Vector3(0, 0, 0.12)
+radius = 0.3
+height = 2.6
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack17" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(16.2, 0.975, -3.8)
+rotation = Vector3(0, 0, -0.12)
+radius = 0.3
+height = 2.1500000000000004
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack18" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(18.8, 0.75, -3.2)
+rotation = Vector3(0, 0, 0.24)
+radius = 0.3
+height = 1.7000000000000002
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack19" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(21.4, 0.525, -3.8)
+rotation = Vector3(0, 0, 0.0)
+radius = 0.3
+height = 1.25
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack20" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(24.0, 0.3, -3.2)
+rotation = Vector3(0, 0, -0.24)
+radius = 0.3
+height = 0.8
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsBack21" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(26.6, 1.2, -3.8)
+rotation = Vector3(0, 0, 0.12)
+radius = 0.3
+height = 2.6
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsLow0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-6.0, -4.7, -2.4)
+rotation = Vector3(0, 0, -0.24)
+radius = 0.3
+height = 0.8
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsLow1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-2.9, -3.8, -3.0)
+rotation = Vector3(0, 0, 0.12)
+radius = 0.3
+height = 2.6
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsLow2" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(0.2, -4.025, -2.4)
+rotation = Vector3(0, 0, -0.12)
+radius = 0.3
+height = 2.1500000000000004
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsLow3" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(3.3, -4.25, -3.0)
+rotation = Vector3(0, 0, 0.24)
+radius = 0.3
+height = 1.7000000000000002
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsLow4" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(6.4, -4.475, -2.4)
+rotation = Vector3(0, 0, 0.0)
+radius = 0.3
+height = 1.25
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="ShardsLow5" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(9.5, -4.7, -3.0)
+rotation = Vector3(0, 0, -0.24)
+radius = 0.3
+height = 0.8
+sides = 4
+cone = true
+material = SubResource("Mat_obsidian")
+
+[node name="Stalactite0" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-28.0, 13.4, -1.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 1.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite1" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-25.7, 12.65, -2.3)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 2.7
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite2" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-22.2, 13.15, -2.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 1.7
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite3" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-19.3, 12.4, -1.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 3.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite4" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-17.0, 12.9, -2.3)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 2.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite5" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-13.5, 13.4, -2.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 1.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite6" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-10.6, 12.65, -1.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 2.7
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite7" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-8.3, 13.15, -2.3)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 1.7
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite8" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-4.8, 12.4, -2.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 3.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite9" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(-1.9, 12.9, -1.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 2.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite10" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(0.4, 13.4, -2.3)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 1.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite11" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(3.9, 12.65, -2.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 2.7
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite12" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(6.8, 13.15, -1.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 1.7
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite13" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(9.1, 12.4, -2.3)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 3.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite14" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(12.6, 12.9, -2.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 2.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite15" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(15.5, 13.4, -1.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 1.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite16" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(17.8, 12.65, -2.3)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 2.7
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite17" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(21.3, 13.15, -2.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 1.7
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite18" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(24.2, 12.4, -1.8)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.35
+height = 3.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Stalactite19" type="CSGCylinder3D" parent="Decor"]
+position = Vector3(26.5, 12.9, -2.3)
+rotation = Vector3(3.1416, 0, 0)
+radius = 0.5
+height = 2.2
+sides = 6
+cone = true
+material = SubResource("Mat_basalt")
+
+[node name="Fall" type="CSGBox3D" parent="Decor"]
+position = Vector3(-22.0, 6.75, -7.0)
+size = Vector3(1.2, 13.5, 0.3)
+material = SubResource("Mat_lava_glow")
+
+[node name="FallLight" type="OmniLight3D" parent="Decor"]
+position = Vector3(-22.0, 2.0, -4.5)
+light_color = Color(1.0, 0.36, 0.1, 1)
+light_energy = 1.4
+omni_range = 12.0
+
+[node name="Heat0" type="MeshInstance3D" parent="Decor"]
+position = Vector3(2.0, -2.0, -1.4)
+mesh = SubResource("Veil_3")
+
+[node name="Heat1" type="MeshInstance3D" parent="Decor"]
+position = Vector3(12.0, -2.0, -1.4)
+mesh = SubResource("Veil_4")
+
+[node name="Backdrop" type="Node3D" parent="Decor"]
+
+[node name="Foreground" type="Node3D" parent="Decor"]
+
+[node name="Sky0" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 16, -80)
+mesh = SubResource("BD_quad_296x100")
+material_override = SubResource("BD_sky_Sky")
+cast_shadow = 0
+
+[node name="Vault0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(296, 0, 0, 0, 8, 0, 0, 0, 80, 0, 30, -40)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="LavaLake0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(256, 0, 0, 0, 0.2, 0, 0, 0, 40, 0, -3.2, -50)
+mesh = SubResource("BD_box_ember")
+cast_shadow = 0
+
+[node name="Spire0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.833, -0.775, 0, 0.14, 21.216, 0, 0, 0, 3.836, -68, 6.615, -35.459)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.644, 0, 0, 0, 9.59, 0, 0, 0, 3.836, -68.388, 21.833, -35.459)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Spire1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(5.866, -0.896, 0, 0.206, 25.555, 0, 0, 0, 5.87, -55.302, 8.785, -36.982)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(5.576, 0, 0, 0, 14.674, 0, 0, 0, 5.87, -55.75, 28.615, -36.982)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Spire2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(5.815, -0.981, 0, 0.195, 29.324, 0, 0, 0, 5.818, -39.777, 10.67, -31.461)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(5.527, 0, 0, 0, 14.545, 0, 0, 0, 5.818, -40.267, 32.322, -31.461)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Spire3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.226, -0.843, 0, 0.19, 18.789, 0, 0, 0, 4.23, -27.554, 5.404, -26.9)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.019, 0, 0, 0, 10.576, 0, 0, 0, 4.23, -27.975, 19.884, -26.9)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Spire4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.435, 0.002, 0, 0, 21.147, 0, 0, 0, 3.435, -15.88, 6.573, -30.091)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.263, 0, 0, 0, 8.588, 0, 0, 0, 3.435, -15.879, 21.269, -30.091)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Spire5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(6.715, 0.088, 0, -0.02, 29.376, 0, 0, 0, 6.715, -0.894, 10.688, -37.479)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(6.379, 0, 0, 0, 16.787, 0, 0, 0, 6.715, -0.85, 33.434, -37.479)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Spire6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(5.035, -0.724, 0, 0.124, 29.39, 0, 0, 0, 5.036, 14.333, 10.7, -26.924)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(4.785, 0, 0, 0, 12.591, 0, 0, 0, 5.036, 13.97, 31.443, -26.924)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Spire7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(5.537, 1.08, 0, -0.239, 25.06, 0, 0, 0, 5.542, 30.4, 8.542, -24.975)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(5.265, 0, 0, 0, 13.856, 0, 0, 0, 5.542, 30.94, 27.734, -24.975)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Spire8" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.509, -0.979, 0, 0.146, 23.52, 0, 0, 0, 3.512, 46.324, 7.77, -30.494)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip8" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.337, 0, 0, 0, 8.781, 0, 0, 0, 3.512, 45.834, 23.755, -30.494)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="Spire9" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(3.042, 0.509, 0, -0.088, 17.535, 0, 0, 0, 3.043, 62.294, 4.771, -25.512)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="SpireTip9" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(2.891, 0, 0, 0, 7.607, 0, 0, 0, 3.043, 62.549, 17.194, -25.512)
+mesh = SubResource("BD_prism_sil")
+cast_shadow = 0
+
+[node name="FarFall0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 26, 0, 0, 0, 0.3, -58, 12, -44)
+mesh = SubResource("BD_box_ember")
+cast_shadow = 0
+
+[node name="FarFall1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 26, 0, 0, 0, 0.3, -28.856, 12, -44)
+mesh = SubResource("BD_box_ember")
+cast_shadow = 0
+
+[node name="FarFall2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 26, 0, 0, 0, 0.3, 5.539, 12, -44)
+mesh = SubResource("BD_box_ember")
+cast_shadow = 0
+
+[node name="FarFall3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 26, 0, 0, 0, 0.3, 32.23, 12, -44)
+mesh = SubResource("BD_box_ember")
+cast_shadow = 0
+
+[node name="FarFall4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 26, 0, 0, 0, 0.3, 56.115, 12, -44)
+mesh = SubResource("BD_box_ember")
+cast_shadow = 0
+
+[node name="FarCage0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 1.4, 0, 0, 0, 0.9, -48, 8.692, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCageChain0" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0, 0, 0, 17.308, 0, 0, 0, 0.06, -48, 17.346, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCage1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 1.4, 0, 0, 0, 0.9, -32.794, 7.754, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCageChain1" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0, 0, 0, 18.246, 0, 0, 0, 0.06, -32.794, 16.877, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCage2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 1.4, 0, 0, 0, 0.9, -23.522, 9.95, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCageChain2" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0, 0, 0, 16.05, 0, 0, 0, 0.06, -23.522, 17.975, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCage3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 1.4, 0, 0, 0, 0.9, -14.059, 10.375, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCageChain3" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0, 0, 0, 15.625, 0, 0, 0, 0.06, -14.059, 18.187, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCage4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 1.4, 0, 0, 0, 0.9, 1.807, 6.408, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCageChain4" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0, 0, 0, 19.592, 0, 0, 0, 0.06, 1.807, 16.204, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCage5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 1.4, 0, 0, 0, 0.9, 11.192, 11.512, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCageChain5" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0, 0, 0, 14.488, 0, 0, 0, 0.06, 11.192, 18.756, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCage6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 1.4, 0, 0, 0, 0.9, 24.906, 8.91, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCageChain6" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0, 0, 0, 17.09, 0, 0, 0, 0.06, 24.906, 17.455, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCage7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.9, 0, 0, 0, 1.4, 0, 0, 0, 0.9, 38.569, 9.391, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="FarCageChain7" type="MeshInstance3D" parent="Decor/Backdrop"]
+transform = Transform3D(0.06, 0, 0, 0, 16.609, 0, 0, 0, 0.06, 38.569, 17.696, -26)
+mesh = SubResource("BD_box_sil")
+cast_shadow = 0
+
+[node name="Haze0" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 1.5, -6)
+mesh = SubResource("BD_quad_176x4")
+material_override = SubResource("BD_haze_0p3_0p08_0p03_0p3")
+cast_shadow = 0
+
+[node name="Haze1" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 4, -18)
+mesh = SubResource("BD_quad_176x12")
+material_override = SubResource("BD_haze_0p22_0p06_0p025_0p45")
+cast_shadow = 0
+
+[node name="Haze2" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(0, 8, -34)
+mesh = SubResource("BD_quad_176x22")
+material_override = SubResource("BD_haze_0p18_0p05_0p02_0p55")
+cast_shadow = 0
+
+[node name="FromCells" type="Marker3D" parent="Spawns"]
+position = Vector3(-25.0, 0.1, 0)
+
+[node name="DoorToCells" type="Area3D" parent="Objects"]
+position = Vector3(-26.5, 0, 0)
+script = ExtResource("door")
+target_room = &"captive_cells"
+target_spawn = NodePath("Spawns/FromSteps")
+open_prompt = "Назад, в темницу"
+
+[node name="PathLight0" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(-23, 0.015, 0.2)
+mesh = SubResource("BD_plane_10x3_6")
+material_override = SubResource("BD_path_0p08_0p035_0p02_1")
+cast_shadow = 0
+
+[node name="PathLight1" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(2, -4.985, 0.2)
+mesh = SubResource("BD_plane_16x3_6")
+material_override = SubResource("BD_path_0p08_0p035_0p02_1")
+cast_shadow = 0
+
+[node name="PathLight2" type="MeshInstance3D" parent="Decor/Backdrop"]
+position = Vector3(19, 4.015, 0.2)
+mesh = SubResource("BD_plane_18x3_6")
+material_override = SubResource("BD_path_0p08_0p035_0p02_1")
+cast_shadow = 0

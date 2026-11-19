@@ -37,6 +37,8 @@ const RAM_THICK := 0.5
 @export var restore_time := 0.0
 ## Вид вместо стекла: например, гнилой пол над тайником. Пусто — стекло.
 @export var look: Material
+## Чёрный обсидиан Пекла (§8.13): тёмное, почти непрозрачное стекло; блик тот же — язык игры не меняется.
+@export var obsidian := false
 
 var _material: ShaderMaterial
 var _player: Node3D
@@ -241,6 +243,8 @@ func _configure_material() -> void:
 		GlassType.RED_VEIN:
 			_material.set_shader_parameter("base_color", Color(0.7, 0.62, 0.66, 0.35))
 			_material.set_shader_parameter("red_pulse", 1.0)
+	if obsidian:
+		_material.set_shader_parameter("base_color", Color(0.05, 0.04, 0.05, 0.9))
 
 
 func _set_awake(node: Node3D, awake: bool) -> void:

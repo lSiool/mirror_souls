@@ -54,6 +54,7 @@ const PLACE_NAMES := {&"village_hut": "Хижина", &"village_street": "Ули
 	&"execution_hill": "Лобное место", &"mill": "Мельница", &"vegetable_patch": "Огороды", &"threshing_barn": "Гумно",
 	&"pass_bridge": "Подвесной перевал", &"ash_peaks": "Пепельные Пики",
 	&"mine_yard": "Рудный двор", &"mine_shafts": "Шахты", &"flooded_drift": "Затопленный штрек", &"deep_gallery": "Глубокая выработка",
+	&"inferno_breach": "Провал", &"lava_river": "Огненная река", &"captive_cells": "Темница", &"obsidian_steps": "Обсидиановые ступени",
 	&"catacombs": "Катакомбы", &"ossuary": "Оссуарий", &"gravedigger_quarter": "Квартал могильщика",
 	&"bell_tower": "Колокольня мёртвых"}
 const SCALING_SHOWN: Array[PlayerStats.Param] = [PlayerStats.Param.STRENGTH, PlayerStats.Param.DEXTERITY,

@@ -492,12 +492,24 @@ lines = PackedStringArray("«Забой тёплый, как печь. Кайл�
 [node name="FromDrift" type="Marker3D" parent="Spawns"]
 position = Vector3(-21.0, 0.1, 0)
 
+[node name="FromInferno" type="Marker3D" parent="Spawns"]
+position = Vector3(8.0, 0.1, 0)
+
 [node name="DoorToDrift" type="Area3D" parent="Objects"]
 position = Vector3(-22.5, 0, 0)
 script = ExtResource("door")
 target_room = &"flooded_drift"
 target_spawn = NodePath("Spawns/FromGallery")
 open_prompt = "Назад, в штрек"
+
+[node name="DoorToInferno" type="Area3D" parent="Objects"]
+position = Vector3(13.0, 0, 0)
+script = ExtResource("door")
+target_room = &"inferno_breach"
+target_spawn = NodePath("Spawns/FromMines")
+open_prompt = "Спуститься в провал"
+door_size = Vector3(1.8, 0.2, 0.15)
+door_color = Color(0.25, 0.17, 0.11, 1)
 
 [node name="Backdrop" type="Node3D" parent="Decor"]
 

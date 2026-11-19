@@ -14,13 +14,14 @@ MATS = {
     "water": (0.02, 0.025, 0.025), "rust": (0.3, 0.16, 0.08), "rope": (0.45, 0.36, 0.22), "silver": (0.6, 0.6, 0.64),
     "stubble": (0.19, 0.16, 0.1), "straw": (0.32, 0.26, 0.14), "pumpkin": (0.34, 0.15, 0.05), "turnip": (0.42, 0.37, 0.32),
     "leaf": (0.12, 0.15, 0.07), "clay": (0.24, 0.2, 0.15), "sack": (0.3, 0.26, 0.18), "shingle": (0.08, 0.075, 0.08),
-    "hide": (0.24, 0.19, 0.15), "wool": (0.42, 0.4, 0.35),
+    "hide": (0.24, 0.19, 0.15), "wool": (0.42, 0.4, 0.35), "obsidian": (0.035, 0.03, 0.04), "basalt": (0.09, 0.075, 0.07),
+    "flesh_dark": (0.16, 0.06, 0.05),
 }
 ## Светящиеся: цвет, сила свечения.
 GLOW = {"window": ((1.0, 0.6, 0.25), 2.6), "fire": ((1.0, 0.45, 0.12), 4.0), "moonpane": ((0.45, 0.6, 0.85), 1.1),
         "candle": ((1.0, 0.7, 0.35), 3.0), "lantern": ((1.0, 0.68, 0.3), 5.0), "gas": ((0.45, 0.6, 0.25), 1.2),
         "ember": ((0.9, 0.35, 0.1), 1.6), "jack": ((1.0, 0.5, 0.12), 2.6),
-        "hot_vein": ((0.55, 0.16, 0.05), 0.9)}
+        "hot_vein": ((0.55, 0.16, 0.05), 0.9), "lava_glow": ((1.0, 0.4, 0.1), 2.2)}
 ## Полупрозрачные слои тумана: цвет и непрозрачность. Рисуются шейдером дымки: мягкие края, медленный шум.
 VEILS = {"fog_veil": ((0.42, 0.45, 0.5), 0.2), "fog_thick": ((0.4, 0.43, 0.48), 0.32), "fog_dense": ((0.44, 0.47, 0.52), 0.5),
          "dust_veil": ((0.55, 0.48, 0.36), 0.18), "spill": ((0.5, 0.56, 0.6), 0.5)}
@@ -292,7 +293,7 @@ class Scene:
         for name in sorted(self.used):
             if name in MATS:
                 c = MATS[name]
-                extra = "\nroughness = 0.15\nmetallic = 0.2" if name == "water" else "\nroughness = 0.95"
+                extra = {"water": "\nroughness = 0.15\nmetallic = 0.2", "obsidian": "\nroughness = 0.08\nmetallic = 0.5"}.get(name, "\nroughness = 0.95")
                 subs.append(f'[sub_resource type="StandardMaterial3D" id="Mat_{name}"]\nalbedo_color = Color({c[0]}, {c[1]}, {c[2]}, 1){extra}')
             elif name in GLOW:
                 c, e = GLOW[name]

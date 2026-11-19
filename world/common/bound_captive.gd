@@ -8,6 +8,10 @@ extends Interactable
 @export var free_prompt := "Развязать"
 @export var thanks := PackedStringArray()
 @export var look_color := Color(0.22, 0.26, 0.2)
+## Благодарность делом (пленники Пекла, §8.13): предмет в руки и отзвуки. Пусто и 0 — без награды.
+@export var reward_item: StringName
+@export var reward_amount := 1
+@export var reward_echoes := 0
 
 
 func _ready() -> void:
@@ -59,6 +63,11 @@ func interact(_by: Player) -> void:
 	enabled = false
 	for line in thanks:
 		Events.message.emit("%s: %s" % [captive_name, line])
+	if reward_item != &"":
+		GameState.add_item(reward_item, reward_amount)
+		Events.item_found.emit(reward_item)
+	if reward_echoes > 0:
+		GameState.add_echoes(reward_echoes)
 	var tween := create_tween()
 	tween.tween_property(self, "scale", Vector3(1.0, 0.0, 1.0), 0.6).set_delay(1.0)
 	tween.tween_callback(queue_free)

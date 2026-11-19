@@ -417,3 +417,55 @@ FOCUS: the red glow between the planks over the breach as the brightest point of
 OUTPUT: consistent with attached reference images.
 {AVOID}
 ```
+
+---
+
+## 8. Пекло (`env_inferno_*`, §8.13)
+
+**Мир:** Земля, под копями. **Настроение:** дно, куда никто не должен был спуститься. Жар, сажа, лава — единственный яркий свет; из живых — только пленники. Палитра: тёмный багрово-коричневый и сажа, низкая насыщенность; яркое — лава. Стекло — чёрный обсидиан; красных отсветов на стекле нет.
+
+### 8.0. Дальний план биома — `env_inferno_farplane`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: an immense underground cavern seen far into the distance, wide 16:9 panoramic background plate for parallax, no foreground, no characters.
+A lake of lava to the horizon under a black rock vault, needle-like rock spires rising from it, thin falls of lava pouring from the walls,
+iron cages hanging on long chains from the darkness above, heat haze and drifting soot. Low saturation crimson-brown and soot, the lava the only bright colour.
+FOCUS: the glow of the lava lake on the horizon as the brightest band of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 8.1. Огненная река — `env_inferno_river`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a river of lava across a dark cavern, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+A long bridge of charred planks hanging on iron chains from the vault, some planks burnt through, basalt columns on both banks,
+a cage with a skeleton hanging over the lava, a lava fall pouring down the back wall, heat haze shimmering over the river.
+Clear walkable line along the bridge, basalt rocks as dark foreground.
+FOCUS: the lava river beneath the bridge as the brightest area of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 8.2. Темница — `env_inferno_cells`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a cavern prison of demons, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+Iron cages hanging on chains, a torture rack, a brazier, chains and rings on the walls, bound captives sitting huddled on the floor,
+on a raised stone dais a large cage holding a tall knight in dark, badly battered and dented armour, sitting still behind the bars.
+FOCUS: the brazier fire beside the captives as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
+### 8.3. Обсидиановые ступени — `env_inferno_obsidian`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: black volcanic glass in a burning cavern, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+A long slope of smooth black obsidian glass sliding down to a ledge above a moat of lava, black glass spikes growing from the rock,
+a ladder up to a high terrace with an old mine winch and chain, and beyond it huge rusted gates with a demonic face, its eyes glowing faintly.
+Solid glossy black glass with clean reflections, no red light on the glass.
+FOCUS: the faint glowing eyes on the gates as the brightest point of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```

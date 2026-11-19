@@ -607,6 +607,107 @@ func mines_tour() -> void:
 	player.restore()
 
 
+## Пекло (§8.13): спуск через провал, осколок на месте падения, лава убивает, прыжок через протоку,
+## мост на цепях, пленники с наградой, рыцарь в клетке, обсидиановый скат, ворот клети — путь наверх к забою.
+func inferno_tour() -> void:
+	print("== Пекло (§8.13)")
+	player.hurtbox.invulnerable = true
+	var kept_checkpoint := [game_state.checkpoint_room, game_state.checkpoint_reality, game_state.checkpoint_path]
+	for flag: StringName in [&"inferno_shortcut", &"captive_miner", &"captive_shepherd", &"captive_novice"]:
+		game_state.flags.erase(flag)
+	check(doors_lead_somewhere([&"deep_gallery", &"inferno_breach", &"lava_river", &"captive_cells", &"obsidian_steps"]),
+		"двери Пекла ведут к точкам появления в соседних комнатах")
+	await rooms.travel(&"deep_gallery", ^"Spawns/FromDrift")
+	await seconds(0.3)
+	await put(room_node("Objects/DoorToInferno").global_position + Vector3(0.0, 0.1, 0.0), 1.0)
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"inferno_breach", "с досок над провалом — вниз, в Пекло")
+	check(room_node("Objects/Shortcut") == null, "пока ворот не повёрнут, клети наверх нет")
+	await put(room_node("Objects/MirrorShard").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.2)
+	rooms.level_menu.close()
+	check(game_state.has_flag(&"shard_inferno_breach"), "на месте падения — осколок, он зажжён")
+	check(await walk_to(6.5) and absf(player.global_position.y) < 0.5, "по обломкам — на дно пещеры (y=%.1f)" % player.global_position.y)
+	# Лава убивает сразу; возрождение — у осколка на месте падения.
+	player.hurtbox.invulnerable = false
+	await put(Vector3(9.5, 0.4, 0.0), 1.0)
+	var burned := false
+	for i in 90:
+		await frames(1)
+		if player.is_dead():
+			burned = true
+			break
+	check(burned, "лава убивает сразу")
+	for i in 600:
+		await frames(1)
+		if not player.is_dead() and not rooms._busy:
+			break
+	check(not player.is_dead() and rooms.current_room_id == &"inferno_breach" and player.global_position.y > 7.0,
+		"возродился у осколка на месте падения (y=%.1f)" % player.global_position.y)
+	player.hurtbox.invulnerable = true
+	await put(Vector3(5.0, 0.1, 0.0), 1.0)
+	await run_and_jump("move_right", 7.4, 12.0)
+	check(not player.is_dead() and player.is_on_floor() and player.global_position.x > 11.0 and absf(player.global_position.y) < 0.5,
+		"через протоку лавы — прыжком (x=%.1f)" % player.global_position.x)
+	# Огненная река: мост на цепях; на прогоревших досках герой цепляется за край.
+	await rooms.travel(&"lava_river", ^"Spawns/FromBreach")
+	await seconds(0.3)
+	check(await walk_to(26.0, 20.0) and not player.is_dead() and absf(player.global_position.y) < 0.5,
+		"по мосту на цепях — через огненную реку (x=%.1f)" % player.global_position.x)
+	# Темница: пленники благодарят делом; рыцарь в клетке.
+	await rooms.travel(&"captive_cells", ^"Spawns/FromRiver")
+	await seconds(0.3)
+	var echoes_before: int = game_state.echoes
+	var glass_before: int = game_state.item_count(&"tempered_glass")
+	var holy_before: int = game_state.item_count(&"holy_flask")
+	for captive in ["CaptiveMiner", "CaptiveShepherd", "CaptiveNovice"]:
+		await put(room_node("Objects/" + captive).global_position + Vector3(0.0, 0.1, 0.0))
+		await seconds(0.2)
+		await tap("interact")
+		await frames(3)
+	rooms.hud.popup.queue.clear()
+	rooms.hud.popup.dismiss()
+	check(game_state.has_flag(&"captive_miner") and game_state.has_flag(&"captive_shepherd") and game_state.has_flag(&"captive_novice"),
+		"трое пленников развязаны")
+	check(game_state.item_count(&"tempered_glass") == glass_before + 1 and game_state.echoes >= echoes_before + 150
+		and game_state.item_count(&"holy_flask") == holy_before + 2, "пленники отблагодарили: стекло, отзвуки, святая вода")
+	messages.clear()
+	await put(room_node("Objects/Knight").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(messages.any(func(m: String) -> bool: return m.contains("Рыцарь в клетке")), "рыцарь в клетке отвечает")
+	# Обсидиановые ступени: скат вниз, лестница, ворот клети.
+	await rooms.travel(&"obsidian_steps", ^"Spawns/FromCells")
+	await seconds(0.3)
+	check(await walk_to(6.0, 15.0) and absf(player.global_position.y + 5.0) < 0.6,
+		"по обсидиановому скату — вниз, к лавовому рву (y=%.1f)" % player.global_position.y)
+	await climb_all_ladders(&"obsidian_steps")
+	await put(room_node("Objects/CageWinch").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(game_state.has_flag(&"inferno_shortcut"), "ворот повёрнут — клеть опустилась под провал")
+	await rooms.travel(&"inferno_breach", ^"Spawns/FromRiver")
+	await seconds(0.3)
+	var door_up := room_node("Objects/Shortcut/DoorUp") as RoomDoor
+	check(door_up != null, "под провалом висит клеть")
+	if door_up:
+		await put(door_up.global_position + Vector3(0.0, 0.1, 0.0))
+		await seconds(0.2)
+		await tap("interact")
+		await seconds(1.0)
+	check(rooms.current_room_id == &"deep_gallery", "в клети — наверх, к забою")
+	check(game_state.visited(&"inferno_breach") and game_state.visited(&"obsidian_steps"), "комнаты Пекла отмечены на карте")
+	game_state.set_checkpoint(kept_checkpoint[0], kept_checkpoint[1], kept_checkpoint[2])
+	player.hurtbox.invulnerable = false
+	player.restore()
+
+
 ## Бежит в сторону, прыгает у x = edge и тормозит в воздухе над x = stop.
 func run_and_jump(dir: String, edge: float, stop: float) -> void:
 	press(dir)
@@ -4399,6 +4500,7 @@ func suite() -> void:
 	await pass_tour()
 	await crypts_tour()
 	await mines_tour()
+	await inferno_tour()
 
 	print("== Новая игра при сохранении: герой не пропадает")
 	var real_save: String = game_state.save_path
