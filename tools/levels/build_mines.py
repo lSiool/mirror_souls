@@ -9,6 +9,7 @@
 Высоты: ноль двора — земля мёртвой деревни; галерея под копром — на 12 м ниже (ноль шахт), штрек и выработка —
 ещё на 9 м ниже (их ноль). Каждая комната в своём нуле: ниже глобального y = −15 герой гибнет (Player.KILL_Y),
 настоящая глубина — на карте (WorldMap.ROOMS).
+Водоотливное колесо (PlatformWheel) между шахтами и штреком — через ущелье только на его люльках (решено автором 2026-11-19).
 Запуск из корня проекта: python tools/levels/build_mines.py
 """
 import math
@@ -32,6 +33,8 @@ LAMP = (1.0, 0.6, 0.28)
 HEAT = (1.0, 0.32, 0.1)
 PATH_ASH = (0.06, 0.06, 0.07)
 PATH_MINE = (0.06, 0.05, 0.04)
+## Засов водоотливной штольни: отодвинут со стороны колеса — короткий путь к подъёмнику на рудном дворе.
+ADIT = "mine_adit_open"
 
 
 def save(scene):
@@ -44,6 +47,8 @@ def new_room(name, room_id, left, right, env, sun_energy=0.0):
     s.use("sayline", "Script", "res://world/common/say_line.gd")
     s.use("lift", "Script", "res://world/common/lift.gd")
     s.use("spinner", "Script", "res://world/common/spinner.gd")
+    s.use("wheel", "Script", "res://world/common/platform_wheel.gd")
+    s.use("lever", "Script", "res://world/common/flag_lever.gd")
     s.wall("WallLeft", (left - 0.5, 4.0, 0), (1, 40, 4.4))
     s.wall("WallRight", (right + 0.5, 4.0, 0), (1, 40, 4.4))
     return s
@@ -178,8 +183,12 @@ def mine_yard():
     mines_surface(k, -28, 28, YARD["fog"])
     s.marker("FromVillage", (-25.0, 0.1, 0))
     s.marker("FromShafts", (25.0, -11.9, 0))
+    s.marker("FromAdit", (21.5, -11.9, 0))
+    s.box(D, "AditGrate", (21.5, -10.6, -2.2), (2.0, 2.8, 0.1), "iron")
     s.door("DoorToVillage", -26.5, 0, "cursed_village", "Spawns/FromMines", "Назад, в мёртвую деревню")
     s.door("DoorToShafts", 26.5, -12, "mine_shafts", "Spawns/FromYard", "Вглубь, в шахты")
+    s.door("DoorToAdit", 21.5, -12, "pump_wheel", "Spawns/FromAdit", "В водоотливную штольню",
+           [f'required_flag = &"{ADIT}"', 'locked_text = "Решётка штольни заперта с той стороны."', "door_color = Color(0.09, 0.09, 0.1, 1)"])
     k.foreground("dead", -28, 12)
     k.near_ground(-58, 12, -0.25, pad=0)
     k.path_light(-28, 12, 0.0, PATH_ASH)
@@ -228,9 +237,9 @@ def mine_shafts():
         "«Десятник велел молчать про кашель внизу».",
         "«Если не вернусь — мой кайло в выработке, у тёплой стены»."])
     s.marker("FromYard", (-24.0, 0.1, 0))
-    s.marker("FromDrift", (23.0, -8.9, 0))
+    s.marker("FromWheel", (23.0, -8.9, 0))
     s.door("DoorToYard", -24.5, 0, "mine_yard", "Spawns/FromShafts", "Наверх, к копру")
-    s.door("DoorToDrift", 24.5, -9, "flooded_drift", "Spawns/FromShafts", "В штрек")
+    s.door("DoorToWheel", 24.5, -9, "pump_wheel", "Spawns/FromShafts", "К водоотливному колесу")
     k = bd.Kit(s)
     k.path_light(-26, -12, 0.0, PATH_MINE)
     k.path_light(-1, 10, -4.5, PATH_MINE)
@@ -239,7 +248,82 @@ def mine_shafts():
     save(s)
 
 
-# ---------------------------------------------------------------- 3. Затопленный штрек
+# ---------------------------------------------------------------- 3. Водоотливное колесо
+def pump_wheel():
+    """Огромное водоотливное колесо в ущелье выработки: вращается само, на ободе — ровные люльки. Через ущелье —
+    только на них. Четыре выхода: вход со среднего яруса шахт (запрыгнуть в люльку); напротив на той же высоте —
+    дальше, в затопленный штрек; со стороны входа ярусом ниже — тайник мародёра (сундук, сам мародёр, гнилой
+    настил над кольями); напротив ярусом ниже — водоотливная штольня: отодвинул засов — короткий путь назад,
+    к подъёмнику на рудном дворе. Сорвался — в зумпф под колесом (безопасно), из него лестница наверх."""
+    s = new_room("PumpWheel", "pump_wheel", -26, 26, MINE)
+    s.use("mud", "Script", "res://world/common/mud_zone.gd")
+    edge, low = 9.3, -3.5
+    # Средний ярус: настилы-плиты с бортиком у края (в люльку — прыжком), нижний ярус под ними, зумпф под колесом.
+    for side, name in ((-1, "West"), (1, "East")):
+        x0, x1 = sorted((side * edge, side * 56.0))
+        land(s, f"Middle{name}", x0, x1, 0.0, -0.6)
+        bx = side * (edge + 0.2)
+        land(s, f"Parapet{name}", bx - 0.2, bx + 0.2, 0.6, 0.0, "wood_dark")
+    land(s, "LowerEast", edge, 56, low, -12)
+    land(s, "LowerWestNear", -12, -edge, low, -12)
+    land(s, "LowerWestFar", -56, -14, low, -12)
+    land(s, "StakePit", -14, -12, low - 2.0, -12, "earth_dark")
+    land(s, "SumpFloor", -edge, edge, -7.0, -12, "mud")
+    land(s, "Ceiling", -56, 56, 15, 13)
+    s.node("Wheel", 'type="Node3D"', O, [f"position = {v3((0.0, 2.5, 0.0))}", 'script = ExtResource("wheel")', "radius = 8.0",
+                                         "cradles = 6", "speed = -0.157"])
+    s.node("Sump", 'type="Area3D"', O, [f"position = {v3((0.0, -7.0, 0.0))}", 'script = ExtResource("mud")',
+                                        "size = Vector3(18.4, 1.4, 4.4)", "look_color = Color(0.03, 0.045, 0.05, 1)"])
+    s.box(D, "SumpWater", (0.0, -5.62, 0.0), (18.6, 0.05, 4.4), "water")
+    s.ladder("SumpLadder", -8.7, -7.0, 3.5, -1.0)
+    s.ladder_look("Sump", -8.7, -7.0, 3.5)
+    # Жёлоб сверху льёт воду в черпаки, вода стекает в зумпф.
+    s.box(D, "Launder", (-6.0, 11.6, -1.9), (10.0, 0.5, 1.0), "wood_dark", rot=(0, 0, -0.06))
+    s.veil(D, "LaunderSpill", (-1.0, 9.0, -1.6), (1.2, 5.0), "spill")
+    for i, x in enumerate((-5.0, 5.0)):
+        s.box(D, f"WheelTrestle{i}", (x * 0.5, -2.0, -3.4), (0.5, 9.0, 0.5), "wood_dark", rot=(0, 0, -x * 0.07))
+    # Тайник мародёра под западным настилом: сундук, мародёр, гнилой настил над кольями.
+    s.used.add("wood")
+    s.instance("RottenPlank", O, "glass", [f"position = {v3((-13.0, low - 0.15, 0.0))}", "size = Vector3(2.0, 0.3, 4)",
+                                          "crumble_time = 0.08", 'look = SubResource("Mat_wood")'])
+    s.instance("PitSpikes", O, "spikes", [f"position = {v3((-13.0, low - 2.0, 0.0))}", "width = 1.8", "spike_height = 0.5",
+                                         "trap_damage = 18.0", "non_lethal = true"])
+    s.box(D, "PlankCrack", (-13.1, low + 0.005, 0.4), (1.3, 0.01, 0.04), "wood_dark", rot=(0, 0.12, 0))
+    s.chest("StashChest", (-22.0, low, -0.8), 140, "mine_stash_chest", ("fire_flask", "fire_flask", "throwing_knife", "throwing_knife"))
+    s.enemy("Looter", "bandit_knife", (-18.0, low, 0.0), ["facing = 1.0"])
+    for i, x in enumerate((-24.0, -20.0)):
+        s.box(D, f"StashCrate{i}", (x, low + 0.45, -1.7), (1.1, 0.9, 0.9), "wood")
+    s.box(D, "StashBack", (-33.0, low + 1.5, -2.4), (46.0, 3.0, 0.3), "stone_dark")
+    hanging_lamp(s, "StashLamp", -21.0, -1.4, lit=True)
+    # Водоотливная штольня на востоке, ярусом ниже: засов изнутри.
+    s.node("AditBolt", 'type="Area3D"', O, [f"position = {v3((20.5, low, 0.0))}", 'script = ExtResource("lever")', f'flag = &"{ADIT}"',
+                                            'lever_prompt = "Отодвинуть засов штольни"',
+                                            'line = "«Засов поддался. Штольня ведёт наверх, к подъёмнику у копра»."'])
+    s.box(D, "AditMouth", (24.5, low + 1.4, -2.2), (2.4, 2.8, 0.1), "char")
+    s.box(D, "AditBack", (33.0, low + 1.5, -2.4), (46.0, 3.0, 0.3), "stone_dark")
+    for i, x in enumerate((-22.0, -14.0, 14.0, 22.0)):
+        timber_set(s, f"Set{i}", x, 0.0, h=4.6)
+    rock_back(s, "Back", -26, 26, -7, 13, veins=6)
+    hanging_lamp(s, "LampWest", -15.0, 3.4)
+    hanging_lamp(s, "LampEast", 15.0, 3.4)
+    hanging_lamp(s, "LampAdit", 17.0, -1.2, lit=False)
+    s.light(D, "WheelLight", (0.0, 3.0, 3.0), (1.0, 0.62, 0.32), 3.2, 18.0)
+    for i, (x, y) in enumerate(((-7.0, 9.0), (7.0, 9.0))):
+        hanging_lamp(s, f"WheelLamp{i}", x, y, z=-0.9, energy=2.4, rng=11.0)
+    s.marker("FromShafts", (-24.0, 0.1, 0))
+    s.marker("FromDrift", (24.0, 0.1, 0))
+    s.marker("FromAdit", (23.0, low + 0.1, 0))
+    s.door("DoorToShafts", -24.5, 0, "mine_shafts", "Spawns/FromWheel", "Назад, к шахтам")
+    s.door("DoorToDrift", 24.5, 0, "flooded_drift", "Spawns/FromWheel", "Дальше, в штрек")
+    s.door("DoorToAdit", 24.5, low, "mine_yard", "Spawns/FromAdit", "Штольней наверх, к копру",
+           [f'required_flag = &"{ADIT}"', 'locked_text = "Засов изнутри — сперва отодвинь его."', "door_color = Color(0.09, 0.09, 0.1, 1)"])
+    k = bd.Kit(s)
+    for x0, x1, y in ((-26, -edge, 0.0), (edge, 26, 0.0), (-26, -edge, low), (edge, 26, low)):
+        k.path_light(x0, x1, y, PATH_MINE)
+    save(s)
+
+
+# ---------------------------------------------------------------- 4. Затопленный штрек
 def flooded_drift():
     """Длинный штрек в воде: зумпф по пояс (вода вязкая, как болотная грязь), насосное колесо крутится само,
     завал посередине — через него поверху. Свечи в нишах — для фонаря из катакомб; без него — полутьма фонарей."""
@@ -277,9 +361,9 @@ def flooded_drift():
     hanging_lamp(s, "LampMid", 3.0, 3.6)
     for name, x in (("CandleSump", -13.5), ("CandleMid", 1.5), ("CandleEast", 17.0)):
         bg.candle(s, name, x, 0.0)
-    s.marker("FromShafts", (-25.0, 0.1, 0))
+    s.marker("FromWheel", (-25.0, 0.1, 0))
     s.marker("FromGallery", (25.0, 0.1, 0))
-    s.door("DoorToShafts", -26.5, 0, "mine_shafts", "Spawns/FromDrift", "Назад, к шахтам")
+    s.door("DoorToWheel", -26.5, 0, "pump_wheel", "Spawns/FromDrift", "Назад, к колесу")
     s.door("DoorToGallery", 26.5, 0, "deep_gallery", "Spawns/FromDrift", "Глубже, к забою")
     k = bd.Kit(s)
     for x0, x1, y in ((-28, -12, 0.0), (-4, 6, 0.0), (14, 28, 0.0)):
@@ -287,7 +371,7 @@ def flooded_drift():
     save(s)
 
 
-# ---------------------------------------------------------------- 4. Глубокая выработка
+# ---------------------------------------------------------------- 5. Глубокая выработка
 def deep_gallery():
     """Самый глубокий забой: высокая камера, жилы руды тлеют красным, в полу трещины — оттуда жар.
     Посреди — провал, забитый досками: снизу красное зарево. Спуститься туда можно, подняться нельзя — пока
@@ -340,6 +424,7 @@ def deep_gallery():
 if __name__ == "__main__":
     mine_yard()
     mine_shafts()
+    pump_wheel()
     flooded_drift()
     deep_gallery()
     print("ok")

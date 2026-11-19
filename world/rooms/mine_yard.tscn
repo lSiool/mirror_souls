@@ -1,4 +1,4 @@
-[gd_scene load_steps=67 format=3]
+[gd_scene load_steps=69 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -49,6 +49,10 @@
 [ext_resource type="Script" path="res://world/common/lift.gd" id="lift"]
 
 [ext_resource type="Script" path="res://world/common/spinner.gd" id="spinner"]
+
+[ext_resource type="Script" path="res://world/common/platform_wheel.gd" id="wheel"]
+
+[ext_resource type="Script" path="res://world/common/flag_lever.gd" id="lever"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_char"]
 albedo_color = Color(0.035, 0.03, 0.03, 1)
@@ -1233,6 +1237,14 @@ position = Vector3(-25.0, 0.1, 0)
 [node name="FromShafts" type="Marker3D" parent="Spawns"]
 position = Vector3(25.0, -11.9, 0)
 
+[node name="FromAdit" type="Marker3D" parent="Spawns"]
+position = Vector3(21.5, -11.9, 0)
+
+[node name="AditGrate" type="CSGBox3D" parent="Decor"]
+position = Vector3(21.5, -10.6, -2.2)
+size = Vector3(2.0, 2.8, 0.1)
+material = SubResource("Mat_iron")
+
 [node name="DoorToVillage" type="Area3D" parent="Objects"]
 position = Vector3(-26.5, 0, 0)
 script = ExtResource("door")
@@ -1246,6 +1258,16 @@ script = ExtResource("door")
 target_room = &"mine_shafts"
 target_spawn = NodePath("Spawns/FromYard")
 open_prompt = "Вглубь, в шахты"
+
+[node name="DoorToAdit" type="Area3D" parent="Objects"]
+position = Vector3(21.5, -12, 0)
+script = ExtResource("door")
+target_room = &"pump_wheel"
+target_spawn = NodePath("Spawns/FromAdit")
+open_prompt = "В водоотливную штольню"
+required_flag = &"mine_adit_open"
+locked_text = "Решётка штольни заперта с той стороны."
+door_color = Color(0.09, 0.09, 0.1, 1)
 
 [node name="Picket0" type="MeshInstance3D" parent="Decor/Foreground"]
 transform = Transform3D(0.099, 0.151, 0, -0.013, 1.191, 0, 0, 0, 0.08, -33.905, 0.35, 4.965)

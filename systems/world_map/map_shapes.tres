@@ -199,7 +199,7 @@ rooms = {
 },
 &"flooded_drift": {
 "bottom": -4.0,
-"doors": [[Vector2(-26.5, 0), &"mine_shafts"], [Vector2(26.5, 0), &"deep_gallery"]],
+"doors": [[Vector2(-26.5, 0), &"pump_wheel"], [Vector2(26.5, 0), &"deep_gallery"]],
 "glass": Array[PackedVector2Array]([]),
 "ladders": Array[Vector3]([]),
 "left": -28.0,
@@ -296,7 +296,7 @@ rooms = {
 },
 &"mine_shafts": {
 "bottom": -10.5,
-"doors": [[Vector2(-24.5, 0), &"mine_yard"], [Vector2(24.5, -9), &"flooded_drift"]],
+"doors": [[Vector2(-24.5, 0), &"mine_yard"], [Vector2(24.5, -9), &"pump_wheel"]],
 "glass": Array[PackedVector2Array]([]),
 "ladders": Array[Vector3]([Vector3(10.6, -9, -4.5), Vector3(-17.4, 0, 5)]),
 "left": -26.0,
@@ -311,7 +311,7 @@ rooms = {
 },
 &"mine_yard": {
 "bottom": -13.5,
-"doors": [[Vector2(-26.5, 0), &"cursed_village"], [Vector2(26.5, -12), &"mine_shafts"]],
+"doors": [[Vector2(-26.5, 0), &"cursed_village"], [Vector2(26.5, -12), &"mine_shafts"], [Vector2(21.5, -12), &"pump_wheel"]],
 "glass": Array[PackedVector2Array]([]),
 "ladders": Array[Vector3]([]),
 "left": -28.0,
@@ -362,6 +362,19 @@ rooms = {
 "solids": Array[PackedVector2Array]([PackedVector2Array(42, 0, 18, 0, 18, -1.5, 42, -1.5), PackedVector2Array(9, 0, -2, 0, -2, -1.5, 9, -1.5), PackedVector2Array(-16, 0, -26, 0, -26, -1.5, -16, -1.5), PackedVector2Array(-26, 6, -42, 6, -42, -1.5, -26, -1.5)]),
 "space": Array[PackedVector2Array]([PackedVector2Array(-2, 0, 9, 0, 9, -0.06, 9.06, -0.06, 9.06, 3.46, -2.06, 3.46, -2.06, -0.06, -2, -0.06), PackedVector2Array(-15.94, 3.46, -26, 3.46, -26, 0, -16, 0, -16, -0.06, -15.94, -0.06), PackedVector2Array(18, 0, 42, 0, 42, 3.46, 17.94, 3.46, 17.94, -0.06, 18, -0.06), PackedVector2Array(-25.94, 9.46, -42, 9.46, -42, 6, -26, 6, -26, 5.94, -25.94, 5.94)]),
 "top": 11.0
+},
+&"pump_wheel": {
+"bottom": -8.5,
+"doors": [[Vector2(-24.5, 0), &"mine_shafts"], [Vector2(24.5, 0), &"flooded_drift"], [Vector2(24.5, -3.5), &"mine_yard"]],
+"glass": Array[PackedVector2Array]([PackedVector2Array(-12, -3.5, -14, -3.5, -14, -3.8, -12, -3.8)]),
+"ladders": Array[Vector3]([Vector3(-8.7, -7, -3.5)]),
+"left": -26.0,
+"pillars": Array[PackedVector2Array]([PackedVector2Array(-9.3, 0, -26, 0, -26, -0.6, -9.3, -0.6), PackedVector2Array(-9.3, 0.6, -9.7, 0.6, -9.7, 0, -9.3, 0), PackedVector2Array(26, 0, 9.3, 0, 9.3, -0.6, 26, -0.6), PackedVector2Array(9.7, 0.6, 9.3, 0.6, 9.3, 0, 9.7, 0)]),
+"right": 26.0,
+"shards": {},
+"solids": Array[PackedVector2Array]([PackedVector2Array(-9.3, 0, -26, 0, -26, -0.6, -9.3, -0.6), PackedVector2Array(-9.3, 0.6, -9.7, 0.6, -9.7, 0, -9.3, 0), PackedVector2Array(26, 0, 9.3, 0, 9.3, -0.6, 26, -0.6), PackedVector2Array(9.7, 0.6, 9.3, 0.6, 9.3, 0, 9.7, 0), PackedVector2Array(26, -3.5, 9.3, -3.5, 9.3, -8.5, 26, -8.5), PackedVector2Array(-9.3, -3.5, -12, -3.5, -12, -8.5, -9.3, -8.5), PackedVector2Array(-14, -3.5, -26, -3.5, -26, -8.5, -14, -8.5), PackedVector2Array(-12, -5.5, -14, -5.5, -14, -8.5, -12, -8.5), PackedVector2Array(9.3, -7, -9.3, -7, -9.3, -8.5, 9.3, -8.5), PackedVector2Array(26, 15, -26, 15, -26, 13, 26, 13)]),
+"space": Array[PackedVector2Array]([PackedVector2Array(9.3, -3.5, 26, -3.5, 26, 3.46, 9.76, 3.46, 9.76, 4.06, 9.24, 4.06, 9.24, 3.89, 9, 5.42, 7.65, 8.06, 5.56, 10.15, 2.92, 11.5, 0, 11.96, -2.92, 11.5, -5.56, 10.15, -7.65, 8.06, -9, 5.42, -9.24, 3.89, -9.24, 4.06, -9.76, 4.06, -9.76, 3.46, -26, 3.46, -26, -3.5, -14, -3.5, -14, -5.5, -12, -5.5, -12, -3.5, -9.3, -3.5, -9.3, -7, 9.3, -7)]),
+"top": 20.0
 },
 &"reflection_run": {
 "bottom": -1.5,

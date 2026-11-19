@@ -522,7 +522,7 @@ func mines_tour() -> void:
 	print("== Железные копи (§8.13)")
 	player.hurtbox.invulnerable = true
 	var smith_was: bool = game_state.has_flag(&"boss_smith")
-	check(doors_lead_somewhere([&"cursed_village", &"mine_yard", &"mine_shafts", &"flooded_drift", &"deep_gallery"]),
+	check(doors_lead_somewhere([&"cursed_village", &"mine_yard", &"mine_shafts", &"pump_wheel", &"flooded_drift", &"deep_gallery"]),
 		"двери копей ведут к точкам появления в соседних комнатах")
 	game_state.set_flag(&"boss_smith")
 	await rooms.travel(&"cursed_village", ^"Spawns/FromMines")
@@ -588,8 +588,9 @@ func mines_tour() -> void:
 		"крюком — к рудоспуску с сундуком (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
 	Input.parse_input_event(hook_key)
 	await frames(2)
+	await wheel_tour()
 	# Затопленный штрек: зумпф по пояс, завал поверху.
-	await rooms.travel(&"flooded_drift", ^"Spawns/FromShafts")
+	await rooms.travel(&"flooded_drift", ^"Spawns/FromWheel")
 	await seconds(0.3)
 	check(await walk_to(-8.0) and player.global_position.y < -2.0, "штрек: в зумпф по пояс (y=%.1f)" % player.global_position.y)
 	check(player.mud_zones > 0, "вода в зумпфе вязкая, как болотная грязь")
@@ -605,6 +606,94 @@ func mines_tour() -> void:
 		game_state.flags.erase(&"boss_smith")
 	player.hurtbox.invulnerable = false
 	player.restore()
+
+
+## Ждёт, пока верх какой-нибудь люльки колеса (в координатах мира) не окажется там, где нужно; −1 — не дождался.
+func wait_cradle(wheel: PlatformWheel, where: Callable, limit := 12.0) -> int:
+	for i in int(limit * 60.0):
+		for c in wheel.cradle_count():
+			if where.call(wheel.global_position + wheel.cradle_top(c)):
+				return c
+		await frames(1)
+	return -1
+
+
+## Едет на люльке, пока герой не окажется там, где нужно, и прыгает в сторону dir. hop — короткий подскок
+## (к нижнему ярусу: полный прыжок из люльки цепляется за край верхнего настила). true — дождался и прыгнул.
+func ride_and_leap(where: Callable, dir: String, limit := 30.0, hop := false) -> bool:
+	for i in int(limit * 60.0):
+		await frames(1)
+		if player.is_on_floor() and where.call(player.global_position):
+			press(dir)
+			press("jump")
+			await frames(2 if hop else 14)
+			release("jump")
+			await seconds(0.9)
+			release(dir)
+			await seconds(0.3)
+			return true
+	return false
+
+
+## Водоотливное колесо в копях (§8.13, решено автором 2026-11-19): запрыгнуть в люльку со среднего яруса, доехать
+## до каждого из трёх других выходов; тайник мародёра с гнилым настилом над кольями; засов штольни — к подъёмнику.
+func wheel_tour() -> void:
+	print("== Водоотливное колесо в копях (§8.13)")
+	await rooms.travel(&"pump_wheel", ^"Spawns/FromShafts")
+	await seconds(0.3)
+	for foe in get_tree().get_nodes_in_group("enemy"):
+		foe.process_mode = Node.PROCESS_MODE_DISABLED
+	var wheel := room_node("Objects/Wheel") as PlatformWheel
+	check(wheel != null and wheel.cradle_count() == 6, "в ущелье — колесо с шестью люльками")
+	game_state.flags.erase(&"mine_adit_open")
+	# 1. Вход: со среднего яруса — прыжком в люльку, она несёт вверх.
+	await put(Vector3(-11.0, 0.1, 0.0), 1.0)
+	var near := await wait_cradle(wheel, func(p: Vector3) -> bool: return p.x > -8.4 and p.x < -7.0 and p.y > -1.0 and p.y < -0.2)
+	press("move_right")
+	press("jump")
+	await frames(14)
+	release("jump")
+	await seconds(0.25)
+	release("move_right")
+	await seconds(0.6)
+	var boarded_y := player.global_position.y
+	await seconds(1.5)
+	check(near >= 0 and player.is_on_floor() and player.global_position.x > -9.0 and player.global_position.y > boarded_y + 0.5,
+		"со среднего яруса — в люльку, колесо несёт вверх (y %.1f → %.1f)" % [boarded_y, player.global_position.y])
+	# 2. Напротив, на той же высоте — дальше, к штреку.
+	check(await ride_and_leap(func(p: Vector3) -> bool: return p.x > 6.0 and p.y > 0.2 and p.y < 1.2, "move_right")
+		and player.is_on_floor() and player.global_position.x > 9.6 and absf(player.global_position.y) < 0.8,
+		"доехал до восточного среднего яруса и сошёл (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	# 3. Напротив, ярусом ниже — штольня.
+	var east_low := await wait_cradle(wheel, func(p: Vector3) -> bool: return p.x > 6.5 and p.y > 1.5 and p.y < 3.0)
+	if east_low >= 0:
+		await put(wheel.global_position + wheel.cradle_top(east_low) + Vector3(0.0, 0.1, 0.0), 1.0)
+	check(await ride_and_leap(func(p: Vector3) -> bool: return p.x > 4.0 and p.y > -3.5 and p.y < -3.0, "move_right", 30.0, true)
+		and player.is_on_floor() and player.global_position.x > 9.3 and absf(player.global_position.y + 3.5) < 0.6,
+		"доехал вниз и сошёл на восточный нижний ярус (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	# 4. Со стороны входа, ярусом ниже — тайник мародёра.
+	var west_low := await wait_cradle(wheel, func(p: Vector3) -> bool: return p.x < -1.0 and p.x > -4.0 and p.y < -5.0)
+	if west_low >= 0:
+		await put(wheel.global_position + wheel.cradle_top(west_low) + Vector3(0.0, 0.1, 0.0), -1.0)
+	check(await ride_and_leap(func(p: Vector3) -> bool: return p.x < -4.0 and p.y > -3.5 and p.y < -3.0, "move_left", 30.0, true)
+		and player.is_on_floor() and player.global_position.x < -9.3 and absf(player.global_position.y + 3.5) < 0.6,
+		"по низу колеса — на западный нижний ярус, к тайнику (x=%.1f, y=%.1f)" % [player.global_position.x, player.global_position.y])
+	check(room_node("Objects/StashChest") != null and room_node("Objects/Looter") is Dummy, "сундук в тайнике сторожит мародёр")
+	await walk_to(-13.0, 4.0)
+	await seconds(0.8)
+	check(player.global_position.y < -4.5 and not player.is_dead(), "гнилой настил провалился — в яму с кольями (y=%.1f)" % player.global_position.y)
+	# Засов штольни — короткий путь к подъёмнику на рудном дворе.
+	await put(room_node("Objects/AditBolt").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await frames(3)
+	check(game_state.has_flag(&"mine_adit_open"), "засов штольни отодвинут")
+	await put(room_node("Objects/DoorToAdit").global_position + Vector3(0.0, 0.1, 0.0))
+	await seconds(0.2)
+	await tap("interact")
+	await seconds(1.0)
+	check(rooms.current_room_id == &"mine_yard" and player.global_position.y < -11.0, "штольней — к подъёмнику на рудном дворе")
+	check(not (room_node("Objects/DoorToAdit") as RoomDoor).is_locked(), "со двора решётка штольни теперь открыта")
 
 
 ## Пекло (§8.13): спуск через провал, осколок на месте падения, лава убивает, прыжок через протоку,

@@ -64,13 +64,14 @@ const ROOMS := {
 	# штрек и выработка — ещё на 9 м.
 	&"mine_yard": {"biome": &"mines", "x": 47.125, "y": -0.5},
 	&"mine_shafts": {"biome": &"mines", "x": 54.125, "y": 1.0},
-	&"flooded_drift": {"biome": &"mines", "x": 60.625, "y": 2.125},
-	&"deep_gallery": {"biome": &"mines", "x": 67.625, "y": 2.125},
+	&"pump_wheel": {"biome": &"mines", "x": 60.625, "y": 2.125},
+	&"flooded_drift": {"biome": &"mines", "x": 67.125, "y": 2.125},
+	&"deep_gallery": {"biome": &"mines", "x": 74.125, "y": 2.125},
 	# Пекло (§8.13): под провалом глубокой выработки, дно пещеры на 24 м ниже неё.
-	&"inferno_breach": {"biome": &"inferno", "x": 71.0, "y": 5.125},
-	&"lava_river": {"biome": &"inferno", "x": 77.0, "y": 5.125},
-	&"captive_cells": {"biome": &"inferno", "x": 84.5, "y": 5.125},
-	&"obsidian_steps": {"biome": &"inferno", "x": 91.0, "y": 5.125},
+	&"inferno_breach": {"biome": &"inferno", "x": 77.5, "y": 5.125},
+	&"lava_river": {"biome": &"inferno", "x": 83.5, "y": 5.125},
+	&"captive_cells": {"biome": &"inferno", "x": 91.0, "y": 5.125},
+	&"obsidian_steps": {"biome": &"inferno", "x": 97.5, "y": 5.125},
 	# Катакомбы кладбища (§8.13): вход — запечатанный склеп кладбища. Катакомбы и верх оссуария — на 16 м ниже
 	# кладбища, дно оссуария, квартал и низ колокольни — ещё на 14 м; колокольня поднимается почти до поверхности.
 	&"catacombs": {"biome": &"crypts", "x": 4.0, "y": 2.0},

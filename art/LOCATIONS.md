@@ -395,6 +395,18 @@ OUTPUT: consistent with attached reference images.
 {AVOID}
 ```
 
+### 7.1а. Водоотливное колесо — `env_mines_wheel`
+```text
+{PREFIX} {WORLD_EARTH}
+SCENE: a colossal wooden water wheel for draining a mine, turning slowly in a deep underground gorge, wide 16:9 side-view composition for a 2.5D platformer, camera slightly above eye level.
+Level wooden cradles hang from its rim on iron rods, buckets along the rim spill water into a dark sump below, a wooden launder pours water onto the top,
+timber galleries on both sides of the gorge at two levels, a looter's stash with crates and a chest in a low gallery, lanterns hanging from the trestles.
+Massive engineering of a poor medieval mine, no gears and no metal machinery, only timber, rope and iron straps.
+FOCUS: the lanterns lighting the turning rim of the wheel as the brightest points of the image.
+OUTPUT: consistent with attached reference images.
+{AVOID}
+```
+
 ### 7.2. Затопленный штрек — `env_mines_drift`
 ```text
 {PREFIX} {WORLD_EARTH}

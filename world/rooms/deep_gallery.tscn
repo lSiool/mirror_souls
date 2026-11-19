@@ -1,4 +1,4 @@
-[gd_scene load_steps=44 format=3]
+[gd_scene load_steps=46 format=3]
 
 [ext_resource type="Script" path="res://world/rooms/room.gd" id="room"]
 
@@ -49,6 +49,10 @@
 [ext_resource type="Script" path="res://world/common/lift.gd" id="lift"]
 
 [ext_resource type="Script" path="res://world/common/spinner.gd" id="spinner"]
+
+[ext_resource type="Script" path="res://world/common/platform_wheel.gd" id="wheel"]
+
+[ext_resource type="Script" path="res://world/common/flag_lever.gd" id="lever"]
 
 [sub_resource type="Shader" id="Shader_mist"]
 code = "shader_type spatial;

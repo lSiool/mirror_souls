@@ -64,6 +64,14 @@ static func extract(room: Room) -> Dictionary:
 			shards[String(room.get_path_to(node))] = Vector2(_r(local.origin.x), _r(local.origin.y))
 		elif node is HookPoint:
 			hooks.append(local.origin.y)
+		elif node is PlatformWheel:
+			# Колесо с люльками — воздух круга, по которому ездят люльки.
+			var wheel := node as PlatformWheel
+			var circle := PackedVector2Array()
+			for i in 20:
+				var a := TAU * i / 20.0
+				circle.append(Vector2(local.origin.x + cos(a) * (wheel.radius + 1.4), local.origin.y + sin(a) * (wheel.radius + 1.4)))
+			shafts.append(circle)
 		elif node is Lift:
 			# Шахта подъёмника — воздух во всю ширину площадки, от нижней остановки до верхней.
 			var lift := node as Lift
