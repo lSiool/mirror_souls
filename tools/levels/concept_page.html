@@ -1,0 +1,268 @@
+<title>Концепты новых локаций</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Слой: «альбом» кадров — локация на всю ширину, четыре варианта сеткой 2×2, под каждым его готовый запрос; акцент — свет свечи. */
+:root {
+  --bg: #111013; --surface: #1a181d; --surface-2: #232026; --fg: #e8e2da; --muted: #9b928b;
+  --line: #332c35; --accent: #d9914f; --accent-soft: rgba(217, 145, 79, 0.16); --warn: #c9705f;
+  --display: "Alegreya SC", "Palatino Linotype", Georgia, serif;
+  --body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #eeedf1; --surface: #fbfafc; --surface-2: #f1eef3; --fg: #1d1a20; --muted: #6b6470;
+    --line: #d9d4dc; --accent: #9a5520; --accent-soft: rgba(154, 85, 32, 0.12); --warn: #a3442f;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #eeedf1; --surface: #fbfafc; --surface-2: #f1eef3; --fg: #1d1a20; --muted: #6b6470;
+  --line: #d9d4dc; --accent: #9a5520; --accent-soft: rgba(154, 85, 32, 0.12); --warn: #a3442f;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font: 16px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+.page { max-width: 1180px; margin: 0 auto; display: grid; gap: 28px; }
+header { display: grid; gap: 10px; }
+h1 { font: 700 2rem/1.15 var(--display); margin: 0; letter-spacing: 0.02em; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 70ch; }
+.status { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 0.95rem; }
+.status strong { font-variant-numeric: tabular-nums; }
+.save { color: var(--muted); font-size: 0.9rem; }
+.save.bad { color: var(--warn); }
+nav.index { display: flex; flex-wrap: wrap; gap: 6px; }
+nav.index a {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line);
+  border-radius: 999px; color: var(--fg); text-decoration: none; font-size: 0.88rem; background: var(--surface);
+}
+nav.index a .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+nav.index a.done .dot { background: var(--accent); }
+nav.index a.none .dot { background: var(--warn); }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+section.loc { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; scroll-margin-top: 12px; }
+.loc-head { padding: 16px 18px 12px; display: grid; gap: 4px; border-bottom: 1px solid var(--line); }
+.loc-head h2 { margin: 0; font: 500 1.35rem/1.2 var(--display); letter-spacing: 0.02em; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.loc-head code { font: 400 0.82rem var(--mono); color: var(--muted); }
+.meta { margin: 0; color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); }
+.var { background: var(--surface); display: grid; gap: 10px; padding: 12px; align-content: start; min-width: 0; }
+.var.picked { background: var(--accent-soft); }
+.var img { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; display: block; cursor: zoom-in; background: var(--surface-2); }
+.var-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.var-name { font-weight: 500; }
+.var-name small { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.take {
+  font: 500 0.92rem var(--body); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: transparent; color: var(--fg); cursor: pointer; white-space: nowrap;
+}
+.take:hover { border-color: var(--accent); }
+.take[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.prompt-box { padding: 12px 18px 14px; display: grid; gap: 8px; border-top: 1px solid var(--line); }
+.prompt-label { margin: 0; font-size: 0.9rem; color: var(--muted); }
+.prompt-box pre {
+  margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 400 0.8rem/1.5 var(--mono); color: var(--fg);
+  max-height: 220px; overflow: auto; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 8px;
+}
+.copy { justify-self: start; font: 500 0.85rem var(--body); padding: 4px 10px; border-radius: 5px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+.copy:hover { border-color: var(--accent); }
+.loc-foot { padding: 12px 18px 16px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--surface-2); }
+.loc-foot .take[aria-pressed="true"] { background: var(--warn); border-color: var(--warn); }
+.loc-foot input {
+  flex: 1 1 260px; min-width: 0; font: 400 0.95rem var(--body); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px;
+}
+.loc-foot input::placeholder { color: var(--muted); }
+footer { color: var(--muted); font-size: 0.85rem; max-width: 70ch; }
+.lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); z-index: 20; cursor: zoom-out; }
+.lightbox img { max-width: 100%; max-height: 100%; border-radius: 6px; }
+@media (max-width: 720px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 1.6rem; }
+  .loc-head, .loc-foot { padding-left: 14px; padding-right: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Концепты новых локаций</h1>
+    <p class="lead">Катакомбы кладбища, Железные копи и Пекло — по запросам из <code>art/LOCATIONS.md</code>, четыре варианта gen3 на кадр. Отметьте «Беру» у лучшего варианта; если ни один не подошёл — так и отметьте и напишите, что поправить. Под каждым кадром — готовый запрос варианта A целиком: его можно скопировать в свой генератор.</p>
+    <div class="status"><span>Решено: <strong id="count">0</strong> из <strong id="total">0</strong></span><span class="save" id="save">Подключаюсь к хранилищу выбора…</span></div>
+    <nav class="index" id="index" aria-label="Кадры"></nav>
+  </header>
+  <main id="locs" style="display:grid;gap:22px"></main>
+  <footer>A — FLUX 3 Klein (точнее всех держит описание), B — FLUX 3 с улучшателем запроса, C — Z-Image Turbo (чище картинка), D — Z-Image по тексту улучшателя из B. Картинки здесь ужаты до 1024 по ширине; оригиналы — в <code>ComfyUI/output/mirror_souls/</code>.</footer>
+</div>
+
+<script>
+const DATA = /*DATA*/[];
+const state = {};
+let db = null;
+const writing = {};
+const noteTimers = {};
+
+function blank() { return { pick: "", none: false, note: "" }; }
+function get(a) { return state[a] || blank(); }
+function decided() { return DATA.filter((l) => get(l.asset).pick || get(l.asset).none).length; }
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function render() {
+  const index = document.getElementById("index");
+  const locs = document.getElementById("locs");
+  index.textContent = "";
+  locs.textContent = "";
+  for (const loc of DATA) {
+    const s = get(loc.asset);
+    const a = el("a", s.pick ? "done" : s.none ? "none" : "");
+    a.href = "#" + loc.asset;
+    a.append(el("span", "dot"), loc.title.replace(/^[\d.а]+\s*/, ""));
+    index.append(a);
+
+    const sec = el("section", "loc");
+    sec.id = loc.asset;
+    const head = el("div", "loc-head");
+    const h2 = el("h2", null, loc.title);
+    h2.append(el("code", null, loc.asset));
+    const size = loc.size ? loc.size[0] + "×" + loc.size[1] : "";
+    head.append(h2, el("p", "meta", "Прогон r" + String(loc.run).padStart(2, "0") + " · сид " + loc.seed + (size ? " · " + size : "") + " · профиль стиля " + loc.style));
+    const grid = el("div", "grid");
+    for (const v of loc.variants) {
+      const picked = s.pick === v.letter;
+      const card = el("div", "var" + (picked ? " picked" : ""));
+      const img = document.createElement("img");
+      img.src = v.src;
+      img.alt = loc.title + ", вариант " + v.letter;
+      img.loading = "lazy";
+      img.addEventListener("click", () => openBox(v.src, img.alt));
+      const row = el("div", "var-row");
+      const name = el("span", "var-name", v.model);
+      if (v.seconds) name.append(" ", el("small", null, String(v.seconds).replace(".", ",") + " с"));
+      const take = el("button", "take", picked ? "Беру ✓" : "Беру");
+      take.type = "button";
+      take.setAttribute("aria-pressed", String(picked));
+      take.addEventListener("click", () => {
+        const cur = structuredClone(get(loc.asset));
+        cur.pick = cur.pick === v.letter ? "" : v.letter;
+        if (cur.pick) cur.none = false;
+        commit(loc.asset, cur);
+      });
+      row.append(name, take);
+      card.append(img, row);
+      grid.append(card);
+    }
+    const promptBox = el("div", "prompt-box");
+    promptBox.append(el("p", "prompt-label", "Готовый запрос (вариант A — FLUX 3 Klein; его же получил C)"));
+    const pre = el("pre", null, loc.prompt);
+    const copy = el("button", "copy", "Копировать запрос");
+    copy.type = "button";
+    copy.addEventListener("click", () => {
+      const done = () => { copy.textContent = "Скопировано"; setTimeout(() => { copy.textContent = "Копировать запрос"; }, 1500); };
+      const fallback = () => { const r = document.createRange(); r.selectNodeContents(pre); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); copy.textContent = "Выделено — Ctrl+C"; };
+      try { navigator.clipboard.writeText(loc.prompt).then(done, fallback); } catch (e) { fallback(); }
+    });
+    promptBox.append(pre, copy);
+    const foot = el("div", "loc-foot");
+    const none = el("button", "take", s.none ? "Ничего не подошло ✓" : "Ничего не подошло");
+    none.type = "button";
+    none.setAttribute("aria-pressed", String(s.none));
+    none.addEventListener("click", () => {
+      const cur = structuredClone(get(loc.asset));
+      cur.none = !cur.none;
+      if (cur.none) cur.pick = "";
+      commit(loc.asset, cur);
+    });
+    const note = document.createElement("input");
+    note.type = "text";
+    note.id = "note-" + loc.asset;
+    note.placeholder = "Заметка: что поправить в кадре или в запросе";
+    note.value = s.note || "";
+    note.setAttribute("aria-label", "Заметка к кадру " + loc.title);
+    note.addEventListener("input", () => {
+      clearTimeout(noteTimers[loc.asset]);
+      noteTimers[loc.asset] = setTimeout(() => {
+        const cur = structuredClone(get(loc.asset));
+        cur.note = note.value.trim();
+        commit(loc.asset, cur, true);
+      }, 900);
+    });
+    foot.append(none, note);
+    sec.append(head, grid, promptBox, foot);
+    locs.append(sec);
+  }
+  document.getElementById("count").textContent = decided();
+  document.getElementById("total").textContent = DATA.length;
+}
+
+function openBox(src, alt) {
+  const box = el("div", "lightbox");
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = alt;
+  box.append(img);
+  box.addEventListener("click", () => box.remove());
+  document.addEventListener("keydown", function esc(e) { if (e.key === "Escape") { box.remove(); document.removeEventListener("keydown", esc); } });
+  document.body.append(box);
+}
+
+function saveNote(text, bad) {
+  const s = document.getElementById("save");
+  s.textContent = text;
+  s.classList.toggle("bad", !!bad);
+}
+function loadLocal() { try { Object.assign(state, JSON.parse(localStorage.getItem("oskolki-concept-picks") || "{}")); } catch (e) { /* без хранилища */ } }
+function saveLocal() { try { localStorage.setItem("oskolki-concept-picks", JSON.stringify(state)); } catch (e) { /* без хранилища */ } }
+function commit(asset, value, quiet) {
+  state[asset] = value;
+  saveLocal();
+  if (!quiet) {
+    const y = window.scrollY;
+    render();
+    window.scrollTo(0, y);
+  } else document.getElementById("count").textContent = decided();
+  if (!db) return;
+  saveNote("Сохраняю…");
+  writing[asset] = (writing[asset] || Promise.resolve()).then(() =>
+    db.collection("concepts").doc(asset).set({ pick: value.pick, none: value.none, note: value.note || "" })
+  ).then(() => saveNote("Выбор сохранён — Claude его видит."))
+   .catch(() => saveNote("Не сохранилось. Выбор остался только в этом браузере — напишите его в чат.", true));
+}
+
+loadLocal();
+render();
+(async () => {
+  db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+  if (!db) { saveNote("Хранилище недоступно в этом окне: выбор останется только в браузере — откройте страницу на claude.ai или напишите выбор в чат.", true); return; }
+  const timer = setTimeout(() => saveNote("Хранилище пока не отвечает — выбор может не дойти. Попробуйте позже.", true), 10000);
+  db.collection("concepts").onSnapshot((snap) => {
+    if (!snap.metadata.fromCache) { clearTimeout(timer); saveNote("Выбор сохраняется автоматически — Claude его видит."); }
+    let changed = false;
+    for (const d of snap.docs) {
+      const v = d.data() || {};
+      const next = { pick: typeof v.pick === "string" ? v.pick : "", none: !!v.none, note: typeof v.note === "string" ? v.note : "" };
+      if (JSON.stringify(next) !== JSON.stringify(get(d.id))) { state[d.id] = next; changed = true; }
+    }
+    if (changed) {
+      const active = document.activeElement && document.activeElement.id;
+      const y = window.scrollY;
+      render();
+      window.scrollTo(0, y);
+      if (active) { const e = document.getElementById(active); if (e) e.focus(); }
+    }
+  }, () => { clearTimeout(timer); saveNote("Связь с хранилищем оборвалась: новый выбор останется только в браузере.", true); });
+})();
+</script>
