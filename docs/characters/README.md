@@ -32,7 +32,7 @@
 | | 3 | Древний Вампир (босс) | `vampire_ancient` | вампир | босс, позже | идея | [bosses/vampire_ancient.md](bosses/vampire_ancient.md) |
 | **Нежить** | — | Утопленник (рыцарь-скелет) | `drowned_knight` | скелет | Край Мёртвого Леса, болото (§8.10) | концепт, graybox | [enemies/drowned_knight.md](enemies/drowned_knight.md) |
 | | — | Призраки тумана | `fog_ghost` | дух | Корневой лабиринт (§8.10) | graybox | — |
-| **Духи Полей** | — | Полудница | `poludnitsa` | дух | Поля, ржаное поле (§8.13) | graybox | [enemies/poludnitsa.md](enemies/poludnitsa.md) |
+| **Духи Полей** | — | Полудница | `poludnitsa` | дух | Поля, ржаное поле (§8.13) | graybox, модель без рига | [enemies/poludnitsa.md](enemies/poludnitsa.md) |
 | **Люди** | — | Солдат / Отражённый солдат | `soldier` | человек | Прототип, замок (§6.3) | graybox | — |
 | | — | Мародёры (с подсвечником, с ножом) | `marauder` | человек | Кладбище (§8.10) | graybox | — |
 | | — | Разбойники | `bandit` | человек | Тропа, лагерь (art/LOCATIONS.md) | идея | — |
