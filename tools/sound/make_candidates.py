@@ -8,6 +8,8 @@
 и mp3-превью, плюс candidates.json с подписями — из него собирается страница выбора.
 С --only=событие,событие: кандидаты только этих событий.
 С --bank: для выбранных кандидатов рендерит банк вариантов в <выход>/<группа>/<событие>_NN.wav.
+Звуки, выбранные на странице make_pick_page.py, — без рецепта: <событие>=fs:<id>,<id> (события из FS_EVENTS);
+банк чередует выбранные записи, каждая обрезана до предела длины события.
 
 Обработка: моно 44.1 кГц / 16 бит, обрезка тишины, фейды, пик по событию. Нужен ffmpeg в PATH.
 """
@@ -199,6 +201,41 @@ BOW_DRAW_TIME = 0.6
 LETTERS = "ABCDEFGH"
 ## Сколько вариантов в банке, если не 5.
 BANK_SIZE = {"death_sting": 2, "player_jump_voice": 6, "bow_draw": 4, "enemy_hurt_voice": 4}
+## Ловушки, лава, вороны, Полудница (§8.13, §8.14) — записи Freesound со страницы выбора, без рецепта:
+## группа, пик дБ, предел длины с (хвост — фейд), вариантов в банке.
+FS_EVENTS = {
+    "lava_sizzle": ("world", -6.0, 1.2, 3),
+    "trap_click": ("world", -6.0, 0.5, 3),
+    "trap_release": ("world", -5.0, 1.5, 3),
+    "crow_caw": ("world", -6.0, 1.2, 4),
+    "crow_flap": ("world", -5.0, 2.5, 3),
+    "chest_hiss": ("world", -6.0, 1.2, 3),
+    "ambush_scratch": ("world", -6.0, 1.2, 3),
+    "boulder_rumble": ("world", -4.0, 2.5, 2),
+    "boulder_crash": ("world", -3.0, 2.0, 3),
+    "gas_blast": ("world", -2.0, 2.5, 3),
+    "rye_rustle": ("enemy", -8.0, 1.0, 4),
+    "poludnitsa_rise": ("enemy", -6.0, 1.6, 3),
+}
+
+
+def fs_bank(event, ids):
+    """Событие из FS_EVENTS как обычное: (группа, пик, последовательность, [(подпись, рецепт)])."""
+    group, peak, limit, count = FS_EVENTS[event]
+    BANK_SIZE[event] = count
+    label = "Freesound " + ", ".join(ids)
+    return group, peak, False, [(label, lambda v: fit_tail(src(f"fs/{ids[v % len(ids)]}"), limit))]
+
+
+def fit_tail(x, seconds):
+    """Обрезать запись до seconds: после обрезки тишины в начале — мягкий хвост 0,15 с."""
+    x = finish(x, 0.0, fade_out=0.0)
+    n = int(seconds * RATE)
+    if len(x) > n:
+        x = x[:n].copy()
+        fade = min(n, int(0.15 * RATE))
+        x[n - fade:] *= np.linspace(1, 0, fade)
+    return x
 
 
 def hit(v, pool=SWORD_HITS):
@@ -513,8 +550,12 @@ def main():
     if picks:
         rows = []
         for event, letter in picks.items():
-            group, peak, _, cands = EVENTS[event]
-            label, recipe = cands[LETTERS.index(letter)]
+            if letter.startswith("fs:"):
+                group, peak, _, cands = fs_bank(event, letter[3:].split(","))
+                label, recipe = cands[0]
+            else:
+                group, peak, _, cands = EVENTS[event]
+                label, recipe = cands[LETTERS.index(letter)]
             count = BANK_SIZE.get(event, 5)
             for v in range(count):
                 USED.clear()

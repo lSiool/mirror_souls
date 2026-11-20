@@ -46,6 +46,30 @@ EVENTS = {
     # Третий круг (creature/tiger/troll/demon roar) тоже отвергнут: нужен волчий угрожающий рык.
     "beast_roar": ("рык зверя на героя", ["wolf growl", "angry wolf", "wolf snarling", "dog snarl",
                                          "growling dog", "wolf attack", "vicious dog"], (0.8, 5.0)),
+    # Ловушки, лава и Полудница (§8.13, §8.14), первый круг — 2026-11-20.
+    "lava_sizzle": ("ступил в лаву: шипение, угли", ["sizzle", "steam hiss", "hot metal water",
+                                                     "embers crackle"], (0.3, 4.0)),
+    "trap_click": ("плита или нить: сухой щелчок", ["stone click", "trap click", "mechanism click",
+                                                    "latch click"], (0.05, 1.5)),
+    "trap_release": ("груз растяжки сорвался: цепь, свист", ["chain rattle", "chain drop", "chain release",
+                                                             "chain swing"], (0.3, 3.0)),
+    "crow_caw": ("сторож стаи каркает", ["crow caw", "crow call", "raven call", "raven croak"], (0.2, 3.0)),
+    "crow_flap": ("стая взлетает", ["birds flying away", "wings flapping", "flock take off",
+                                    "pigeons flying"], (0.5, 5.0)),
+    "chest_hiss": ("яд в замке сундука: шипение, игла", ["gas hiss", "steam release", "gas leak",
+                                                         "air release"], (0.2, 2.5)),
+    "ambush_scratch": ("укрытие засады: скрип, царапанье", ["scratching wood", "wood scratch",
+                                                            "coffin creak", "rat scratching"], (0.2, 3.0)),
+    "boulder_rumble": ("валун вот-вот сорвётся: гул, осыпь", ["earthquake rumble", "rock slide",
+                                                              "rocks rumble", "rumble"], (1.0, 6.0)),
+    "boulder_crash": ("валун раскололся", ["rock impact", "rock crash", "stone break", "boulder"],
+                      (0.4, 4.0)),
+    "gas_blast": ("рудничный газ взорвался", ["gas explosion", "flame burst", "fire whoosh",
+                                              "explosion muffled"], (0.6, 5.0)),
+    "rye_rustle": ("шорох сухих колосьев", ["wheat rustle", "dry grass", "grass rustle",
+                                            "rustling straw"], (0.3, 4.0)),
+    "poludnitsa_rise": ("Полудница встаёт: шелест, вздох, шёпот", ["ghost whisper", "female sigh",
+                                                                    "whisper", "breath whisper"], (0.4, 4.0)),
 }
 
 

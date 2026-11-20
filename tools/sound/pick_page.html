@@ -1,0 +1,322 @@
+<title>Звуки ловушек и Полудницы</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Слой: одна колонка-«ведомость» звуков; событие — карточка с плеерами кандидатов, свет свечи — единственный акцент. */
+:root {
+  --bg: #121014; --surface: #1b181e; --surface-2: #241f27; --fg: #e8e2da; --muted: #9b928b;
+  --line: #342d36; --accent: #d9914f; --accent-soft: rgba(217, 145, 79, 0.16); --ok: #8fb07a; --warn: #c9705f;
+  --display: "Alegreya SC", "Palatino Linotype", Georgia, serif;
+  --body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #eeedf1; --surface: #fbfafc; --surface-2: #f1eef3; --fg: #1d1a20; --muted: #6b6470;
+    --line: #d9d4dc; --accent: #9a5520; --accent-soft: rgba(154, 85, 32, 0.12); --ok: #4c7a3a; --warn: #a3442f;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #eeedf1; --surface: #fbfafc; --surface-2: #f1eef3; --fg: #1d1a20; --muted: #6b6470;
+  --line: #d9d4dc; --accent: #9a5520; --accent-soft: rgba(154, 85, 32, 0.12); --ok: #4c7a3a; --warn: #a3442f;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font: 16px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+.page { max-width: 860px; margin: 0 auto; display: grid; gap: 28px; }
+header { display: grid; gap: 10px; }
+h1 { font: 700 2rem/1.15 var(--display); margin: 0; letter-spacing: 0.02em; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 65ch; }
+.status { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 0.95rem; }
+.status strong { font-variant-numeric: tabular-nums; }
+.save { color: var(--muted); font-size: 0.9rem; }
+.save.bad { color: var(--warn); }
+nav.index { display: flex; flex-wrap: wrap; gap: 6px; }
+nav.index a {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line);
+  border-radius: 999px; color: var(--fg); text-decoration: none; font-size: 0.88rem; background: var(--surface);
+}
+nav.index a .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+nav.index a.done .dot { background: var(--accent); }
+nav.index a.none .dot { background: var(--warn); }
+nav.index a:focus-visible, button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+section.event { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; scroll-margin-top: 12px; }
+.event-head { padding: 16px 18px 12px; display: grid; gap: 4px; border-bottom: 1px solid var(--line); }
+.event-head h2 { margin: 0; font: 500 1.3rem/1.2 var(--display); letter-spacing: 0.02em; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.event-head code { font: 400 0.82rem var(--mono); color: var(--muted); }
+.meta { margin: 0; color: var(--muted); font-size: 0.93rem; display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.meta b { color: var(--fg); font-weight: 500; }
+ol.cands { list-style: none; margin: 0; padding: 0; }
+li.cand { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; padding: 10px 18px; border-top: 1px solid var(--line); }
+li.cand:first-child { border-top: 0; }
+li.cand.picked { background: var(--accent-soft); }
+.play {
+  width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2);
+  color: var(--fg); cursor: pointer; display: grid; place-items: center;
+}
+.play:hover { border-color: var(--accent); }
+.play svg { width: 16px; height: 16px; fill: currentColor; }
+.play[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.info { min-width: 0; display: grid; gap: 2px; }
+.info a.name { color: var(--fg); text-decoration: none; overflow-wrap: anywhere; font-weight: 500; }
+.info a.name:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+.sub { color: var(--muted); font-size: 0.85rem; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; font-variant-numeric: tabular-nums; }
+.lic { font: 500 0.72rem var(--mono); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); letter-spacing: 0.03em; }
+.lic.by { color: var(--accent); border-color: var(--accent); }
+.bar { height: 2px; background: var(--line); border-radius: 1px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.take {
+  font: 500 0.92rem var(--body); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: transparent; color: var(--fg); cursor: pointer; white-space: nowrap;
+}
+.take:hover { border-color: var(--accent); }
+.take[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.event-foot { padding: 12px 18px 16px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--surface-2); }
+.event-foot .take[aria-pressed="true"] { background: var(--warn); border-color: var(--warn); }
+.event-foot input {
+  flex: 1 1 240px; min-width: 0; font: 400 0.95rem var(--body); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px;
+}
+.event-foot input::placeholder { color: var(--muted); }
+footer { color: var(--muted); font-size: 0.85rem; max-width: 65ch; }
+@media (max-width: 520px) {
+  li.cand { grid-template-columns: 40px 1fr; padding: 10px 14px; }
+  li.cand .take { grid-column: 2; justify-self: start; }
+  .event-head, .event-foot { padding-left: 14px; padding-right: 14px; }
+  h1 { font-size: 1.6rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Звуки ловушек и Полудницы</h1>
+    <p class="lead">Кандидаты с Freesound (только CC0 и CC-BY) для новых ловушек, лавы, ворон и Полудницы. Слушайте, отмечайте «Беру» — можно несколько на событие, тогда в банке будут разные записи. Если ничего не подошло — так и отметьте и напишите, чего не хватает: поищу ещё круг.</p>
+    <div class="status"><span>Решено: <strong id="count">0</strong> из <strong id="total">0</strong></span><span class="save" id="save">Подключаюсь к хранилищу выбора…</span></div>
+    <nav class="index" id="index" aria-label="События"></nav>
+  </header>
+  <main id="events" style="display:grid;gap:20px"></main>
+  <footer>Превью — первые 5 секунд, моно. В игру пойдёт обработанный банк: обрезка тишины, фейды, 2–3 варианта чуть разной высоты. Авторы CC-BY попадут в титры (<code>audio/_source/manifest.csv</code>).</footer>
+</div>
+
+<script>
+const DATA = /*DATA*/[];
+const PLAY = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>';
+const STOP = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="1"/></svg>';
+const state = {};          // событие → {picks: [id], none: bool, note: ""}
+let db = null;
+const writing = {};        // событие → цепочка записей (по одной за раз)
+const noteTimers = {};
+
+function blank() { return { picks: [], none: false, note: "" }; }
+function get(ev) { return state[ev] || blank(); }
+
+function render() {
+  const index = document.getElementById("index");
+  const events = document.getElementById("events");
+  index.textContent = "";
+  events.textContent = "";
+  for (const ev of DATA) {
+    const s = get(ev.event);
+    const a = document.createElement("a");
+    a.href = "#" + ev.event;
+    a.className = s.picks.length ? "done" : s.none ? "none" : "";
+    a.innerHTML = '<span class="dot"></span>';
+    a.append(ev.label.split(":")[0]);
+    index.append(a);
+
+    const sec = document.createElement("section");
+    sec.className = "event";
+    sec.id = ev.event;
+    const head = document.createElement("div");
+    head.className = "event-head";
+    const h2 = document.createElement("h2");
+    h2.textContent = ev.label;
+    const code = document.createElement("code");
+    code.textContent = ev.event;
+    h2.append(code);
+    const meta = document.createElement("p");
+    meta.className = "meta";
+    const bits = [["Где", ev.where], ["Длина", ev.length], ["Вариантов", ev.variants], ["Задумано", ev.how]];
+    for (const [k, v] of bits) {
+      if (!v) continue;
+      const span = document.createElement("span");
+      span.innerHTML = "<b></b> ";
+      span.firstChild.textContent = k + ":";
+      span.append(v);
+      meta.append(span);
+    }
+    head.append(h2, meta);
+    const list = document.createElement("ol");
+    list.className = "cands";
+    for (const c of ev.cands) {
+      const picked = s.picks.includes(c.id);
+      const li = document.createElement("li");
+      li.className = "cand" + (picked ? " picked" : "");
+      const play = document.createElement("button");
+      play.className = "play";
+      play.type = "button";
+      play.innerHTML = PLAY;
+      play.setAttribute("aria-label", "Слушать: " + c.name);
+      play.setAttribute("aria-pressed", "false");
+      play.dataset.id = c.id;
+      play.addEventListener("click", () => toggle(play, c));
+      const info = document.createElement("div");
+      info.className = "info";
+      const name = document.createElement("a");
+      name.className = "name";
+      name.href = c.url;
+      name.target = "_blank";
+      name.rel = "noopener";
+      name.textContent = c.name;
+      const sub = document.createElement("div");
+      sub.className = "sub";
+      const lic = document.createElement("span");
+      lic.className = "lic" + (c.license.startsWith("CC-BY") ? " by" : "");
+      lic.textContent = c.license;
+      const author = document.createElement("span");
+      author.textContent = c.author;
+      const dur = document.createElement("span");
+      dur.textContent = c.duration.toFixed(2).replace(".", ",") + " с";
+      const idSpan = document.createElement("span");
+      idSpan.textContent = "#" + c.id;
+      sub.append(lic, author, dur, idSpan);
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      bar.innerHTML = "<i></i>";
+      bar.dataset.id = c.id;
+      info.append(name, sub, bar);
+      const take = document.createElement("button");
+      take.className = "take";
+      take.type = "button";
+      take.textContent = picked ? "Беру ✓" : "Беру";
+      take.setAttribute("aria-pressed", String(picked));
+      take.addEventListener("click", () => {
+        const cur = structuredClone(get(ev.event));
+        cur.picks = cur.picks.includes(c.id) ? cur.picks.filter((x) => x !== c.id) : [...cur.picks, c.id];
+        if (cur.picks.length) cur.none = false;
+        commit(ev.event, cur);
+      });
+      li.append(play, info, take);
+      list.append(li);
+    }
+    const foot = document.createElement("div");
+    foot.className = "event-foot";
+    const none = document.createElement("button");
+    none.className = "take";
+    none.type = "button";
+    none.textContent = s.none ? "Ничего не подошло ✓" : "Ничего не подошло";
+    none.setAttribute("aria-pressed", String(s.none));
+    none.addEventListener("click", () => {
+      const cur = structuredClone(get(ev.event));
+      cur.none = !cur.none;
+      if (cur.none) cur.picks = [];
+      commit(ev.event, cur);
+    });
+    const note = document.createElement("input");
+    note.type = "text";
+    note.id = "note-" + ev.event;
+    note.placeholder = "Заметка: чего не хватает, что подправить";
+    note.value = s.note || "";
+    note.setAttribute("aria-label", "Заметка к событию " + ev.label);
+    note.addEventListener("input", () => {
+      clearTimeout(noteTimers[ev.event]);
+      noteTimers[ev.event] = setTimeout(() => {
+        const cur = structuredClone(get(ev.event));
+        cur.note = note.value.trim();
+        commit(ev.event, cur, true);
+      }, 900);
+    });
+    foot.append(none, note);
+    sec.append(head, list, foot);
+    events.append(sec);
+  }
+  const decided = DATA.filter((ev) => get(ev.event).picks.length || get(ev.event).none).length;
+  document.getElementById("count").textContent = decided;
+  document.getElementById("total").textContent = DATA.length;
+  if (current) markPlaying(current.id, true);
+}
+
+// --- Плеер: один на страницу ---
+const audio = new Audio();
+let current = null;
+function markPlaying(id, on) {
+  for (const b of document.querySelectorAll('.play[data-id="' + id + '"]')) {
+    b.setAttribute("aria-pressed", String(on));
+    b.innerHTML = on ? STOP : PLAY;
+  }
+  if (!on) for (const i of document.querySelectorAll('.bar[data-id="' + id + '"] i')) i.style.width = "0";
+}
+function toggle(btn, c) {
+  if (current && current.id === c.id && !audio.paused) { audio.pause(); markPlaying(c.id, false); current = null; return; }
+  if (current) markPlaying(current.id, false);
+  current = c;
+  audio.src = c.src;
+  audio.currentTime = 0;
+  audio.play().then(() => markPlaying(c.id, true)).catch(() => { markPlaying(c.id, false); current = null; });
+}
+audio.addEventListener("timeupdate", () => {
+  if (!current || !audio.duration) return;
+  for (const i of document.querySelectorAll('.bar[data-id="' + current.id + '"] i')) i.style.width = (audio.currentTime / audio.duration * 100) + "%";
+});
+audio.addEventListener("ended", () => { if (current) markPlaying(current.id, false); current = null; });
+
+// --- Хранилище выбора ---
+function saveNote(text, bad) {
+  const el = document.getElementById("save");
+  el.textContent = text;
+  el.classList.toggle("bad", !!bad);
+}
+function localKey() { return "oskolki-sound-picks"; }
+function loadLocal() {
+  try { Object.assign(state, JSON.parse(localStorage.getItem(localKey()) || "{}")); } catch (e) { /* без хранилища */ }
+}
+function saveLocal() {
+  try { localStorage.setItem(localKey(), JSON.stringify(state)); } catch (e) { /* без хранилища */ }
+}
+function commit(ev, value, quiet) {
+  state[ev] = value;
+  saveLocal();
+  if (!quiet) render();
+  else {
+    const decided = DATA.filter((e) => get(e.event).picks.length || get(e.event).none).length;
+    document.getElementById("count").textContent = decided;
+  }
+  if (!db) return;
+  saveNote("Сохраняю…");
+  writing[ev] = (writing[ev] || Promise.resolve()).then(() =>
+    db.collection("picks").doc(ev).set({ picks: value.picks, none: value.none, note: value.note || "" })
+  ).then(() => saveNote("Выбор сохранён — Claude его видит."))
+   .catch(() => saveNote("Не сохранилось. Выбор остался только в этом браузере — напишите его в чат.", true));
+}
+
+loadLocal();
+render();
+(async () => {
+  db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+  if (!db) { saveNote("Хранилище недоступно в этом окне: выбор останется только в браузере — откройте страницу на claude.ai или напишите выбор в чат.", true); return; }
+  const timer = setTimeout(() => saveNote("Хранилище пока не отвечает — выбор может не дойти. Попробуйте позже.", true), 10000);
+  db.collection("picks").onSnapshot((snap) => {
+    if (!snap.metadata.fromCache) { clearTimeout(timer); saveNote("Выбор сохраняется автоматически — Claude его видит."); }
+    let changed = false;
+    for (const d of snap.docs) {
+      const v = d.data() || {};
+      const next = { picks: Array.isArray(v.picks) ? v.picks : [], none: !!v.none, note: typeof v.note === "string" ? v.note : "" };
+      if (JSON.stringify(next) !== JSON.stringify(get(d.id))) { state[d.id] = next; changed = true; }
+    }
+    if (changed) {
+      const active = document.activeElement && document.activeElement.id;
+      render();
+      if (active) { const el = document.getElementById(active); if (el) el.focus(); }
+    }
+  }, () => { clearTimeout(timer); saveNote("Связь с хранилищем оборвалась: новый выбор останется только в браузере.", true); });
+})();
+</script>
