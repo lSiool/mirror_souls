@@ -19,6 +19,8 @@
 gen3.bat char_poludnitsa "tall gaunt woman spirit of the noon field, long white linen shirt to the ground, long straw-blond hair, wreath of rye ears, pale thin arm holding a sickle, face hidden by hair"
 ```
 
+**Концепт утверждён (2026-11-20):** вариант A прогона r01 (FLUX 3 Klein, сид 1018305599) — [`art/concepts/characters/poludnitsa_front_v01.png`](../../../art/concepts/characters/poludnitsa_front_v01.png). Короткий серп в правой руке, лицо целиком под волосами, поза почти A — под риг. Отвергнуты: B (длинная рукоять — почти коса, другая дальность удара), C и D (открытое лицо, кирка или коса вместо серпа).
+
 ## Бой / поведение
 Код — `actors/enemies/poludnitsa.gd`, сцена — `build_enemies.py`. Фазы: прячется → встаёт → открыта → уходит.
 - **Во ржи прячется:** не видна, хёртбокс выключен, тело проходит сквозь героя. Идёт под колосьями (3,8 м/с) за спину героя; шум (вороны, стрела) слышит за 26 м и идёт к нему. Волна в колосьях — `RyeField.disturb`.
