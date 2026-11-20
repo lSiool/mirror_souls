@@ -58,12 +58,14 @@ EVENTS = {
                                     "pigeons flying"], (0.5, 5.0)),
     "chest_hiss": ("яд в замке сундука: шипение, игла", ["gas hiss", "steam release", "gas leak",
                                                          "air release"], (0.2, 2.5)),
-    "ambush_scratch": ("укрытие засады: скрип, царапанье", ["scratching wood", "wood scratch",
-                                                            "coffin creak", "rat scratching"], (0.2, 3.0)),
+    # Первый круг (scratching wood, wood scratch, coffin creak) автор отверг, 2026-11-20.
+    "ambush_scratch": ("укрытие засады: скрип, царапанье", ["claws scratching", "scratching door", "coffin open",
+                                                            "wooden box rattle", "rat scratching"], (0.2, 3.0)),
     "boulder_rumble": ("валун вот-вот сорвётся: гул, осыпь", ["earthquake rumble", "rock slide",
                                                               "rocks rumble", "rumble"], (1.0, 6.0)),
-    "boulder_crash": ("валун раскололся", ["rock impact", "rock crash", "stone break", "boulder"],
-                      (0.4, 4.0)),
+    # Первый круг (rock impact, rock crash, stone break, boulder) автор отверг, 2026-11-20.
+    "boulder_crash": ("валун раскололся", ["rock smash", "stone crumble", "rocks falling", "rock break",
+                                          "debris impact"], (0.4, 4.0)),
     "gas_blast": ("рудничный газ взорвался", ["gas explosion", "flame burst", "fire whoosh",
                                               "explosion muffled"], (0.6, 5.0)),
     "rye_rustle": ("шорох сухих колосьев", ["wheat rustle", "dry grass", "grass rustle",
